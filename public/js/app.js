@@ -57,6 +57,7 @@ function showStatsScreen() {
 }
 
 async function loadMatchListScreen() {
+  updateNavState('navMatches');
   showScreen('screenMatchList');
 
   const listEl = document.getElementById('matchListContainer');
@@ -265,6 +266,15 @@ async function saveMatchSettings() {
   renderLiveScoring();
 }
 
+async function wipeAllAppData() {
+  if (confirm("Are you sure you want to wipe all local app data?")) {
+    await window.CricStorage.resetAllData();
+    activeMatch = null;
+    activeTournament = null;
+    location.reload();
+  }
+}
+
 async function selectMatch(matchId) {
   activeMatch = await window.CricStorage.getMatch(matchId);
   if (!activeMatch) return;
@@ -274,7 +284,10 @@ async function selectMatch(matchId) {
 }
 
 function renderLiveScoring() {
-  if (!activeMatch) return;
+  if (!activeMatch) {
+    loadMatchListScreen();
+    return;
+  }
 
   const m = activeMatch;
   const isBattingA = m.battingTeamId === m.teamA?.id;
@@ -790,20 +803,7 @@ async function handleCreateTournament() {
   const tourney = {
     id: 'tourney_' + Date.now(),
     name,
-    teams: [
-      {
-        id: 'team_a_' + Date.now(),
-        name: 'Rockets',
-        colorHex: '#FF5722',
-        players: [{ id: 'pa1', name: 'Alice' }, { id: 'pa2', name: 'Bob' }]
-      },
-      {
-        id: 'team_b_' + Date.now(),
-        name: 'Thunder',
-        colorHex: '#2196F3',
-        players: [{ id: 'pb1', name: 'Eve' }, { id: 'pb2', name: 'Frank' }]
-      }
-    ]
+    teams: []
   };
 
   await window.CricStorage.saveTournament(tourney);
@@ -996,6 +996,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (matches && matches.length > 0) {
     selectMatch(matches[0].id);
   } else {
-    handleCreateMatch();
+    loadMatchListScreen();
   }
 });

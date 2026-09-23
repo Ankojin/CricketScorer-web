@@ -134,12 +134,72 @@ Resources:
                 - dynamodb:DeleteItem
               Resource: !GetAtt CricMatchesTable.Arn
       Events:
-        ProxyApiRoot:
+        GetMatches:
           Type: HttpApi
           Properties:
             ApiId: !Ref CricScoreHttpApi
-            Path: /{proxy+}
-            Method: ANY
+            Path: /matches
+            Method: GET
+        PostMatches:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /matches
+            Method: POST
+        GetMatchById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /matches/{id}
+            Method: GET
+        PutMatchById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /matches/{id}
+            Method: PUT
+        DeleteMatchById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /matches/{id}
+            Method: DELETE
+        GetTournaments:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /tournaments
+            Method: GET
+        PostTournaments:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /tournaments
+            Method: POST
+        DeleteTournaments:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /tournaments/{id}
+            Method: DELETE
+        GetPlayers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /players
+            Method: GET
+        PostPlayers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /players
+            Method: POST
+        DeletePlayers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /players/{id}
+            Method: DELETE
 
 Outputs:
   WebUrl:

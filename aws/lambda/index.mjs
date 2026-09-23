@@ -74,6 +74,14 @@ export const handler = async (event) => {
       return response(200, payload);
     }
 
+    if (method === 'DELETE' && path.startsWith('/matches/') && pathParams.id) {
+      await docClient.send(new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: { matchId: pathParams.id }
+      }));
+      return response(200, { message: 'Match deleted successfully' });
+    }
+
     // ------------------- TOURNAMENTS / SERIES ROUTES -------------------
     if (method === 'GET' && path === '/tournaments') {
       const data = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
@@ -95,12 +103,34 @@ export const handler = async (event) => {
       return response(201, payload);
     }
 
+    // Cascade Delete: Delete Tournament AND all associated matches
     if (method === 'DELETE' && path.startsWith('/tournaments/') && pathParams.id) {
+      const tourneyId = pathParams.id;
+
+      // 1. Scan for all matches associated with this tournament series
+      const scanData = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
+      const matchesToDelete = (scanData.Items || []).filter(item => {
+        const payload = item.payload || item;
+        return payload.tournamentId === tourneyId || item.tournamentId === tourneyId;
+      });
+
+      // 2. Delete each associated match item from DynamoDB
+      for (const matchItem of matchesToDelete) {
+        if (matchItem.matchId) {
+          await docClient.send(new DeleteCommand({
+            TableName: TABLE_NAME,
+            Key: { matchId: matchItem.matchId }
+          }));
+        }
+      }
+
+      // 3. Delete the tournament series item itself
       await docClient.send(new DeleteCommand({
         TableName: TABLE_NAME,
-        Key: { matchId: pathParams.id }
+        Key: { matchId: tourneyId }
       }));
-      return response(200, { message: 'Tournament deleted successfully' });
+
+      return response(200, { message: 'Tournament series and all associated match data deleted successfully' });
     }
 
     // ------------------- GLOBAL PLAYERS ROUTES -------------------

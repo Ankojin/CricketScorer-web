@@ -83,6 +83,21 @@ const CricStorage = {
     return this.saveLocalMatchBackup(match);
   },
 
+  async deleteMatch(matchId) {
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.warn('API deleteMatch failed:', err);
+      }
+    }
+
+    const matches = await this.listMatches();
+    const updated = matches.filter(m => m.id !== matchId);
+    localStorage.setItem('cric_matches', JSON.stringify(updated));
+    return updated;
+  },
+
   saveLocalMatchBackup(match) {
     const raw = localStorage.getItem('cric_matches');
     const matches = raw ? JSON.parse(raw) : [];
@@ -117,44 +132,14 @@ const CricStorage = {
         const res = await fetch(`${window.CRIC_API_BASE}/tournaments`);
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) return data;
+        return Array.isArray(data) ? data : [];
       } catch (err) {
         console.warn('API listTournaments failed, falling back to localStorage:', err);
       }
     }
 
     const raw = localStorage.getItem('cric_tournaments');
-    return raw ? JSON.parse(raw) : [
-      {
-        id: 'tourney_default',
-        name: 'Premier League 2025',
-        overs: 5,
-        teams: [
-          {
-            id: 'team_rockets',
-            name: 'Rockets',
-            colorHex: '#FF5722',
-            players: [
-              { id: 'pa1', name: 'Alice', role: 'Batter', style: 'RHB' },
-              { id: 'pa2', name: 'Bob', role: 'All-Rounder', style: 'LHB' },
-              { id: 'pa3', name: 'Charlie', role: 'Bowler', style: 'RHB' },
-              { id: 'pa4', name: 'David', role: 'Wicket-Keeper', style: 'RHB' }
-            ]
-          },
-          {
-            id: 'team_thunder',
-            name: 'Thunder',
-            colorHex: '#2196F3',
-            players: [
-              { id: 'pb1', name: 'Eve', role: 'Batter', style: 'LHB' },
-              { id: 'pb2', name: 'Frank', role: 'Bowler', style: 'RHB' },
-              { id: 'pb3', name: 'Grace', role: 'All-Rounder', style: 'RHB' },
-              { id: 'pb4', name: 'Henry', role: 'Bowler', style: 'RHB' }
-            ]
-          }
-        ]
-      }
-    ];
+    return raw ? JSON.parse(raw) : [];
   },
 
   async saveTournament(tournament) {
@@ -189,9 +174,17 @@ const CricStorage = {
     }
 
     const tourneys = await this.listTournaments();
-    const updated = tourneys.filter(t => t.id !== tournamentId);
-    localStorage.setItem('cric_tournaments', JSON.stringify(updated));
-    return updated;
+    const updatedTourneys = tourneys.filter(t => t.id !== tournamentId);
+    localStorage.setItem('cric_tournaments', JSON.stringify(updatedTourneys));
+
+    const rawMatches = localStorage.getItem('cric_matches');
+    if (rawMatches) {
+      const matches = JSON.parse(rawMatches);
+      const updatedMatches = matches.filter(m => m.tournamentId !== tournamentId);
+      localStorage.setItem('cric_matches', JSON.stringify(updatedMatches));
+    }
+
+    return updatedTourneys;
   },
 
   saveLocalTourneyBackup(tournament) {
@@ -202,28 +195,21 @@ const CricStorage = {
     return tournament;
   },
 
-  // ------------------- GLOBAL PLAYERS -------------------
+  // ------------------- GLOBAL PLAYERS & TEAMS -------------------
   async listGlobalPlayers() {
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/players`);
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) return data;
+        return Array.isArray(data) ? data : [];
       } catch (err) {
         console.warn('API listGlobalPlayers failed, falling back to localStorage:', err);
       }
     }
 
     const raw = localStorage.getItem('cric_global_players');
-    return raw ? JSON.parse(raw) : [
-      { id: 'gp1', name: 'Alice', style: 'RHB', role: 'Batter' },
-      { id: 'gp2', name: 'Bob', style: 'LHB', role: 'All-Rounder' },
-      { id: 'gp3', name: 'Charlie', style: 'RHB', role: 'Bowler' },
-      { id: 'gp4', name: 'David', style: 'RHB', role: 'Wicket-Keeper' },
-      { id: 'gp5', name: 'Eve', style: 'LHB', role: 'Batter' },
-      { id: 'gp6', name: 'Frank', style: 'RHB', role: 'Bowler' }
-    ];
+    return raw ? JSON.parse(raw) : [];
   },
 
   async addGlobalPlayer(player) {
@@ -269,6 +255,11 @@ const CricStorage = {
     const updated = [player, ...players.filter(p => p.id !== player.id)];
     localStorage.setItem('cric_global_players', JSON.stringify(updated));
     return player;
+  },
+
+  // Total Reset Function
+  async resetAllData() {
+    localStorage.clear();
   }
 };
 
