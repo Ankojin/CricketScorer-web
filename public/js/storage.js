@@ -1,4 +1,4 @@
-// Storage Adapter - Optimistic Local-First with Background AWS Cloud Sync
+// Storage Adapter - Optimistic Local-First with Background AWS Cloud Sync & Auth
 
 window.CRIC_API_BASE = window.CRIC_API_BASE || "";
 
@@ -10,6 +10,67 @@ const CricStorage = {
     if (typeof this.onToast === 'function') {
       this.onToast(msg, type);
     }
+  },
+
+  // ------------------- AUTH -------------------
+  async register(email, password, name) {
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('cric_auth_token', data.token);
+          localStorage.setItem('cric_auth_user', JSON.stringify(data.user));
+          return data.user;
+        }
+      } catch (err) {
+        console.warn('API register failed, registering locally:', err);
+      }
+    }
+
+    const user = { userId: 'user_' + Date.now(), email, name: name || email.split('@')[0] };
+    localStorage.setItem('cric_auth_token', 'token_local_' + Date.now());
+    localStorage.setItem('cric_auth_user', JSON.stringify(user));
+    return user;
+  },
+
+  async login(email, password) {
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('cric_auth_token', data.token);
+          localStorage.setItem('cric_auth_user', JSON.stringify(data.user));
+          return data.user;
+        }
+      } catch (err) {
+        console.warn('API login failed, logging in locally:', err);
+      }
+    }
+
+    const user = { userId: 'user_local', email, name: email.split('@')[0] };
+    localStorage.setItem('cric_auth_token', 'token_local');
+    localStorage.setItem('cric_auth_user', JSON.stringify(user));
+    return user;
+  },
+
+  logout() {
+    localStorage.removeItem('cric_auth_token');
+    localStorage.removeItem('cric_auth_user');
+  },
+
+  getCurrentUser() {
+    const raw = localStorage.getItem('cric_auth_user');
+    return raw ? JSON.parse(raw) : null;
   },
 
   // ------------------- MATCHES -------------------
@@ -26,7 +87,6 @@ const CricStorage = {
         if (res.ok) {
           const remoteMatches = await res.json();
           if (Array.isArray(remoteMatches)) {
-            // Merge local & remote matches using last-updated-wins strategy
             const matchMap = new Map();
             localMatches.forEach(m => matchMap.set(m.id, m));
 
@@ -51,6 +111,15 @@ const CricStorage = {
   },
 
   async getMatch(matchId) {
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`);
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('API getMatch unreachable, using local storage:', err);
+      }
+    }
+
     const matches = await this.listMatches();
     return matches.find(m => m.id === matchId) || null;
   },
@@ -59,10 +128,8 @@ const CricStorage = {
     if (!match.id) match.id = 'match_' + Date.now();
     match.updatedAt = new Date().toISOString();
 
-    // 1. Optimistic local write
     this.saveLocalMatchBackup(match);
 
-    // 2. Background Cloud Sync
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       fetch(`${window.CRIC_API_BASE}/matches`, {
         method: 'POST',
@@ -87,10 +154,8 @@ const CricStorage = {
   async saveMatch(match) {
     match.updatedAt = new Date().toISOString();
 
-    // 1. Optimistic local write
     this.saveLocalMatchBackup(match);
 
-    // 2. Background Cloud Sync
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       fetch(`${window.CRIC_API_BASE}/matches/${match.id}`, {
         method: 'PUT',
@@ -148,37 +213,13 @@ const CricStorage = {
     return await this.saveMatch(recalculated);
   },
 
-  // ------------------- TEAMS LAYER (Requirement 4) -------------------
+  // ------------------- TEAMS LAYER -------------------
   async listTeams() {
     const raw = localStorage.getItem('cric_teams');
     if (raw) {
       try { return JSON.parse(raw); } catch (e) { }
     }
-
-    return [
-      {
-        id: 'team_rockets',
-        name: 'Rockets',
-        colorHex: '#FF5722',
-        players: [
-          { id: 'pa1', name: 'Alice', role: 'Batter', style: 'RHB' },
-          { id: 'pa2', name: 'Bob', role: 'All-Rounder', style: 'LHB' },
-          { id: 'pa3', name: 'Charlie', role: 'Bowler', style: 'RHB' },
-          { id: 'pa4', name: 'David', role: 'Wicket-Keeper', style: 'RHB' }
-        ]
-      },
-      {
-        id: 'team_thunder',
-        name: 'Thunder',
-        colorHex: '#2196F3',
-        players: [
-          { id: 'pb1', name: 'Eve', role: 'Batter', style: 'LHB' },
-          { id: 'pb2', name: 'Frank', role: 'Bowler', style: 'RHB' },
-          { id: 'pb3', name: 'Grace', role: 'All-Rounder', style: 'RHB' },
-          { id: 'pb4', name: 'Henry', role: 'Bowler', style: 'RHB' }
-        ]
-      }
-    ];
+    return []; // Clean empty array when no teams exist
   },
 
   async saveTeam(team) {

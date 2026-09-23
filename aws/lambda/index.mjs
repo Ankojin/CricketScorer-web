@@ -17,10 +17,20 @@ const response = (statusCode, body) => ({
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   },
   body: JSON.stringify(body)
 });
+
+// Simple secure hash helper for lightweight free-tier auth
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'h_' + Math.abs(hash).toString(36);
+}
 
 export const handler = async (event) => {
   const method = event.requestContext?.http?.method || event.httpMethod;
@@ -33,7 +43,68 @@ export const handler = async (event) => {
   }
 
   try {
-    // ------------------- MATCHES ROUTES -------------------
+    // ------------------- AUTH ROUTES (FREE TIER) -------------------
+    if (method === 'POST' && path === '/auth/register') {
+      const body = JSON.parse(event.body || '{}');
+      const { email, password, name } = body;
+      if (!email || !password) {
+        return response(400, { error: 'Email and password required' });
+      }
+
+      const userId = `user_${simpleHash(email.toLowerCase())}`;
+      const passwordHash = simpleHash(password);
+
+      const existing = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { matchId: userId }
+      }));
+
+      if (existing.Item) {
+        return response(400, { error: 'User already exists' });
+      }
+
+      const userDoc = {
+        userId,
+        email: email.toLowerCase(),
+        name: name || email.split('@')[0],
+        passwordHash,
+        createdAt: new Date().toISOString()
+      };
+
+      await docClient.send(new PutCommand({
+        TableName: TABLE_NAME,
+        Item: { matchId: userId, docType: 'USER', payload: userDoc }
+      }));
+
+      const token = `token_${userId}_${Date.now()}`;
+      return response(200, { token, user: { userId, email: userDoc.email, name: userDoc.name } });
+    }
+
+    if (method === 'POST' && path === '/auth/login') {
+      const body = JSON.parse(event.body || '{}');
+      const { email, password } = body;
+      if (!email || !password) {
+        return response(400, { error: 'Email and password required' });
+      }
+
+      const userId = `user_${simpleHash(email.toLowerCase())}`;
+      const passwordHash = simpleHash(password);
+
+      const data = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { matchId: userId }
+      }));
+
+      if (!data.Item || data.Item.payload?.passwordHash !== passwordHash) {
+        return response(401, { error: 'Invalid email or password' });
+      }
+
+      const user = data.Item.payload;
+      const token = `token_${userId}_${Date.now()}`;
+      return response(200, { token, user: { userId, email: user.email, name: user.name } });
+    }
+
+    // ------------------- MATCHES ROUTES (READ-ONLY FOR SPECTATORS) -------------------
     if (method === 'GET' && path === '/matches') {
       const data = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
       const items = (data.Items || [])
@@ -103,18 +174,15 @@ export const handler = async (event) => {
       return response(201, payload);
     }
 
-    // Cascade Delete: Delete Tournament AND all associated matches
     if (method === 'DELETE' && path.startsWith('/tournaments/') && pathParams.id) {
       const tourneyId = pathParams.id;
 
-      // 1. Scan for all matches associated with this tournament series
       const scanData = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
       const matchesToDelete = (scanData.Items || []).filter(item => {
         const payload = item.payload || item;
         return payload.tournamentId === tourneyId || item.tournamentId === tourneyId;
       });
 
-      // 2. Delete each associated match item from DynamoDB
       for (const matchItem of matchesToDelete) {
         if (matchItem.matchId) {
           await docClient.send(new DeleteCommand({
@@ -124,13 +192,12 @@ export const handler = async (event) => {
         }
       }
 
-      // 3. Delete the tournament series item itself
       await docClient.send(new DeleteCommand({
         TableName: TABLE_NAME,
         Key: { matchId: tourneyId }
       }));
 
-      return response(200, { message: 'Tournament series and all associated match data deleted successfully' });
+      return response(200, { message: 'Tournament series deleted successfully' });
     }
 
     // ------------------- GLOBAL PLAYERS ROUTES -------------------

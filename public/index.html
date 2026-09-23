@@ -12,12 +12,13 @@
 
   <!-- Top App Header -->
   <header class="app-header">
-    <div class="app-title">
+    <div class="app-title" onclick="showLandingScreen()">
       🏏 CricScore Pro
     </div>
     <div style="display:flex; align-items:center; gap:8px;">
+      <button id="authBtn" class="nav-btn" style="background:#3b82f6;" onclick="openAuthModal()">🔑 Sign In</button>
       <button class="nav-btn" style="background:#334155;" onclick="openMatchSettingsModal()">⚙️ Settings</button>
-      <span id="syncBadge" class="status-badge online">🟢 AWS Sync</span>
+      <span id="syncBadge" class="status-badge online">🟢 Sync Active</span>
     </div>
   </header>
 
@@ -25,6 +26,32 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <div class="container">
+
+    <!-- Screen 0: Landing Home Screen (Auth vs Guest Choice) -->
+    <div id="screenLanding" class="screen active">
+      <div class="card landing-card">
+        <div style="font-size:48px; margin-bottom:12px;">🏏</div>
+        <h2 class="landing-title">CricScore Pro</h2>
+        <p class="landing-subtitle">
+          Professional Cricket Scorer & Live Scoreboard
+        </p>
+
+        <div class="landing-btn-group">
+          <button class="btn-primary" style="padding:16px; font-size:16px;" onclick="openAuthModal('REGISTER')">
+            📝 Register / Sign In
+          </button>
+
+          <button class="btn" style="background:#334155; padding:14px; font-size:14px; color:#f8fafc;" onclick="continueAsGuest()">
+            👤 Continue as Guest
+          </button>
+        </div>
+
+        <div style="margin-top:20px; font-size:11px; color:var(--text-muted); line-height:1.5;">
+          <b>Registered Users</b>: Matches, Series, and Player stats persist permanently.<br>
+          <b>Guest Users</b>: Offline scoring stored temporarily in local storage.
+        </div>
+      </div>
+    </div>
 
     <!-- Screen 1: Saved Matches List -->
     <div id="screenMatchList" class="screen">
@@ -35,7 +62,7 @@
       <div id="matchListContainer"></div>
     </div>
 
-    <!-- Screen 2: New Match Setup (Team Reuse & Config) -->
+    <!-- Screen 2: New Match Setup -->
     <div id="screenNewMatch" class="screen">
       <div class="card">
         <h3 style="margin-bottom:14px;">Create New Match</h3>
@@ -48,7 +75,7 @@
 
         <div class="form-group">
           <label for="teamAName">Team A Name</label>
-          <input type="text" id="teamAName" class="form-control" value="Rockets">
+          <input type="text" id="teamAName" class="form-control" placeholder="e.g. Rockets">
         </div>
         <div class="form-group">
           <label for="teamAColor">Team A Color</label>
@@ -56,7 +83,7 @@
         </div>
         <div class="form-group">
           <label for="teamAPlayers">Team A Players (comma separated)</label>
-          <input type="text" id="teamAPlayers" class="form-control" value="Alice, Bob, Charlie, David">
+          <input type="text" id="teamAPlayers" class="form-control" placeholder="e.g. Alice, Bob, Charlie, David">
         </div>
 
         <hr style="border-color:var(--card-border); margin:16px 0;">
@@ -69,7 +96,7 @@
 
         <div class="form-group">
           <label for="teamBName">Team B Name</label>
-          <input type="text" id="teamBName" class="form-control" value="Thunder">
+          <input type="text" id="teamBName" class="form-control" placeholder="e.g. Thunder">
         </div>
         <div class="form-group">
           <label for="teamBColor">Team B Color</label>
@@ -77,7 +104,7 @@
         </div>
         <div class="form-group">
           <label for="teamBPlayers">Team B Players (comma separated)</label>
-          <input type="text" id="teamBPlayers" class="form-control" value="Eve, Frank, Grace, Henry">
+          <input type="text" id="teamBPlayers" class="form-control" placeholder="e.g. Eve, Frank, Grace, Henry">
         </div>
 
         <hr style="border-color:var(--card-border); margin:16px 0;">
@@ -101,7 +128,12 @@
     </div>
 
     <!-- Screen 3: Live Scoring (Main App Screen) -->
-    <div id="screenLiveScoring" class="screen active">
+    <div id="screenLiveScoring" class="screen">
+
+      <!-- Spectator Read-Only Mode Banner -->
+      <div id="spectatorBanner" class="card" style="background:#064e3b; border-color:#059669; color:#a7f3d0; font-weight:700; display:none; text-align:center;">
+        👀 Spectator Live Viewer Mode (Read-Only)
+      </div>
 
       <!-- Completed Match Summary Card -->
       <div id="completedMatchCard" class="completed-summary-card" style="display:none;">
@@ -121,6 +153,11 @@
         </div>
         <div id="targetBanner" class="target-banner" style="display:none;">Target: 0</div>
         <div id="recentBalls" class="recent-balls"></div>
+
+        <!-- WhatsApp Live Score Sharing Button -->
+        <button id="shareWhatsAppBtn" class="btn" style="background:#25d366; color:#000; font-size:13px; font-weight:800; width:100%; margin-top:12px; padding:10px;" onclick="shareLiveScoreWhatsApp()">
+          📲 Share Live Score on WhatsApp
+        </button>
       </div>
 
       <!-- Active Batters Card -->
@@ -169,7 +206,7 @@
       </div>
 
       <!-- Live Scoring Keypad -->
-      <div class="keypad-grid">
+      <div id="scoringKeypad" class="keypad-grid">
         <button class="btn btn-run" onclick="addBall(0)">0</button>
         <button class="btn btn-run" onclick="addBall(1)">1</button>
         <button class="btn btn-run" onclick="addBall(2)">2</button>
@@ -196,7 +233,7 @@
       </div>
     </div>
 
-    <!-- Screen 5: Overs Breakdown Timeline (OversViews.kt) -->
+    <!-- Screen 5: Overs Breakdown Timeline -->
     <div id="screenOvers" class="screen">
       <div class="card">
         <h3 style="margin-bottom:12px;">Over-By-Over Breakdown</h3>
@@ -221,7 +258,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3>Teams & Global Players</h3>
           <div>
-            <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; margin-right:4px;" onclick="openNewTeamModal()">+ New Team</button>
+            <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; margin-right:4px;" onclick="openNewTeamModal()">+ Add Team</button>
             <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; background:#10b981;" onclick="openNewPlayerModal()">+ Add Player</button>
           </div>
         </div>
@@ -239,26 +276,52 @@
 
   </div>
 
-  <!-- End of Over Popup Modal -->
-  <div id="overEndModal" class="modal-overlay">
-    <div class="modal" style="text-align:center;">
-      <h3 id="overEndTitle" style="color:var(--accent-color); font-size:20px; font-weight:900; margin-bottom:8px;">End of Over 1</h3>
-      <div id="overEndBody" style="font-size:15px; font-weight:600; margin-bottom:16px;">
-        Runs in Over: 12 | Wickets: 1
+  <!-- Sign In / Register Auth Modal -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom:12px; text-align:center;">🔑 Sign In / Register Scorer</h3>
+      <div style="display:flex; gap:6px; margin-bottom:14px; background:#0f172a; padding:4px; border-radius:8px;">
+        <button id="authTabLogin" class="btn" style="flex:1; padding:6px; font-size:12px; background:var(--primary-color)" onclick="switchAuthTab('LOGIN')">Sign In</button>
+        <button id="authTabRegister" class="btn" style="flex:1; padding:6px; font-size:12px; background:transparent" onclick="switchAuthTab('REGISTER')">Register</button>
       </div>
-      <div id="overEndBowlerStats" style="font-size:13px; color:var(--text-muted); margin-bottom:20px; background:#0f172a; padding:10px; border-radius:8px;">
-        Charlie: 1.0 - 0 - 12 - 1
+
+      <div class="form-group" id="authNameGroup" style="display:none;">
+        <label for="authName">Full Name</label>
+        <input type="text" id="authName" class="form-control" placeholder="e.g. Scorer Bob">
       </div>
-      <button class="btn-primary" onclick="closeOverEndModal()">Continue Match</button>
+      <div class="form-group">
+        <label for="authEmail">Email Address</label>
+        <input type="email" id="authEmail" class="form-control" placeholder="scorer@example.com">
+      </div>
+      <div class="form-group">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" class="form-control" placeholder="••••••••">
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:20px;">
+        <button class="btn-primary" onclick="handleAuthSubmit()">Submit</button>
+        <button class="btn" style="background:#334155;" onclick="closeAuthModal()">Cancel</button>
+      </div>
     </div>
   </div>
 
-  <!-- Toss Modal -->
+  <!-- Toss Modal with Interactive Coin Flip Animation -->
   <div id="tossModal" class="modal-overlay">
-    <div class="modal">
-      <h3 style="margin-bottom:12px; text-align:center;">🪙 Match Toss & Decision</h3>
+    <div class="modal" style="text-align:center;">
+      <h3 style="margin-bottom:8px;">🪙 Match Toss & Decision</h3>
 
-      <div class="form-group">
+      <!-- Animated Coin Box -->
+      <div class="coin-flip-box">
+        <img id="coinImg" class="coin-flip-img" src="img/coin_heads.png" alt="Coin Toss">
+      </div>
+
+      <button class="btn" style="background:#78350f; color:#fde047; font-size:13px; font-weight:800; padding:8px 16px; margin-bottom:14px;" onclick="spinCoinFlip()">
+        🪙 Flip Coin!
+      </button>
+
+      <div id="tossResultText" style="font-size:14px; font-weight:800; color:var(--accent-color); margin-bottom:14px; min-height:20px;"></div>
+
+      <div class="form-group" style="text-align:left;">
         <label>Who won the toss?</label>
         <div style="display:flex; gap:8px;">
           <button id="tossBtnTeamA" class="btn" style="flex:1; font-size:14px;" onclick="selectTossWinner('teamA')">Team A</button>
@@ -266,7 +329,7 @@
         </div>
       </div>
 
-      <div class="form-group" style="margin-top:16px;">
+      <div class="form-group" style="margin-top:16px; text-align:left;">
         <label>Toss Decision</label>
         <div style="display:flex; gap:8px;">
           <button id="tossBtnBat" class="btn" style="flex:1; font-size:14px;" onclick="selectTossDecision('BAT')">🏏 Bat First</button>
@@ -274,7 +337,10 @@
         </div>
       </div>
 
-      <button class="btn-primary" style="margin-top:20px;" onclick="confirmTossAndStart()">Start Match Live</button>
+      <div style="display:flex; gap:8px; margin-top:20px;">
+        <button class="btn-primary" style="flex:2;" onclick="confirmTossAndStart()">Start Match Live</button>
+        <button class="btn" style="background:#334155; flex:1;" onclick="closeTossModal()">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -335,7 +401,7 @@
     </div>
   </div>
 
-  <!-- Improved Bowler Selection Modal (Gully Crix style) -->
+  <!-- Player Selection Modal -->
   <div id="selectionModal" class="modal-overlay">
     <div class="modal">
       <h3 id="selectionTitle" style="margin-bottom:12px;">Select Player</h3>
@@ -418,8 +484,8 @@
     </div>
   </div>
 
-  <!-- Bottom Navigation Bar -->
-  <nav class="bottom-nav">
+  <!-- Bottom Navigation Bar (Hidden on Landing Screen) -->
+  <nav id="bottomNav" class="bottom-nav" style="display:none;">
     <div class="bottom-nav-item active" id="navLive" onclick="showLiveScreen()">
       <div class="bottom-nav-icon">🏏</div>
       <span>Live</span>

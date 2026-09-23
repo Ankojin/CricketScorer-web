@@ -8,6 +8,10 @@ let currentSelectionType = null; // STRIKER, NON_STRIKER, BOWLER
 let selectedTossWinnerId = null;
 let selectedTossDecision = 'BAT';
 
+let authTab = 'LOGIN'; // LOGIN or REGISTER
+let isReadOnlySpectator = false;
+let spectatorPollInterval = null;
+
 // Toast Notification System
 function showToast(msg, type = 'info') {
   const container = document.getElementById('toastContainer');
@@ -27,9 +31,141 @@ function showToast(msg, type = 'info') {
 
 window.CricStorage.onToast = showToast;
 
+function updateBottomNavVisibility(screenId) {
+  const bottomNav = document.getElementById('bottomNav');
+  if (!bottomNav) return;
+  if (screenId === 'screenLanding') {
+    bottomNav.style.display = 'none';
+  } else {
+    bottomNav.style.display = 'flex';
+  }
+}
+
+function showScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const screen = document.getElementById(screenId);
+  if (screen) screen.classList.add('active');
+  updateBottomNavVisibility(screenId);
+}
+
+// Landing & Guest Mode Handlers
+function showLandingScreen() {
+  showScreen('screenLanding');
+}
+
+function continueAsGuest() {
+  localStorage.setItem('cric_user_mode', 'GUEST');
+  updateAuthUI();
+  showToast('Entered Guest Mode (Temporary Local Scoring)', 'info');
+  loadMatchListScreen();
+}
+
+// Auth UI Controller
+function openAuthModal(defaultTab = 'LOGIN') {
+  const user = window.CricStorage.getCurrentUser();
+  if (user) {
+    if (confirm(`Logged in as ${user.email}. Do you want to sign out?`)) {
+      window.CricStorage.logout();
+      localStorage.removeItem('cric_user_mode');
+      updateAuthUI();
+      showToast('Signed out successfully', 'info');
+      showLandingScreen();
+    }
+  } else {
+    switchAuthTab(defaultTab);
+    document.getElementById('authModal').classList.add('active');
+  }
+}
+
+function closeAuthModal() {
+  document.getElementById('authModal').classList.remove('active');
+}
+
+function switchAuthTab(tab) {
+  authTab = tab;
+  document.getElementById('authTabLogin').style.background = tab === 'LOGIN' ? 'var(--primary-color)' : 'transparent';
+  document.getElementById('authTabRegister').style.background = tab === 'REGISTER' ? 'var(--primary-color)' : 'transparent';
+  document.getElementById('authNameGroup').style.display = tab === 'REGISTER' ? 'block' : 'none';
+}
+
+async function handleAuthSubmit() {
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const name = document.getElementById('authName').value;
+
+  if (!email || !password) {
+    showToast('Please enter email and password', 'warning');
+    return;
+  }
+
+  try {
+    if (authTab === 'REGISTER') {
+      const user = await window.CricStorage.register(email, password, name);
+      localStorage.setItem('cric_user_mode', 'REGISTERED');
+      showToast(`Welcome, ${user.name}! Registered & synced to AWS Cloud`, 'success');
+    } else {
+      const user = await window.CricStorage.login(email, password);
+      localStorage.setItem('cric_user_mode', 'REGISTERED');
+      showToast(`Welcome back, ${user.name}!`, 'success');
+    }
+    closeAuthModal();
+    updateAuthUI();
+    loadMatchListScreen();
+  } catch (err) {
+    showToast(`Auth error: ${err.message}`, 'danger');
+  }
+}
+
+function updateAuthUI() {
+  const user = window.CricStorage.getCurrentUser();
+  const btn = document.getElementById('authBtn');
+  const syncBadge = document.getElementById('syncBadge');
+
+  if (user) {
+    if (btn) {
+      btn.innerText = `👤 ${user.name || user.email.split('@')[0]}`;
+      btn.style.background = '#064e3b';
+    }
+    if (syncBadge) {
+      syncBadge.className = 'status-badge online';
+      syncBadge.innerText = `🟢 Sync: ${user.name || 'User'}`;
+    }
+  } else {
+    const isGuest = localStorage.getItem('cric_user_mode') === 'GUEST';
+    if (btn) {
+      btn.innerText = '🔑 Sign In';
+      btn.style.background = '#3b82f6';
+    }
+    if (syncBadge) {
+      if (isGuest) {
+        syncBadge.className = 'status-badge guest';
+        syncBadge.innerText = '🟡 Guest Mode';
+      } else {
+        syncBadge.className = 'status-badge';
+        syncBadge.innerText = '⚪ Sync Inactive';
+      }
+    }
+  }
+}
+
+// WhatsApp Live Score Sharing & Spectator Mode
+function shareLiveScoreWhatsApp() {
+  if (!activeMatch) return;
+
+  const m = activeMatch;
+  const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
+  const scoreStr = `${m.totalRuns || 0}/${m.totalWickets || 0} (${overStr} Ov)`;
+  const matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}`;
+
+  const text = `🏏 *Live Cricket Score*\n*${m.teamA?.name} vs ${m.teamB?.name}*\nScore: *${scoreStr}*\nStatus: ${m.status || 'LIVE'}\n\n👇 *Watch Live Score Updates here:*\n${matchUrl}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+
+  window.open(whatsappUrl, '_blank');
+}
+
 // Multi-Tab Persistence Sync
 window.addEventListener('storage', (e) => {
-  if (e.key === 'cric_matches' && activeMatch) {
+  if (e.key === 'cric_matches' && activeMatch && !isReadOnlySpectator) {
     window.CricStorage.getMatch(activeMatch.id).then(updated => {
       if (updated && updated.updatedAt !== activeMatch.updatedAt) {
         activeMatch = window.ScoringEngine.recalculateMatch(updated);
@@ -43,12 +179,6 @@ function updateNavState(activeNavId) {
   document.querySelectorAll('.bottom-nav-item').forEach(nav => nav.classList.remove('active'));
   const activeNav = document.getElementById(activeNavId);
   if (activeNav) activeNav.classList.add('active');
-}
-
-function showScreen(screenId) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const screen = document.getElementById(screenId);
-  if (screen) screen.classList.add('active');
 }
 
 function showLiveScreen() {
@@ -132,7 +262,6 @@ async function loadMatchListScreen() {
 async function showNewMatchScreen() {
   showScreen('screenNewMatch');
 
-  // Populate Team Reuse Selector (Requirement 4)
   const teams = await window.CricStorage.listTeams();
   const selectA = document.getElementById('selectTeamA');
   const selectB = document.getElementById('selectTeamB');
@@ -180,13 +309,13 @@ async function onSelectTeamBChange() {
 }
 
 async function handleCreateMatch() {
-  const teamAName = document.getElementById('teamAName').value || 'Rockets';
+  const teamAName = document.getElementById('teamAName').value || 'Team A';
   const teamAColor = document.getElementById('teamAColor').value || '#FF5722';
-  const teamAPlayersStr = document.getElementById('teamAPlayers').value || 'Alice, Bob, Charlie, David';
+  const teamAPlayersStr = document.getElementById('teamAPlayers').value || 'Player 1, Player 2, Player 3, Player 4';
 
-  const teamBName = document.getElementById('teamBName').value || 'Thunder';
+  const teamBName = document.getElementById('teamBName').value || 'Team B';
   const teamBColor = document.getElementById('teamBColor').value || '#2196F3';
-  const teamBPlayersStr = document.getElementById('teamBPlayers').value || 'Eve, Frank, Grace, Henry';
+  const teamBPlayersStr = document.getElementById('teamBPlayers').value || 'Player 1, Player 2, Player 3, Player 4';
 
   const overs = parseInt(document.getElementById('matchOvers').value) || 5;
   const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers').value) || 2;
@@ -252,8 +381,40 @@ function openTossModal() {
   selectedTossWinnerId = activeMatch.teamA.id;
   selectedTossDecision = 'BAT';
 
+  document.getElementById('tossResultText').innerText = '';
+  document.getElementById('coinImg').src = 'img/coin_heads.png';
+
   updateTossButtonsUI();
   document.getElementById('tossModal').classList.add('active');
+}
+
+function closeTossModal() {
+  document.getElementById('tossModal').classList.remove('active');
+}
+
+function spinCoinFlip() {
+  const coinImg = document.getElementById('coinImg');
+  const resultText = document.getElementById('tossResultText');
+
+  coinImg.classList.add('spinning');
+  resultText.innerText = 'Flipping coin... 🪙';
+
+  setTimeout(() => {
+    const isHeads = Math.random() < 0.5;
+    coinImg.classList.remove('spinning');
+
+    if (isHeads) {
+      coinImg.src = 'img/coin_heads.png';
+      selectedTossWinnerId = activeMatch.teamA.id;
+      resultText.innerText = `🪙 Result: HEADS! (${activeMatch.teamA.name} won the toss)`;
+    } else {
+      coinImg.src = 'img/coin_tails.png';
+      selectedTossWinnerId = activeMatch.teamB.id;
+      resultText.innerText = `🪙 Result: TAILS! (${activeMatch.teamB.name} won the toss)`;
+    }
+
+    updateTossButtonsUI();
+  }, 1200);
 }
 
 function selectTossWinner(teamKey) {
@@ -288,9 +449,14 @@ async function confirmTossAndStart() {
   activeMatch.tossDecision = selectedTossDecision;
   activeMatch.status = 'LIVE';
 
-  const teamABats = activeMatch.tossWinnerId === activeMatch.teamA.id ? selectedTossDecision === 'BAT' : selectedTossDecision === 'BOWL';
+  // Android ScoringEngine.kt Toss Logic
+  const teamABats = (selectedTossWinnerId === activeMatch.teamA.id && selectedTossDecision === 'BAT') ||
+                    (selectedTossWinnerId === activeMatch.teamB.id && selectedTossDecision === 'BOWL');
+
   activeMatch.battingTeamId = teamABats ? activeMatch.teamA.id : activeMatch.teamB.id;
   activeMatch.bowlingTeamId = teamABats ? activeMatch.teamB.id : activeMatch.teamA.id;
+  activeMatch.initialBattingTeamId = activeMatch.battingTeamId;
+  activeMatch.initialBowlingTeamId = activeMatch.bowlingTeamId;
 
   const batTeam = teamABats ? activeMatch.teamA : activeMatch.teamB;
   const bowlTeam = teamABats ? activeMatch.teamB : activeMatch.teamA;
@@ -371,6 +537,17 @@ function renderLiveScoring() {
   const battingTeam = isBattingA ? m.teamA : m.teamB;
   const bowlingTeam = isBattingA ? m.teamB : m.teamA;
 
+  // Spectator Banner & Keypad Hiding
+  const spectatorBanner = document.getElementById('spectatorBanner');
+  const scoringKeypad = document.getElementById('scoringKeypad');
+  if (isReadOnlySpectator) {
+    if (spectatorBanner) spectatorBanner.style.display = 'block';
+    if (scoringKeypad) scoringKeypad.style.display = 'none';
+  } else {
+    if (spectatorBanner) spectatorBanner.style.display = 'none';
+    if (scoringKeypad) scoringKeypad.style.display = 'grid';
+  }
+
   // Last Saved Tag
   const lastSavedTag = document.getElementById('lastSavedTag');
   if (lastSavedTag) {
@@ -378,7 +555,7 @@ function renderLiveScoring() {
     lastSavedTag.innerText = `Saved ${timeStr}`;
   }
 
-  // Completed Match Summary Card (Requirement 2)
+  // Completed Match Summary Card
   const completedCard = document.getElementById('completedMatchCard');
   if (m.status === 'COMPLETED') {
     completedCard.style.display = 'block';
@@ -413,14 +590,14 @@ function renderLiveScoring() {
     const remBalls = (m.oversPerInnings * 6) - m.totalBalls;
     const rrr = remBalls > 0 && remRuns > 0 ? ((remRuns / remBalls) * 6).toFixed(2) : '0.00';
     targetBanner.style.display = 'block';
-    targetBanner.innerText = `Target: ${m.target} (Need ${remRuns} runs off ${remBalls} balls, RRR: ${rrr})`;
+    targetBanner.innerText = `Target: ${m.target} (Need ${remRuns} runs in ${remBalls} balls)`;
     document.getElementById('rrrText').innerText = `RRR: ${rrr}`;
   } else {
     targetBanner.style.display = 'none';
     document.getElementById('rrrText').innerText = `RRR: -`;
   }
 
-  // Recent Balls Chips (Requirement 3)
+  // Recent Balls Chips
   const recentContainer = document.getElementById('recentBalls');
   recentContainer.innerHTML = '';
   const history = m.ballHistory || [];
@@ -511,7 +688,7 @@ function renderLiveScoring() {
 
   // Action Prompt Banner
   const actionBanner = document.getElementById('actionBanner');
-  if (m.pendingAction && m.pendingAction !== 'NONE') {
+  if (m.pendingAction && m.pendingAction !== 'NONE' && !isReadOnlySpectator) {
     actionBanner.style.display = 'block';
     actionBanner.innerText = `Pending Action: ${m.pendingAction.replace(/_/g, ' ')}`;
     promptPendingAction(m.pendingAction);
@@ -526,8 +703,8 @@ function promptPendingAction(action) {
   else if (action === 'SELECT_BOWLER') openPlayerSelection('BOWLER');
 }
 
-// Improved Bowler Selection Flow (Gully Crix style - Requirement 3)
 function openPlayerSelection(type) {
+  if (isReadOnlySpectator) return;
   currentSelectionType = type;
   const m = activeMatch;
   if (!m) return;
@@ -570,7 +747,6 @@ function openPlayerSelection(type) {
     });
 
   } else {
-    // Striker / Non-Striker selection
     title.innerText = `Select ${type === 'STRIKER' ? 'Striker' : 'Non-Striker'}`;
     dropdownGroup.style.display = 'block';
     confirmBtn.style.display = 'block';
@@ -590,7 +766,7 @@ function openPlayerSelection(type) {
 }
 
 async function selectBowlerDirect(bowlerId) {
-  if (!activeMatch) return;
+  if (!activeMatch || isReadOnlySpectator) return;
   const adjustmentBall = {
     isAdjustment: true,
     adjustmentSlot: 'BOWLER',
@@ -610,7 +786,7 @@ async function selectBowlerDirect(bowlerId) {
 async function confirmPlayerSelection() {
   const select = document.getElementById('selectionDropdown');
   const selectedId = select.value;
-  if (!selectedId || !activeMatch) return;
+  if (!selectedId || !activeMatch || isReadOnlySpectator) return;
 
   const slot = currentSelectionType;
   const adjustmentBall = {
@@ -632,7 +808,7 @@ async function confirmPlayerSelection() {
 }
 
 async function addBall(runs) {
-  if (!activeMatch) return;
+  if (!activeMatch || isReadOnlySpectator) return;
   const ball = {
     runs,
     extrasType: 'NONE',
@@ -646,7 +822,6 @@ async function addBall(runs) {
   const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
 
-  // End-of-Over Popup Detection (Requirement 3)
   const newBalls = activeMatch.totalBalls || 0;
   if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
     checkAndShowOverEndModal();
@@ -656,7 +831,7 @@ async function addBall(runs) {
 }
 
 async function addExtra(type) {
-  if (!activeMatch) return;
+  if (!activeMatch || isReadOnlySpectator) return;
   const ball = {
     runs: 0,
     extrasType: type,
@@ -672,7 +847,7 @@ async function addExtra(type) {
 }
 
 async function addGrantedRun() {
-  if (!activeMatch) return;
+  if (!activeMatch || isReadOnlySpectator) return;
   const ball = {
     runs: 1,
     extrasType: "GRANTED",
@@ -697,7 +872,7 @@ async function addGrantedRun() {
 }
 
 async function swapBatsmen() {
-  if (!activeMatch) return;
+  if (!activeMatch || isReadOnlySpectator) return;
   const ball = {
     isAdjustment: true,
     adjustmentSlot: "SWAP",
@@ -737,6 +912,7 @@ function closeOverEndModal() {
 }
 
 function openWicketModal() {
+  if (isReadOnlySpectator) return;
   document.getElementById('wicketModal').classList.add('active');
 }
 
@@ -745,7 +921,7 @@ function closeWicketModal() {
 }
 
 async function submitWicket() {
-  if (!activeMatch) return;
+  if (!activeMatch || isReadOnlySpectator) return;
   const type = document.getElementById('wicketTypeSelect').value;
   const ball = {
     runs: 0,
@@ -764,7 +940,7 @@ async function submitWicket() {
 }
 
 async function undoLastBall() {
-  if (!activeMatch) return;
+  if (!activeMatch || isReadOnlySpectator) return;
   activeMatch = await window.CricStorage.undoBall(activeMatch.id);
   renderLiveScoring();
 }
@@ -1171,10 +1347,42 @@ async function renderStats() {
 
 // Global initialization
 window.addEventListener('DOMContentLoaded', async () => {
-  const matches = await window.CricStorage.listMatches();
-  if (matches && matches.length > 0) {
-    selectMatch(matches[0].id);
+  updateAuthUI();
+
+  // Check URL query parameters for Spectator Live View Mode (?matchId=match_123)
+  const urlParams = new URLSearchParams(window.location.search);
+  const sharedMatchId = urlParams.get('matchId');
+
+  if (sharedMatchId) {
+    isReadOnlySpectator = true;
+    selectMatch(sharedMatchId);
+
+    // Auto-poll live score every 5 seconds for spectators
+    spectatorPollInterval = setInterval(async () => {
+      if (activeMatch && isReadOnlySpectator) {
+        const fresh = await window.CricStorage.getMatch(activeMatch.id);
+        if (fresh) {
+          activeMatch = window.ScoringEngine.recalculateMatch(fresh);
+          renderLiveScoring();
+        }
+      }
+    }, 5000);
+
+    return;
+  }
+
+  // Check user mode or existing session
+  const userMode = localStorage.getItem('cric_user_mode');
+  const user = window.CricStorage.getCurrentUser();
+
+  if (user || userMode === 'GUEST') {
+    const matches = await window.CricStorage.listMatches();
+    if (matches && matches.length > 0) {
+      selectMatch(matches[0].id);
+    } else {
+      loadMatchListScreen();
+    }
   } else {
-    loadMatchListScreen();
+    showLandingScreen();
   }
 });

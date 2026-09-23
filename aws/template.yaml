@@ -114,6 +114,7 @@ Resources:
           - OPTIONS
         AllowHeaders:
           - Content-Type
+          - Authorization
 
   # 7. AWS Lambda Backend API Handler (1 Million Requests Always Free)
   CricScoreApiLambda:
@@ -134,6 +135,18 @@ Resources:
                 - dynamodb:DeleteItem
               Resource: !GetAtt CricMatchesTable.Arn
       Events:
+        PostAuthRegister:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /auth/register
+            Method: POST
+        PostAuthLogin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /auth/login
+            Method: POST
         GetMatches:
           Type: HttpApi
           Properties:
