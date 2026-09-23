@@ -117,14 +117,44 @@ const CricStorage = {
         const res = await fetch(`${window.CRIC_API_BASE}/tournaments`);
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const data = await res.json();
-        return Array.isArray(data) ? data : [];
+        if (Array.isArray(data) && data.length > 0) return data;
       } catch (err) {
         console.warn('API listTournaments failed, falling back to localStorage:', err);
       }
     }
 
     const raw = localStorage.getItem('cric_tournaments');
-    return raw ? JSON.parse(raw) : [];
+    return raw ? JSON.parse(raw) : [
+      {
+        id: 'tourney_default',
+        name: 'Premier League 2025',
+        overs: 5,
+        teams: [
+          {
+            id: 'team_rockets',
+            name: 'Rockets',
+            colorHex: '#FF5722',
+            players: [
+              { id: 'pa1', name: 'Alice', role: 'Batter', style: 'RHB' },
+              { id: 'pa2', name: 'Bob', role: 'All-Rounder', style: 'LHB' },
+              { id: 'pa3', name: 'Charlie', role: 'Bowler', style: 'RHB' },
+              { id: 'pa4', name: 'David', role: 'Wicket-Keeper', style: 'RHB' }
+            ]
+          },
+          {
+            id: 'team_thunder',
+            name: 'Thunder',
+            colorHex: '#2196F3',
+            players: [
+              { id: 'pb1', name: 'Eve', role: 'Batter', style: 'LHB' },
+              { id: 'pb2', name: 'Frank', role: 'Bowler', style: 'RHB' },
+              { id: 'pb3', name: 'Grace', role: 'All-Rounder', style: 'RHB' },
+              { id: 'pb4', name: 'Henry', role: 'Bowler', style: 'RHB' }
+            ]
+          }
+        ]
+      }
+    ];
   },
 
   async saveTournament(tournament) {
@@ -172,7 +202,7 @@ const CricStorage = {
     return tournament;
   },
 
-  // ------------------- GLOBAL PLAYERS & TEAMS -------------------
+  // ------------------- GLOBAL PLAYERS -------------------
   async listGlobalPlayers() {
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {

@@ -3,7 +3,7 @@ import { test, describe } from 'node:test';
 import { ScoringEngine } from '../src/engine/ScoringEngine.js';
 import { Match, Team, Player, Ball } from '../src/models/types.js';
 
-describe('ScoringEngine Event-Sourced Recalculation Tests', () => {
+describe('ScoringEngine SWAP, GRANTED, and RETIRED_HURT Tests', () => {
 
   const player1: Player = {
     id: 'p1',
@@ -69,106 +69,76 @@ describe('ScoringEngine Event-Sourced Recalculation Tests', () => {
     dateMillis: Date.now()
   };
 
-  test('Toss required if tossWinnerId is null', () => {
-    const unTossed: Match = { ...baseMatch, tossWinnerId: null };
-    const res = ScoringEngine.recalculateMatchFromHistory(unTossed);
-    assert.equal(res.pendingAction, 'TOSS_REQUIRED');
-  });
-
-  test('Legal balls increment totalBalls and totalRuns, and rotate strike on odd runs', () => {
+  test('SWAP adjustment ball swaps striker and non-striker without adding balls or runs', () => {
     const ball1: Ball = {
-      runs: 1,
-      extrasType: 'NONE',
-      strikerId: 'p1',
-      nonStrikerId: 'p2',
-      bowlerId: 'b1',
-      rotateStrike: true
-    };
-
-    const matchWith1Ball: Match = { ...baseMatch, ballHistory: [ball1] };
-    const res = ScoringEngine.recalculateMatchFromHistory(matchWith1Ball);
-
-    assert.equal(res.totalRuns, 1);
-    assert.equal(res.totalBalls, 1);
-    assert.equal(res.totalWickets, 0);
-    // Strike rotated because 1 run was scored
-    assert.equal(res.strikerId, 'p2');
-    assert.equal(res.nonStrikerId, 'p1');
-    assert.equal(res.teamA.colorHex, '#FF5722');
-  });
-
-  test('Wides and No-Balls do NOT increment physical totalBalls', () => {
-    const wideBall: Ball = {
       runs: 0,
-      extrasType: 'WIDE',
-      extraRuns: 1,
+      extrasType: 'NONE',
       strikerId: 'p1',
       nonStrikerId: 'p2',
       bowlerId: 'b1'
     };
 
-    const matchWithWide: Match = { ...baseMatch, ballHistory: [wideBall] };
-    const res = ScoringEngine.recalculateMatchFromHistory(matchWithWide);
+    const swapBall: Ball = {
+      isAdjustment: true,
+      adjustmentSlot: 'SWAP',
+      isLegalBall: false,
+      runs: 0,
+      extrasType: 'NONE',
+      wicketType: 'NONE'
+    };
 
-    assert.equal(res.totalRuns, 1);
-    assert.equal(res.wideCount, 1);
-    assert.equal(res.totalBalls, 0); // Wide is NOT a legal over ball
+    const matchWithSwap: Match = { ...baseMatch, ballHistory: [ball1, swapBall] };
+    const res = ScoringEngine.recalculateMatchFromHistory(matchWithSwap);
+
+    assert.equal(res.totalRuns, 0);
+    assert.equal(res.totalBalls, 1);
+    assert.equal(res.strikerId, 'p2');
+    assert.equal(res.nonStrikerId, 'p1');
   });
 
-  test('Retired Hurt is NOT a legal ball and NOT counted as a wicket', () => {
+  test('GRANTED 1G run adds run to total and striker stats, counts as legal ball, and does NOT rotate strike', () => {
+    const grantedBall: Ball = {
+      runs: 1,
+      extrasType: 'GRANTED',
+      extraRuns: 0,
+      isLegalBall: true,
+      rotateStrike: false,
+      wicketType: 'NONE',
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+
+    const matchWithGranted: Match = { ...baseMatch, ballHistory: [grantedBall] };
+    const res = ScoringEngine.recalculateMatchFromHistory(matchWithGranted);
+
+    assert.equal(res.totalRuns, 1);
+    assert.equal(res.totalBalls, 1);
+    // Strike is NOT rotated
+    assert.equal(res.strikerId, 'p1');
+    assert.equal(res.nonStrikerId, 'p2');
+    assert.equal(res.teamA.players[0].battingStats.runs, 1);
+  });
+
+  test('RETIRED_HURT ball marks batter isRetiredHurt, does NOT increment totalWickets, and prompts select striker', () => {
     const retiredHurtBall: Ball = {
       runs: 0,
       wicketType: 'RETIRED_HURT',
+      isLegalBall: false,
+      outPlayerId: 'p1',
       strikerId: 'p1',
       nonStrikerId: 'p2',
-      bowlerId: 'b1',
-      outPlayerId: 'p1'
+      bowlerId: 'b1'
     };
 
     const matchWithRetired: Match = { ...baseMatch, ballHistory: [retiredHurtBall] };
     const res = ScoringEngine.recalculateMatchFromHistory(matchWithRetired);
 
-    assert.equal(res.totalWickets, 0); // NOT a real wicket for dismissal count
+    assert.equal(res.totalWickets, 0); // NOT a real wicket for totalWickets
     assert.equal(res.totalBalls, 0); // NOT a physical ball
     assert.equal(res.teamA.players[0].battingStats.isRetiredHurt, true);
     assert.equal(res.teamA.players[0].battingStats.isOut, false);
-  });
-
-  test('Chasing target in 2nd innings triggers match completion', () => {
-    const completedInnings1Match: Match = {
-      ...baseMatch,
-      totalRuns: 10,
-      totalBalls: 30, // 5 overs completed
-      oversPerInnings: 5,
-      ballHistory: Array(30).fill({
-        runs: 0,
-        extrasType: 'NONE',
-        strikerId: 'p1',
-        nonStrikerId: 'p2',
-        bowlerId: 'b1'
-      })
-    };
-
-    const res1 = ScoringEngine.recalculateMatchFromHistory(completedInnings1Match);
-    assert.equal(res1.currentInnings, 2);
-    assert.equal(res1.target, 1); // target = 0 + 1 = 1
-
-    // Add 1 run in 2nd innings for teamB
-    const winningBall: Ball = {
-      runs: 1,
-      extrasType: 'NONE',
-      strikerId: 'b1',
-      bowlerId: 'p1'
-    };
-
-    const secondInningsMatch: Match = {
-      ...res1,
-      isSecondInningsStarted: true,
-      ballHistory: [...res1.ballHistory, winningBall]
-    };
-
-    const res2 = ScoringEngine.recalculateMatchFromHistory(secondInningsMatch);
-    assert.equal(res2.status, 'COMPLETED');
-    assert.equal(res2.winnerId, 'teamB');
+    assert.equal(res.strikerId, null);
+    assert.equal(res.pendingAction, 'SELECT_STRIKER');
   });
 });

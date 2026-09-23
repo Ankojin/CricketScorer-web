@@ -146,7 +146,7 @@
         Pending Action
       </div>
 
-      <!-- Live Scoring Keypad -->
+      <!-- Live Scoring Keypad Pad -->
       <div class="keypad-grid">
         <button class="btn btn-run" onclick="addBall(0)">0</button>
         <button class="btn btn-run" onclick="addBall(1)">1</button>
@@ -157,8 +157,10 @@
 
         <button class="btn btn-extra" onclick="addExtra('WIDE')">WD</button>
         <button class="btn btn-extra" onclick="addExtra('NO_BALL')">NB</button>
+        <button class="btn btn-extra" onclick="addGrantedRun()">1G</button>
+        <button class="btn btn-extra" onclick="swapBatsmen()">🔀 SWAP</button>
 
-        <button class="btn btn-wicket" onclick="openWicketModal()">☝️ WICKET</button>
+        <button class="btn btn-wicket" onclick="openWicketModal()">☝️ WICKET / RETIRE</button>
         <button class="btn btn-undo" onclick="undoLastBall()">↩️ UNDO BALL</button>
       </div>
 
@@ -243,7 +245,7 @@
   <!-- Match Settings Modal -->
   <div id="matchSettingsModal" class="modal-overlay">
     <div class="modal">
-      <h3 style="margin-bottom:12px;">⚙️ Match Settings</h3>
+      <h3 style="margin-bottom:12px;">⚙️ Match & Gully Rules Settings</h3>
       <div class="form-group">
         <label for="editOversText">Overs Per Innings</label>
         <input type="number" id="editOversText" class="form-control" value="5">
@@ -252,6 +254,21 @@
         <label for="editMaxBowlerOvers">Max Overs Per Bowler</label>
         <input type="number" id="editMaxBowlerOvers" class="form-control" value="2">
       </div>
+      <hr style="border-color:var(--card-border); margin:12px 0;">
+      <h4 style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Gully Rules Settings</h4>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="ruleNoExtras" style="margin:0;">No Extra Runs for Wides/NB</label>
+        <input type="checkbox" id="ruleNoExtras" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="ruleLMS" style="margin:0;">Last Man Standing (LMS)</label>
+        <input type="checkbox" id="ruleLMS" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="ruleUnequal" style="margin:0;">Unequal Teams</label>
+        <input type="checkbox" id="ruleUnequal" style="transform:scale(1.2);">
+      </div>
+
       <div style="display:flex; gap:8px; margin-top:20px;">
         <button class="btn-primary" onclick="saveMatchSettings()">Save Settings</button>
         <button class="btn" style="background:#334155;" onclick="closeMatchSettingsModal()">Cancel</button>
@@ -262,7 +279,7 @@
   <!-- Wicket Modal -->
   <div id="wicketModal" class="modal-overlay">
     <div class="modal">
-      <h3 style="margin-bottom:12px;">Record Wicket / Dismissal</h3>
+      <h3 style="margin-bottom:12px;">Record Dismissal / Retirement</h3>
       <div class="form-group">
         <label for="wicketTypeSelect">Dismissal Type</label>
         <select id="wicketTypeSelect" class="form-control">
@@ -275,7 +292,7 @@
         </select>
       </div>
       <div style="display:flex; gap:8px; margin-top:16px;">
-        <button class="btn-primary" onclick="submitWicket()">Confirm Wicket</button>
+        <button class="btn-primary" onclick="submitWicket()">Confirm</button>
         <button class="btn" style="background:#334155;" onclick="closeWicketModal()">Cancel</button>
       </div>
     </div>

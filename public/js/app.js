@@ -1,8 +1,10 @@
 // App Controller for CricScore Pro Web PWA
 
 let activeMatch = null;
-let currentSelectionType = null; // STRIKER, NON_STRIKER, BOWLER
+let activeTournament = null;
+let activeTourneySubTab = 'TEAMS'; // TEAMS, MATCHES, TABLE, STATS
 
+let currentSelectionType = null; // STRIKER, NON_STRIKER, BOWLER
 let selectedTossWinnerId = null;
 let selectedTossDecision = 'BAT';
 
@@ -137,6 +139,7 @@ async function handleCreateMatch() {
 
   activeMatch = {
     id: 'match_' + Date.now(),
+    tournamentId: activeTournament?.id || null,
     teamA,
     teamB,
     status: 'UPCOMING',
@@ -150,7 +153,11 @@ async function handleCreateMatch() {
     maxOversPerBowler: maxBowlerOvers,
     ballHistory: [],
     wicketHistory: [],
-    gullyRules: {}
+    gullyRules: {
+      noExtraRunsForWidesNoBalls: false,
+      lastManStanding: false,
+      unequalTeams: false
+    }
   };
 
   openTossModal();
@@ -225,6 +232,12 @@ function openMatchSettingsModal() {
   if (!activeMatch) return;
   document.getElementById('editOversText').value = activeMatch.oversPerInnings || 5;
   document.getElementById('editMaxBowlerOvers').value = activeMatch.maxOversPerBowler || 2;
+
+  const rules = activeMatch.gullyRules || {};
+  document.getElementById('ruleNoExtras').checked = rules.noExtraRunsForWidesNoBalls || false;
+  document.getElementById('ruleLMS').checked = rules.lastManStanding || false;
+  document.getElementById('ruleUnequal').checked = rules.unequalTeams || false;
+
   document.getElementById('matchSettingsModal').classList.add('active');
 }
 
@@ -239,6 +252,11 @@ async function saveMatchSettings() {
 
   activeMatch.oversPerInnings = overs;
   activeMatch.maxOversPerBowler = maxBowlerOvers;
+  activeMatch.gullyRules = {
+    noExtraRunsForWidesNoBalls: document.getElementById('ruleNoExtras').checked,
+    lastManStanding: document.getElementById('ruleLMS').checked,
+    unequalTeams: document.getElementById('ruleUnequal').checked
+  };
 
   activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
   await window.CricStorage.saveMatch(activeMatch);
@@ -304,15 +322,21 @@ function renderLiveScoring() {
     const div = document.createElement('div');
     div.className = 'ball-chip';
 
-    if (b.wicketType && b.wicketType !== 'NONE') {
+    if (b.isAdjustment && b.adjustmentSlot === 'SWAP') {
+      div.classList.add('extra');
+      div.innerText = '🔀';
+    } else if (b.wicketType && b.wicketType !== 'NONE') {
       div.classList.add('wicket');
-      div.innerText = 'W';
+      div.innerText = b.wicketType === 'RETIRED_HURT' ? 'RET' : 'W';
     } else if (b.runs === 4) {
       div.classList.add('four');
       div.innerText = '4';
     } else if (b.runs === 6) {
       div.classList.add('six');
       div.innerText = '6';
+    } else if (b.extrasType === 'GRANTED') {
+      div.classList.add('extra');
+      div.innerText = '1G';
     } else if (b.extrasType === 'WIDE') {
       div.classList.add('extra');
       div.innerText = `${b.extraRuns || 1}WD`;
@@ -410,7 +434,7 @@ function openPlayerSelection(type) {
 
   if (type === 'STRIKER' || type === 'NON_STRIKER') {
     title.innerText = `Select ${type === 'STRIKER' ? 'Striker' : 'Non-Striker'}`;
-    const available = (battingTeam?.players || []).filter(p => !p.battingStats?.isOut && p.id !== m.strikerId && p.id !== m.nonStrikerId);
+    const available = (battingTeam?.players || []).filter(p => !p.battingStats?.isOut && !p.battingStats?.isRetiredHurt && p.id !== m.strikerId && p.id !== m.nonStrikerId);
     available.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
@@ -431,18 +455,28 @@ function openPlayerSelection(type) {
   modal.classList.add('active');
 }
 
-function confirmPlayerSelection() {
+async function confirmPlayerSelection() {
   const select = document.getElementById('selectionDropdown');
   const selectedId = select.value;
   if (!selectedId || !activeMatch) return;
 
-  if (currentSelectionType === 'STRIKER') activeMatch.strikerId = selectedId;
-  else if (currentSelectionType === 'NON_STRIKER') activeMatch.nonStrikerId = selectedId;
-  else if (currentSelectionType === 'BOWLER') activeMatch.currentBowlerId = selectedId;
+  const slot = currentSelectionType;
+  const adjustmentBall = {
+    isAdjustment: true,
+    adjustmentSlot: slot,
+    adjustmentPlayerId: selectedId,
+    isLegalBall: false,
+    runs: 0,
+    extrasType: "NONE",
+    wicketType: "NONE"
+  };
 
-  activeMatch.pendingAction = 'NONE';
+  if (slot === 'STRIKER') activeMatch.strikerId = selectedId;
+  else if (slot === 'NON_STRIKER') activeMatch.nonStrikerId = selectedId;
+  else if (slot === 'BOWLER') activeMatch.currentBowlerId = selectedId;
+
   document.getElementById('selectionModal').classList.remove('active');
-  activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
+  activeMatch = await window.CricStorage.addBall(activeMatch.id, adjustmentBall);
   renderLiveScoring();
 }
 
@@ -478,6 +512,39 @@ async function addExtra(type) {
   renderLiveScoring();
 }
 
+async function addGrantedRun() {
+  if (!activeMatch) return;
+  const ball = {
+    runs: 1,
+    extrasType: "GRANTED",
+    extraRuns: 0,
+    isLegalBall: true,
+    rotateStrike: false,
+    wicketType: "NONE",
+    strikerId: activeMatch.strikerId,
+    nonStrikerId: activeMatch.nonStrikerId,
+    bowlerId: activeMatch.currentBowlerId
+  };
+
+  activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  renderLiveScoring();
+}
+
+async function swapBatsmen() {
+  if (!activeMatch) return;
+  const ball = {
+    isAdjustment: true,
+    adjustmentSlot: "SWAP",
+    isLegalBall: false,
+    runs: 0,
+    extrasType: "NONE",
+    wicketType: "NONE"
+  };
+
+  activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  renderLiveScoring();
+}
+
 function openWicketModal() {
   document.getElementById('wicketModal').classList.add('active');
 }
@@ -494,6 +561,7 @@ async function submitWicket() {
     extrasType: 'NONE',
     extraRuns: 0,
     wicketType: type,
+    outPlayerId: activeMatch.strikerId,
     strikerId: activeMatch.strikerId,
     nonStrikerId: activeMatch.nonStrikerId,
     bowlerId: activeMatch.currentBowlerId
@@ -601,9 +669,11 @@ function renderOvers() {
     const chipsHtml = (o.balls || []).map(b => {
       let label = b.runs;
       let cls = 'ball-chip';
-      if (b.wicketType && b.wicketType !== 'NONE') { label = 'W'; cls += ' wicket'; }
+      if (b.isAdjustment && b.adjustmentSlot === 'SWAP') { label = '🔀'; cls += ' extra'; }
+      else if (b.wicketType && b.wicketType !== 'NONE') { label = b.wicketType === 'RETIRED_HURT' ? 'RET' : 'W'; cls += ' wicket'; }
       else if (b.runs === 4) cls += ' four';
       else if (b.runs === 6) cls += ' six';
+      else if (b.extrasType === 'GRANTED') { label = '1G'; cls += ' extra'; }
       else if (b.extrasType === 'WIDE') { label = `${b.extraRuns||1}WD`; cls += ' extra'; }
       else if (b.extrasType === 'NO_BALL') { label = `${b.runs+(b.extraRuns||1)}NB`; cls += ' extra'; }
       return `<div class="${cls}">${label}</div>`;
@@ -637,6 +707,7 @@ async function renderTournaments() {
   }
 
   tourneys.forEach(t => {
+    activeTournament = t;
     const card = document.createElement('div');
     card.className = 'card';
 
@@ -651,21 +722,59 @@ async function renderTournaments() {
       </tr>
     `).join('');
 
+    const teamsListHtml = (t.teams || []).map(tm => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:8px 12px; border-radius:8px; margin-top:6px;">
+        <div style="font-weight:700; font-size:13px; color:#fff;">
+          <span class="team-badge" style="background:${tm.colorHex||'#2196F3'}"></span>${tm.name} (${(tm.players||[]).length} Players)
+        </div>
+      </div>
+    `).join('');
+
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <h4 style="font-size:16px; font-weight:800; color:#fff;">🏆 ${t.name}</h4>
         <button class="btn" style="background:#7f1d1d; color:#fca5a5; padding:4px 8px; font-size:11px;" onclick="deleteSeries('${t.id}')">🗑️ Delete</button>
       </div>
-      <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-top:8px;">Points Table</div>
-      <table class="stats-table">
-        <thead>
-          <tr><th>Team</th><th style="text-align:right">P</th><th style="text-align:right">W</th><th style="text-align:right">L</th><th style="text-align:right">PTS</th></tr>
-        </thead>
-        <tbody>${tableRows || '<tr><td colspan="5" style="text-align:center;">Add teams to calculate standings</td></tr>'}</tbody>
-      </table>
+
+      <!-- Sub-Tabs Bar for Tournament Details -->
+      <div style="display:flex; gap:6px; background:#0f172a; padding:4px; border-radius:8px; margin-top:8px; margin-bottom:12px;">
+        <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='TEAMS'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('TEAMS')">TEAMS</button>
+        <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='MATCHES'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('MATCHES')">MATCHES</button>
+        <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='TABLE'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('TABLE')">TABLE</button>
+      </div>
+
+      ${activeTourneySubTab === 'TEAMS' ? `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Series Teams</div>
+          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="openNewTeamModal()">+ Add Team</button>
+        </div>
+        <div style="margin-top:6px;">${teamsListHtml || '<div style="font-size:12px; color:var(--text-muted);">No teams in this series yet.</div>'}</div>
+      ` : ''}
+
+      ${activeTourneySubTab === 'MATCHES' ? `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Series Matches</div>
+          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="showNewMatchScreen()">+ Start Match</button>
+        </div>
+      ` : ''}
+
+      ${activeTourneySubTab === 'TABLE' ? `
+        <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Points Table</div>
+        <table class="stats-table">
+          <thead>
+            <tr><th>Team</th><th style="text-align:right">P</th><th style="text-align:right">W</th><th style="text-align:right">L</th><th style="text-align:right">PTS</th></tr>
+          </thead>
+          <tbody>${tableRows || '<tr><td colspan="5" style="text-align:center;">No completed matches</td></tr>'}</tbody>
+        </table>
+      ` : ''}
     `;
     container.appendChild(card);
   });
+}
+
+function setTourneySubTab(tab) {
+  activeTourneySubTab = tab;
+  renderTournaments();
 }
 
 function openNewTournamentModal() {
@@ -682,8 +791,18 @@ async function handleCreateTournament() {
     id: 'tourney_' + Date.now(),
     name,
     teams: [
-      { id: 't1', name: 'Rockets', colorHex: '#FF5722' },
-      { id: 't2', name: 'Thunder', colorHex: '#2196F3' }
+      {
+        id: 'team_a_' + Date.now(),
+        name: 'Rockets',
+        colorHex: '#FF5722',
+        players: [{ id: 'pa1', name: 'Alice' }, { id: 'pa2', name: 'Bob' }]
+      },
+      {
+        id: 'team_b_' + Date.now(),
+        name: 'Thunder',
+        colorHex: '#2196F3',
+        players: [{ id: 'pb1', name: 'Eve' }, { id: 'pb2', name: 'Frank' }]
+      }
     ]
   };
 
@@ -742,20 +861,30 @@ async function handleCreateTeam() {
   const playersStr = document.getElementById('newTeamPlayers').value || 'Player 1, Player 2';
   if (!name) return;
 
-  const players = playersStr.split(',').map((pName, i) => ({
-    id: `tp_${i}_${Date.now()}`,
-    name: pName.trim(),
-    role: 'Batter',
-    style: 'RHB'
-  }));
+  const newTeam = {
+    id: 'team_' + Date.now(),
+    name,
+    colorHex: color,
+    players: playersStr.split(',').map((pName, i) => ({
+      id: `tp_${i}_${Date.now()}`,
+      name: pName.trim(),
+      role: 'Batter',
+      style: 'RHB'
+    }))
+  };
 
-  // Add players to global roster as well
-  for (const p of players) {
+  if (activeTournament) {
+    activeTournament.teams = [...(activeTournament.teams || []), newTeam];
+    await window.CricStorage.saveTournament(activeTournament);
+  }
+
+  // Add players to global roster
+  for (const p of newTeam.players) {
     await window.CricStorage.addGlobalPlayer(p);
   }
 
   closeTeamModal();
-  renderPlayers();
+  renderTournaments();
 }
 
 function openNewPlayerModal() {
