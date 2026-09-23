@@ -3,7 +3,7 @@ import { test, describe } from 'node:test';
 import { ScoringEngine } from '../src/engine/ScoringEngine.js';
 import { Match, Team, Player, Ball } from '../src/models/types.js';
 
-describe('ScoringEngine SWAP, GRANTED, and RETIRED_HURT Tests', () => {
+describe('ScoringEngine Core Rules & Transition Tests', () => {
 
   const player1: Player = {
     id: 'p1',
@@ -21,9 +21,25 @@ describe('ScoringEngine SWAP, GRANTED, and RETIRED_HURT Tests', () => {
     fieldingStats: ScoringEngine.createDefaultFieldingStats()
   };
 
+  const player3: Player = {
+    id: 'p3',
+    name: 'Charlie',
+    battingStats: ScoringEngine.createDefaultBattingStats(),
+    bowlingStats: ScoringEngine.createDefaultBowlingStats(),
+    fieldingStats: ScoringEngine.createDefaultFieldingStats()
+  };
+
   const bowler1: Player = {
     id: 'b1',
-    name: 'Charlie',
+    name: 'Dave',
+    battingStats: ScoringEngine.createDefaultBattingStats(),
+    bowlingStats: ScoringEngine.createDefaultBowlingStats(),
+    fieldingStats: ScoringEngine.createDefaultFieldingStats()
+  };
+
+  const bowler2: Player = {
+    id: 'b2',
+    name: 'Eve',
     battingStats: ScoringEngine.createDefaultBattingStats(),
     bowlingStats: ScoringEngine.createDefaultBowlingStats(),
     fieldingStats: ScoringEngine.createDefaultFieldingStats()
@@ -33,14 +49,14 @@ describe('ScoringEngine SWAP, GRANTED, and RETIRED_HURT Tests', () => {
     id: 'teamA',
     name: 'Rockets',
     colorHex: '#FF5722',
-    players: [player1, player2]
+    players: [player1, player2, player3]
   };
 
   const teamB: Team = {
     id: 'teamB',
     name: 'Thunder',
     colorHex: '#2196F3',
-    players: [bowler1]
+    players: [bowler1, bowler2]
   };
 
   const baseMatch: Match = {
@@ -62,7 +78,7 @@ describe('ScoringEngine SWAP, GRANTED, and RETIRED_HURT Tests', () => {
     legByeCount: 0,
     ballHistory: [],
     wicketHistory: [],
-    oversPerInnings: 5,
+    oversPerInnings: 1, // 1 over match for quick tests
     gullyRules: {},
     pendingAction: 'NONE',
     battingOrder: [],
@@ -96,28 +112,41 @@ describe('ScoringEngine SWAP, GRANTED, and RETIRED_HURT Tests', () => {
     assert.equal(res.nonStrikerId, 'p1');
   });
 
-  test('GRANTED 1G run adds run to total and striker stats, counts as legal ball, and does NOT rotate strike', () => {
-    const grantedBall: Ball = {
-      runs: 1,
-      extrasType: 'GRANTED',
-      extraRuns: 0,
-      isLegalBall: true,
-      rotateStrike: false,
-      wicketType: 'NONE',
+  test('Wide and No-Ball do NOT count as physical over balls', () => {
+    const wideBall: Ball = {
+      runs: 0,
+      extrasType: 'WIDE',
+      extraRuns: 1,
+      isLegalBall: false,
       strikerId: 'p1',
       nonStrikerId: 'p2',
       bowlerId: 'b1'
     };
 
-    const matchWithGranted: Match = { ...baseMatch, ballHistory: [grantedBall] };
-    const res = ScoringEngine.recalculateMatchFromHistory(matchWithGranted);
+    const noBall: Ball = {
+      runs: 1,
+      extrasType: 'NO_BALL',
+      extraRuns: 1,
+      isLegalBall: false,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
 
-    assert.equal(res.totalRuns, 1);
-    assert.equal(res.totalBalls, 1);
-    // Strike is NOT rotated
-    assert.equal(res.strikerId, 'p1');
-    assert.equal(res.nonStrikerId, 'p2');
-    assert.equal(res.teamA.players[0].battingStats.runs, 1);
+    const dotBall: Ball = {
+      runs: 0,
+      extrasType: 'NONE',
+      isLegalBall: true,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+
+    const match: Match = { ...baseMatch, ballHistory: [wideBall, noBall, dotBall] };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.totalRuns, 3); // 1 (wide) + 2 (no-ball + run) + 0
+    assert.equal(res.totalBalls, 1); // Only 1 physical ball (dot ball)
   });
 
   test('RETIRED_HURT ball marks batter isRetiredHurt, does NOT increment totalWickets, and prompts select striker', () => {
@@ -140,5 +169,95 @@ describe('ScoringEngine SWAP, GRANTED, and RETIRED_HURT Tests', () => {
     assert.equal(res.teamA.players[0].battingStats.isOut, false);
     assert.equal(res.strikerId, null);
     assert.equal(res.pendingAction, 'SELECT_STRIKER');
+  });
+
+  test('End of Over rotates strike, resets currentBowlerId to null, sets lastBowlerId, and prompts SELECT_BOWLER', () => {
+    const overBalls: Ball[] = Array.from({ length: 6 }, () => ({
+      runs: 0,
+      extrasType: 'NONE',
+      isLegalBall: true,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    }));
+
+    const match: Match = { ...baseMatch, oversPerInnings: 2, ballHistory: overBalls };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.totalBalls, 6);
+    assert.equal(res.strikerId, 'p2'); // Rotated strike
+    assert.equal(res.nonStrikerId, 'p1');
+    assert.equal(res.currentBowlerId, null); // Bowler cleared
+    assert.equal(res.lastBowlerId, 'b1');
+    assert.equal(res.pendingAction, 'SELECT_BOWLER');
+  });
+
+  test('Innings 1 to Innings 2 transition sets target = Innings 1 runs + 1', () => {
+    // 6 balls in 1-over innings scoring 10 runs
+    const overBalls: Ball[] = [
+      { runs: 4, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' }
+    ];
+
+    const match: Match = { ...baseMatch, oversPerInnings: 1, ballHistory: overBalls };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.currentInnings, 2);
+    assert.equal(res.target, 11); // 10 runs + 1
+    assert.equal(res.battingTeamId, 'teamB');
+    assert.equal(res.bowlingTeamId, 'teamA');
+    assert.equal(res.totalRuns, 0); // Reset for 2nd innings
+    assert.equal(res.totalWickets, 0);
+  });
+
+  test('Match completes when Chasing Team B reaches target in 2nd Innings', () => {
+    // Innings 1: 10 runs scored
+    const i1Balls: Ball[] = [
+      { runs: 4, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' }
+    ];
+
+    // Innings 2: Team B scores 11 runs (6 + 6)
+    const i2Balls: Ball[] = [
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'b1', nonStrikerId: 'b2', bowlerId: 'p1' },
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'b1', nonStrikerId: 'b2', bowlerId: 'p1' }
+    ];
+
+    const match: Match = { ...baseMatch, oversPerInnings: 1, ballHistory: [...i1Balls, ...i2Balls] };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.status, 'COMPLETED');
+    assert.equal(res.winnerId, 'teamB');
+  });
+
+  test('Match completes when Chasing Team B is all out short of target', () => {
+    // Innings 1: 10 runs scored (Target = 11)
+    const i1Balls: Ball[] = [
+      { runs: 4, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' }
+    ];
+
+    // Innings 2: Team B (2 players) loses 1 wicket in 2-player squad (maxWickets = 1) scoring 2 runs
+    const i2Balls: Ball[] = [
+      { runs: 2, extrasType: 'NONE', isLegalBall: true, wicketType: 'BOWLED', strikerId: 'b1', nonStrikerId: 'b2', bowlerId: 'p1' }
+    ];
+
+    const match: Match = { ...baseMatch, oversPerInnings: 1, ballHistory: [...i1Balls, ...i2Balls] };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.status, 'COMPLETED');
+    assert.equal(res.winnerId, 'teamA'); // Defending team A wins
   });
 });

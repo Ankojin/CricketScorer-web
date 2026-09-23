@@ -1,4 +1,4 @@
-// Pure JavaScript Scoring Engine matching Android Cricket Scorer logic
+// Pure JavaScript Scoring Engine matching Android Cricket Scorer logic & src/engine/ScoringEngine.ts
 
 (function (exports) {
 
@@ -9,16 +9,82 @@
       ball.wicketType !== 'RETIRED_HURT';
   }
 
+  function createDefaultBattingStats() {
+    return {
+      runs: 0,
+      balls: 0,
+      fours: 0,
+      sixes: 0,
+      isOut: false,
+      isRetiredHurt: false,
+      wicketType: 'NONE',
+      dismissalBowlerId: null,
+      dismissalFielderId: null
+    };
+  }
+
+  function createDefaultBowlingStats() {
+    return {
+      overs: 0,
+      balls: 0,
+      maidens: 0,
+      runsConceded: 0,
+      wickets: 0,
+      dotBalls: 0,
+      wides: 0,
+      noBalls: 0
+    };
+  }
+
+  function createDefaultFieldingStats() {
+    return {
+      catches: 0,
+      runOuts: 0,
+      stumpings: 0,
+      droppedCatches: 0
+    };
+  }
+
   function resetTeamStats(team) {
     return {
       ...team,
       players: (team.players || []).map(p => ({
         ...p,
-        battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 },
-        fieldingStats: { catches: 0, stumpings: 0, runOuts: 0 }
+        battingStats: createDefaultBattingStats(),
+        bowlingStats: createDefaultBowlingStats(),
+        fieldingStats: createDefaultFieldingStats()
       }))
     };
+  }
+
+  function healLegacyId(id, team) {
+    if (!id) return null;
+    const isLikelyUuid = id.length >= 32 && !id.includes(' ');
+    if (isLikelyUuid) return id;
+    const found = (team.players || []).find(
+      p => p.name.trim().toLowerCase() === id.trim().toLowerCase()
+    );
+    return found ? found.id : id;
+  }
+
+  function isTeamA(idOrName, m) {
+    if (!idOrName || !m || !m.teamA) return false;
+    return (
+      idOrName === m.teamA.id ||
+      idOrName.trim().toLowerCase() === m.teamA.name.trim().toLowerCase()
+    );
+  }
+
+  function isPlayerOut(pId, m) {
+    if (!pId || !m) return false;
+    const p = (m.teamA?.players || []).find(x => x.id === pId) || (m.teamB?.players || []).find(x => x.id === pId);
+    return p?.battingStats?.isOut === true;
+  }
+
+  function isPlayerUnavailable(pId, m) {
+    if (!pId || !m) return false;
+    const p = (m.teamA?.players || []).find(x => x.id === pId) || (m.teamB?.players || []).find(x => x.id === pId);
+    return p?.battingStats?.isOut === true || p?.battingStats?.isRetiredHurt === true;
   }
 
   function updateTeamStats(team, ball, isBat, isBowl) {
@@ -344,7 +410,6 @@
     }
   }
 
-  // ICC Standard Impact Engine for Man of the Match (MatchSummaryViews.kt parity)
   function calculateMotm(match) {
     if (!match) return null;
     const allPlayers = [...(match.teamA?.players || []), ...(match.teamB?.players || [])];
@@ -356,7 +421,6 @@
       const bw = p.bowlingStats || {};
       const f = p.fieldingStats || {};
 
-      // 1. Batting
       if (b.balls > 0) {
         score += (b.runs || 0) * 1.0;
         score += (b.fours || 0) * 1.0;
@@ -372,7 +436,6 @@
         }
       }
 
-      // 2. Bowling
       if (bw.overs > 0 || bw.balls > 0) {
         score += (bw.wickets || 0) * 25.0;
         if (bw.wickets >= 3) score += 25.0;
@@ -389,12 +452,10 @@
         score += (bw.dotBalls || 0) * 1.0;
       }
 
-      // 3. Fielding
       score += (f.catches || 0) * 10.0;
       score += (f.stumpings || 0) * 10.0;
       score += (f.runOuts || 0) * 15.0;
 
-      // 4. Winning Bias
       const isWinner = match.winnerId != null && (
         (match.teamA?.players.some(x => x.id === p.id) && match.winnerId === match.teamA?.id) ||
         (match.teamB?.players.some(x => x.id === p.id) && match.winnerId === match.teamB?.id)
@@ -417,7 +478,6 @@
     return bestPlayer ? { player: bestPlayer, impactScore: Math.round(maxScore) } : null;
   }
 
-  // ESPNcricinfo Forecaster Win Probability (MatchSummaryViews.kt parity)
   function calculateForecaster(match) {
     if (!match) return { teamAWin: 50, teamBWin: 50, projCurrent: 0, proj10: 0 };
 
@@ -451,7 +511,6 @@
     return { teamAWin, teamBWin, projCurrent, proj10 };
   }
 
-  // Calculate detailed Innings Stats
   function calculateInningsStats(balls) {
     let sR = 0, dR = 0, tR = 0, fR = 0, siR = 0, oR = 0, dots = 0, exR = 0, w = 0, wC = 0, nbC = 0;
     let ppR = 0, ppW = 0, midR = 0, midW = 0, finR = 0, finW = 0;
@@ -515,7 +574,6 @@
     };
   }
 
-  // Calculate Partnerships
   function calculatePartnerships(balls, match) {
     const partnerships = [];
     if (!balls || balls.length === 0) return partnerships;
@@ -572,7 +630,6 @@
     return partnerships;
   }
 
-  // Overs Timeline Generator
   function getOverSummaries(match) {
     if (!match || !match.ballHistory) return [];
 
@@ -634,7 +691,6 @@
     return overs;
   }
 
-  // Points Table Calculator
   function calculatePointsTable(teams, matches) {
     const table = (teams || []).map(t => ({
       teamId: t.id,
@@ -675,6 +731,7 @@
   exports.ScoringEngine = {
     isPhysicalBall,
     recalculateMatch,
+    recalculateMatchFromHistory: recalculateMatch,
     getOverSummaries,
     calculatePointsTable,
     getMatchResultString,

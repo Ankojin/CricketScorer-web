@@ -15,6 +15,10 @@ import {
 
 export class ScoringEngine {
 
+  public static isPhysicalBall(ball: Ball): boolean {
+    return isPhysicalBall(ball);
+  }
+
   public static createDefaultBattingStats(): BattingStats {
     return {
       runs: 0,
@@ -93,12 +97,14 @@ export class ScoringEngine {
     return p?.battingStats?.isOut === true || p?.battingStats?.isRetiredHurt === true;
   }
 
+  public static recalculateMatch(match: Match): Match {
+    return this.recalculateMatchFromHistory(match);
+  }
+
   public static recalculateMatchFromHistory(match: Match): Match {
     if (!match.tossWinnerId) {
-      return {
-        ...match,
-        pendingAction: 'TOSS_REQUIRED'
-      };
+      match.tossWinnerId = match.teamA?.id;
+      match.tossDecision = 'BAT';
     }
 
     const teamABatsFirst =
@@ -121,16 +127,16 @@ export class ScoringEngine {
       legByeCount: 0,
       wicketHistory: [],
       battingOrder: [],
-      teamA: this.resetTeamStats(match.teamA),
-      teamB: this.resetTeamStats(match.teamB),
-      status: 'LIVE',
-      currentInnings: 1,
-      battingTeamId: innings1BattingTeamId,
-      bowlingTeamId: innings1BowlingTeamId,
-      strikerId: null,
-      nonStrikerId: null,
-      currentBowlerId: null,
-      lastBowlerId: null,
+      teamA: this.resetTeamStats(match.teamA || { id: 'teamA', name: 'Team A', players: [] }),
+      teamB: this.resetTeamStats(match.teamB || { id: 'teamB', name: 'Team B', players: [] }),
+      status: match.status || 'LIVE',
+      currentInnings: match.currentInnings || 1,
+      battingTeamId: match.currentInnings === 2 ? innings1BowlingTeamId : innings1BattingTeamId,
+      bowlingTeamId: match.currentInnings === 2 ? innings1BattingTeamId : innings1BowlingTeamId,
+      strikerId: match.strikerId || null,
+      nonStrikerId: match.nonStrikerId || null,
+      currentBowlerId: match.currentBowlerId || null,
+      lastBowlerId: match.lastBowlerId || null,
       pendingAction: 'NONE'
     };
 
@@ -209,7 +215,7 @@ export class ScoringEngine {
 
         const wicketRecord: WicketRecord = {
           wicketNumber: current.totalWickets,
-          batterName: `☝️ ${outName}`,
+          batterName: outName,
           totalRuns: current.totalRuns,
           over: overStr,
           wicketType: healedBall.wicketType || 'NONE',
@@ -525,6 +531,359 @@ export class ScoringEngine {
     return current;
   }
 
+  public static getMatchResultString(match: Match): string {
+    if (!match || match.status !== 'COMPLETED') return 'Match In Progress';
+    if (!match.winnerId) return 'Match Tied';
+
+    const winner = match.winnerId === match.teamA?.id ? match.teamA : match.teamB;
+
+    if (match.winnerId === match.battingTeamId) {
+      const squadSize = (winner.players || []).length || 11;
+      const maxWickets = match.gullyRules?.lastManStanding ? squadSize : Math.max(1, squadSize - 1);
+      const wicketsRemaining = maxWickets - match.totalWickets;
+      return `🎉 ${winner.name} won by ${wicketsRemaining} wicket${wicketsRemaining !== 1 ? 's' : ''}`;
+    } else {
+      const target = match.target || (match.innings1Data?.runs ? match.innings1Data.runs + 1 : 0);
+      const runMargin = target - 1 - match.totalRuns;
+      return `🎉 ${winner.name} won by ${runMargin} run${runMargin !== 1 ? 's' : ''}`;
+    }
+  }
+
+  public static calculateInningsStats(balls: Ball[]) {
+    let sR = 0, dR = 0, tR = 0, fR = 0, siR = 0, oR = 0, dots = 0, exR = 0, w = 0, wC = 0, nbC = 0;
+    let ppR = 0, ppW = 0, midR = 0, midW = 0, finR = 0, finW = 0;
+    let pB = 0, lB = 0;
+
+    (balls || []).forEach(b => {
+      if (b.isAdjustment) return;
+
+      const ballTotal = (b.runs || 0) + (b.extraRuns || 0);
+      const isW = b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT';
+
+      if (pB < 36) { ppR += ballTotal; if (isW) ppW++; }
+      else if (pB < 90) { midR += ballTotal; if (isW) midW++; }
+      else { finR += ballTotal; if (isW) finW++; }
+
+      if (isW) w++;
+      if (b.extrasType && b.extrasType !== 'NONE' && b.extrasType !== 'GRANTED') exR += b.extraRuns || 0;
+      if (b.extrasType === 'WIDE') wC++;
+      if (b.extrasType === 'NO_BALL') nbC++;
+
+      const runs = b.runs || 0;
+      if (isPhysicalBall(b)) pB++;
+      if (b.isLegalBall !== false && b.extrasType !== 'WIDE' && b.extrasType !== 'NO_BALL') lB++;
+
+      switch (runs) {
+        case 0: if (b.isLegalBall !== false && !b.extraRuns) dots++; break;
+        case 1: sR += 1; break;
+        case 2: dR += 2; break;
+        case 3: tR += 3; break;
+        case 4: fR += 4; break;
+        case 6: siR += 6; break;
+        default: if (runs > 0) oR += runs; break;
+      }
+    });
+
+    const dP = lB > 0 ? Math.round((dots * 100) / lB) : 0;
+
+    return {
+      singlesRuns: sR,
+      doublesRuns: dR,
+      triplesRuns: tR,
+      foursRuns: fR,
+      sixesRuns: siR,
+      otherBatRuns: oR,
+      dots,
+      extrasRuns: exR,
+      wickets: w,
+      wideCount: wC,
+      noBallCount: nbC,
+      ppRuns: ppR,
+      ppWickets: ppW,
+      midRuns: midR,
+      midWickets: midW,
+      finRuns: finR,
+      finWickets: finW,
+      boundaryRuns: fR + siR,
+      dotPercent: dP,
+      totalLegalBalls: lB,
+      hasMid: pB > 36,
+      hasFin: pB > 90
+    };
+  }
+
+  public static calculatePartnerships(balls: Ball[], match: Match) {
+    const partnerships: Array<{
+      batter1Name: string;
+      batter1Runs: number;
+      batter1Balls: number;
+      batter2Name: string;
+      batter2Runs: number;
+      batter2Balls: number;
+      totalRuns: number;
+      totalBalls: number;
+    }> = [];
+    if (!balls || balls.length === 0) return partnerships;
+
+    let currentB1Id: string | null = null, currentB2Id: string | null = null;
+    let runs1 = 0, balls1 = 0, runs2 = 0, balls2 = 0, pExtras = 0;
+
+    function recoverName(id: string | null) {
+      if (!id) return "Player";
+      const pA = (match.teamA?.players || []).find(p => p.id === id);
+      if (pA) return pA.name;
+      const pB = (match.teamB?.players || []).find(p => p.id === id);
+      if (pB) return pB.name;
+      return id;
+    }
+
+    (balls || []).forEach(b => {
+      if (b.isAdjustment) return;
+
+      if (!currentB1Id) {
+        currentB1Id = b.strikerId || null;
+        currentB2Id = b.nonStrikerId || null;
+      }
+
+      if (b.strikerId === currentB1Id) {
+        runs1 += b.runs || 0;
+        if (b.extrasType !== 'WIDE') balls1++;
+      } else if (b.strikerId === currentB2Id) {
+        runs2 += b.runs || 0;
+        if (b.extrasType !== 'WIDE') balls2++;
+      }
+
+      pExtras += b.extraRuns || 0;
+
+      if (b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT') {
+        partnerships.push({
+          batter1Name: recoverName(currentB1Id), batter1Runs: runs1, batter1Balls: balls1,
+          batter2Name: recoverName(currentB2Id), batter2Runs: runs2, batter2Balls: balls2,
+          totalRuns: runs1 + runs2 + pExtras, totalBalls: balls1 + balls2
+        });
+        currentB1Id = null; currentB2Id = null;
+        runs1 = 0; balls1 = 0; runs2 = 0; balls2 = 0; pExtras = 0;
+      }
+    });
+
+    if (currentB1Id) {
+      partnerships.push({
+        batter1Name: recoverName(currentB1Id), batter1Runs: runs1, batter1Balls: balls1,
+        batter2Name: recoverName(currentB2Id), batter2Runs: runs2, batter2Balls: balls2,
+        totalRuns: runs1 + runs2 + pExtras, totalBalls: balls1 + balls2
+      });
+    }
+
+    return partnerships;
+  }
+
+  public static calculateMotm(match: Match) {
+    if (!match) return null;
+    const allPlayers = [...(match.teamA?.players || []), ...(match.teamB?.players || [])];
+    const playerScores: Record<string, number> = {};
+
+    allPlayers.forEach(p => {
+      let score = 0;
+      const b = p.battingStats || { runs: 0, balls: 0, fours: 0, sixes: 0 };
+      const bw = p.bowlingStats || { overs: 0, balls: 0, wickets: 0, runsConceded: 0, dotBalls: 0 };
+      const f = p.fieldingStats || { catches: 0, stumpings: 0, runOuts: 0 };
+
+      if (b.balls > 0) {
+        score += (b.runs || 0) * 1.0;
+        score += (b.fours || 0) * 1.0;
+        score += (b.sixes || 0) * 2.0;
+
+        if (b.runs >= 50) score += 20.0;
+        else if (b.runs >= 30) score += 10.0;
+
+        const sr = (b.runs / b.balls) * 100;
+        if (b.balls >= 10) {
+          if (sr > 200) score += 15.0;
+          else if (sr > 150) score += 8.0;
+        }
+      }
+
+      if (bw.overs > 0 || bw.balls > 0) {
+        score += (bw.wickets || 0) * 25.0;
+        if (bw.wickets >= 3) score += 25.0;
+        else if (bw.wickets >= 2) score += 10.0;
+
+        const totalOvers = (bw.overs || 0) + ((bw.balls || 0) / 6);
+        if (totalOvers >= 1.0) {
+          const eco = bw.runsConceded / totalOvers;
+          if (eco < 6.0) score += 15.0;
+          else if (eco < 8.0) score += 5.0;
+          else if (eco > 11.0) score -= 10.0;
+        }
+
+        score += (bw.dotBalls || 0) * 1.0;
+      }
+
+      score += (f.catches || 0) * 10.0;
+      score += (f.stumpings || 0) * 10.0;
+      score += (f.runOuts || 0) * 15.0;
+
+      const isWinner = match.winnerId != null && (
+        (match.teamA?.players.some(x => x.id === p.id) && match.winnerId === match.teamA?.id) ||
+        (match.teamB?.players.some(x => x.id === p.id) && match.winnerId === match.teamB?.id)
+      );
+      if (isWinner) score += 25.0;
+
+      playerScores[p.id] = score;
+    });
+
+    let bestPlayer: Player | null = null;
+    let maxScore = 0;
+    allPlayers.forEach(p => {
+      const s = playerScores[p.id] || 0;
+      if (s > maxScore) {
+        maxScore = s;
+        bestPlayer = p;
+      }
+    });
+
+    return bestPlayer ? { player: bestPlayer, impactScore: Math.round(maxScore) } : null;
+  }
+
+  public static calculateForecaster(match: Match) {
+    if (!match) return { teamAWin: 50, teamBWin: 50, projCurrent: 0, proj10: 0 };
+
+    const totalBalls = (match.oversPerInnings || 5) * 6;
+    const currentBalls = match.totalBalls || 0;
+    const remainingBalls = Math.max(0, totalBalls - currentBalls);
+
+    const crr = currentBalls > 0 ? ((match.totalRuns || 0) / currentBalls) * 6 : 0;
+    const projCurrent = Math.round((match.totalRuns || 0) + (crr * (remainingBalls / 6)));
+    const proj10 = Math.round((match.totalRuns || 0) + (10.0 * (remainingBalls / 6)));
+
+    let teamAWin = 50.0;
+
+    if (match.currentInnings === 1) {
+      teamAWin = match.battingTeamId === match.teamA?.id ? (projCurrent / 160) * 100 : 100 - (projCurrent / 160) * 100;
+    } else if (match.target != null) {
+      const runsNeeded = match.target - match.totalRuns;
+      if (remainingBalls > 0) {
+        const rrr = (runsNeeded / remainingBalls) * 6;
+        const wicketFactor = (10 - match.totalWickets) / 10;
+        const baseProb = Math.max(0, Math.min(1, 1.0 - (rrr / 16.0)));
+        teamAWin = match.battingTeamId === match.teamA?.id ? baseProb * 100 * wicketFactor : (1.0 - (baseProb * wicketFactor)) * 100;
+      } else {
+        teamAWin = match.totalRuns >= match.target ? (match.battingTeamId === match.teamA?.id ? 100 : 0) : (match.battingTeamId === match.teamA?.id ? 0 : 100);
+      }
+    }
+
+    teamAWin = Math.max(5, Math.min(95, Math.round(teamAWin)));
+    const teamBWin = 100 - teamAWin;
+
+    return { teamAWin, teamBWin, projCurrent, proj10 };
+  }
+
+  public static getOverSummaries(match: Match) {
+    if (!match || !match.ballHistory) return [];
+
+    const overs: Array<{
+      overNumber: number;
+      runs: number;
+      wickets: number;
+      balls: Ball[];
+      teamTotalRuns: number;
+      teamTotalWickets: number;
+      isPartial?: boolean;
+    }> = [];
+    let currentOverBalls: Ball[] = [];
+    let currentOverRuns = 0;
+    let currentOverWickets = 0;
+    let physicalCount = 0;
+    let overIndex = 1;
+    let accumRuns = 0;
+    let accumWickets = 0;
+
+    (match.ballHistory || []).forEach((b) => {
+      const isPhysical = isPhysicalBall(b);
+      const isRealWicket = b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT';
+      const runsThisBall = b.runs + (b.extraRuns || 0);
+
+      currentOverBalls.push(b);
+      currentOverRuns += runsThisBall;
+      accumRuns += runsThisBall;
+
+      if (isRealWicket) {
+        currentOverWickets++;
+        accumWickets++;
+      }
+
+      if (isPhysical) {
+        physicalCount++;
+        if (physicalCount === 6) {
+          overs.push({
+            overNumber: overIndex,
+            runs: currentOverRuns,
+            wickets: currentOverWickets,
+            balls: [...currentOverBalls],
+            teamTotalRuns: accumRuns,
+            teamTotalWickets: accumWickets
+          });
+          overIndex++;
+          physicalCount = 0;
+          currentOverRuns = 0;
+          currentOverWickets = 0;
+          currentOverBalls = [];
+        }
+      }
+    });
+
+    if (currentOverBalls.length > 0) {
+      overs.push({
+        overNumber: overIndex,
+        runs: currentOverRuns,
+        wickets: currentOverWickets,
+        balls: [...currentOverBalls],
+        teamTotalRuns: accumRuns,
+        teamTotalWickets: accumWickets,
+        isPartial: true
+      });
+    }
+
+    return overs;
+  }
+
+  public static calculatePointsTable(teams: Team[], matches: Match[]) {
+    const table = (teams || []).map(t => ({
+      teamId: t.id,
+      name: t.name,
+      colorHex: t.colorHex || '#2196F3',
+      played: 0,
+      won: 0,
+      lost: 0,
+      tied: 0,
+      points: 0,
+      nrr: '0.000'
+    }));
+
+    (matches || []).forEach(m => {
+      if (m.status !== 'COMPLETED') return;
+      const tA = table.find(x => x.teamId === m.teamA?.id);
+      const tB = table.find(x => x.teamId === m.teamB?.id);
+      if (!tA || !tB) return;
+
+      tA.played++;
+      tB.played++;
+
+      if (m.winnerId === m.teamA?.id) {
+        tA.won++; tA.points += 2;
+        tB.lost++;
+      } else if (m.winnerId === m.teamB?.id) {
+        tB.won++; tB.points += 2;
+        tA.lost++;
+      } else {
+        tA.tied++; tA.points += 1;
+        tB.tied++; tB.points += 1;
+      }
+    });
+
+    return table.sort((a, b) => b.points - a.points);
+  }
+
   public static updateTeamStats(
     team: Team,
     ball: Ball,
@@ -664,4 +1023,8 @@ export class ScoringEngine {
       })
     };
   }
+}
+
+if (typeof window !== 'undefined') {
+  (window as any).ScoringEngine = ScoringEngine;
 }

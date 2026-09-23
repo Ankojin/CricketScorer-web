@@ -219,7 +219,7 @@ const CricStorage = {
     if (raw) {
       try { return JSON.parse(raw); } catch (e) { }
     }
-    return []; // Clean empty array when no teams exist
+    return [];
   },
 
   async saveTeam(team) {
@@ -274,10 +274,22 @@ const CricStorage = {
   },
 
   async deleteTournament(tournamentId) {
+    let cloudSuccess = true;
+
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
-      fetch(`${window.CRIC_API_BASE}/tournaments/${tournamentId}`, { method: 'DELETE' }).catch(console.warn);
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/tournaments/${tournamentId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          cloudSuccess = false;
+          console.warn(`API deleteTournament status ${res.status}`);
+        }
+      } catch (err) {
+        cloudSuccess = false;
+        console.warn('API deleteTournament failed:', err);
+      }
     }
 
+    // Always perform local cascade cleanup
     const tourneys = await this.listTournaments();
     const updatedTourneys = tourneys.filter(t => t.id !== tournamentId);
     localStorage.setItem('cric_tournaments', JSON.stringify(updatedTourneys));
@@ -287,6 +299,12 @@ const CricStorage = {
       const matches = JSON.parse(rawMatches);
       const updatedMatches = matches.filter(m => m.tournamentId !== tournamentId);
       localStorage.setItem('cric_matches', JSON.stringify(updatedMatches));
+    }
+
+    if (cloudSuccess) {
+      this.notifyToast('🟢 Series and associated matches deleted from Cloud', 'success');
+    } else {
+      this.notifyToast('🟡 Series deleted locally (Cloud sync failed or offline)', 'warning');
     }
 
     return updatedTourneys;
