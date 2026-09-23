@@ -29,6 +29,7 @@ body {
   padding-bottom: 80px;
 }
 
+/* App Header */
 .app-header {
   background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
   padding: 12px 16px;
@@ -57,6 +58,7 @@ body {
   background: rgba(255,255,255,0.1);
   color: var(--text-muted);
   font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .status-badge.online {
@@ -64,6 +66,47 @@ body {
   color: #34d399;
 }
 
+.status-badge.local {
+  background: #78350f;
+  color: #fde047;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  left: 16px;
+  max-width: 450px;
+  margin: 0 auto;
+  z-index: 300;
+  pointer-events: none;
+}
+
+.toast {
+  background: #1e293b;
+  color: #fff;
+  border: 1px solid var(--primary-color);
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Container */
 .container {
   max-width: 550px;
   margin: 0 auto;
@@ -95,6 +138,16 @@ body {
   text-align: center;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border-color: #3b82f644;
+  position: relative;
+}
+
+.last-saved-tag {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .match-teams-title {
@@ -137,6 +190,30 @@ body {
   margin-top: 10px;
 }
 
+/* Match Completed Summary Card */
+.completed-summary-card {
+  background: linear-gradient(135deg, #064e3b 0%, #0f172a 100%);
+  border: 1px solid #059669;
+  text-align: center;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.winner-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: #34d399;
+  margin-bottom: 4px;
+}
+
+.margin-text {
+  font-size: 13px;
+  color: #a7f3d0;
+  font-weight: 600;
+}
+
+/* Phase 1 Colored Recent Ball Chips */
 .recent-balls {
   display: flex;
   gap: 6px;
@@ -158,12 +235,13 @@ body {
   font-weight: 800;
   color: #ffffff;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
-.ball-chip.four { background: var(--chip-4); color: #000; }
-.ball-chip.six { background: var(--chip-6); color: #000; }
-.ball-chip.wicket { background: var(--chip-w); color: #fff; }
-.ball-chip.extra { background: var(--chip-extra); color: #000; }
+.ball-chip.four { background: var(--chip-4); color: #000; font-weight: 900; }
+.ball-chip.six { background: var(--chip-6); color: #000; font-weight: 900; }
+.ball-chip.wicket { background: var(--chip-w); color: #fff; font-weight: 900; }
+.ball-chip.extra { background: var(--chip-extra); color: #000; font-weight: 900; }
 
 .stats-table {
   width: 100%;
@@ -259,16 +337,23 @@ body {
   border: 1px solid var(--card-border);
 }
 
-/* Over Card Item */
-.over-card-row {
+/* Bowler Selection Card (Gully Crix style) */
+.bowler-option {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 10px;
+  align-items: center;
+  padding: 12px;
   background: #0f172a;
+  border: 1px solid var(--card-border);
   border-radius: 8px;
   margin-bottom: 8px;
-  border: 1px solid var(--card-border);
+  cursor: pointer;
+}
+
+.bowler-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #1e1e1e;
 }
 
 .bottom-nav {

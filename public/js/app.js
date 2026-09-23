@@ -8,6 +8,37 @@ let currentSelectionType = null; // STRIKER, NON_STRIKER, BOWLER
 let selectedTossWinnerId = null;
 let selectedTossDecision = 'BAT';
 
+// Toast Notification System
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span>${msg}</span><span style="cursor:pointer; margin-left:8px;" onclick="this.parentElement.remove()">✕</span>`;
+  container.appendChild(toast);
+
+  setTimeout(() => toast.classList.add('show'), 10);
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+window.CricStorage.onToast = showToast;
+
+// Multi-Tab Persistence Sync
+window.addEventListener('storage', (e) => {
+  if (e.key === 'cric_matches' && activeMatch) {
+    window.CricStorage.getMatch(activeMatch.id).then(updated => {
+      if (updated && updated.updatedAt !== activeMatch.updatedAt) {
+        activeMatch = window.ScoringEngine.recalculateMatch(updated);
+        renderLiveScoring();
+      }
+    });
+  }
+});
+
 function updateNavState(activeNavId) {
   document.querySelectorAll('.bottom-nav-item').forEach(nav => nav.classList.remove('active'));
   const activeNav = document.getElementById(activeNavId);
@@ -98,8 +129,54 @@ async function loadMatchListScreen() {
   });
 }
 
-function showNewMatchScreen() {
+async function showNewMatchScreen() {
   showScreen('screenNewMatch');
+
+  // Populate Team Reuse Selector (Requirement 4)
+  const teams = await window.CricStorage.listTeams();
+  const selectA = document.getElementById('selectTeamA');
+  const selectB = document.getElementById('selectTeamB');
+
+  selectA.innerHTML = '<option value="">-- Custom Team A --</option>';
+  selectB.innerHTML = '<option value="">-- Custom Team B --</option>';
+
+  teams.forEach(t => {
+    const optA = document.createElement('option');
+    optA.value = t.id;
+    optA.innerText = `${t.name} (${(t.players||[]).length} players)`;
+    selectA.appendChild(optA);
+
+    const optB = document.createElement('option');
+    optB.value = t.id;
+    optB.innerText = `${t.name} (${(t.players||[]).length} players)`;
+    selectB.appendChild(optB);
+  });
+}
+
+async function onSelectTeamAChange() {
+  const teamId = document.getElementById('selectTeamA').value;
+  if (!teamId) return;
+
+  const teams = await window.CricStorage.listTeams();
+  const found = teams.find(t => t.id === teamId);
+  if (found) {
+    document.getElementById('teamAName').value = found.name;
+    document.getElementById('teamAColor').value = found.colorHex || '#FF5722';
+    document.getElementById('teamAPlayers').value = (found.players || []).map(p => p.name).join(', ');
+  }
+}
+
+async function onSelectTeamBChange() {
+  const teamId = document.getElementById('selectTeamB').value;
+  if (!teamId) return;
+
+  const teams = await window.CricStorage.listTeams();
+  const found = teams.find(t => t.id === teamId);
+  if (found) {
+    document.getElementById('teamBName').value = found.name;
+    document.getElementById('teamBColor').value = found.colorHex || '#2196F3';
+    document.getElementById('teamBPlayers').value = (found.players || []).map(p => p.name).join(', ');
+  }
 }
 
 async function handleCreateMatch() {
@@ -294,6 +371,24 @@ function renderLiveScoring() {
   const battingTeam = isBattingA ? m.teamA : m.teamB;
   const bowlingTeam = isBattingA ? m.teamB : m.teamA;
 
+  // Last Saved Tag
+  const lastSavedTag = document.getElementById('lastSavedTag');
+  if (lastSavedTag) {
+    const timeStr = m.updatedAt ? new Date(m.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now';
+    lastSavedTag.innerText = `Saved ${timeStr}`;
+  }
+
+  // Completed Match Summary Card (Requirement 2)
+  const completedCard = document.getElementById('completedMatchCard');
+  if (m.status === 'COMPLETED') {
+    completedCard.style.display = 'block';
+    const resultStr = window.ScoringEngine.getMatchResultString(m);
+    document.getElementById('winnerTitle').innerText = resultStr;
+    document.getElementById('marginText').innerText = `Match Completed | ${m.currentInnings === 2 ? 'Target Reached / Innings Ended' : 'Innings Completed'}`;
+  } else {
+    completedCard.style.display = 'none';
+  }
+
   // Header Match Info
   const teamAColor = m.teamA?.colorHex || '#FF5722';
   const teamBColor = m.teamB?.colorHex || '#2196F3';
@@ -318,14 +413,14 @@ function renderLiveScoring() {
     const remBalls = (m.oversPerInnings * 6) - m.totalBalls;
     const rrr = remBalls > 0 && remRuns > 0 ? ((remRuns / remBalls) * 6).toFixed(2) : '0.00';
     targetBanner.style.display = 'block';
-    targetBanner.innerText = `Target: ${m.target} (Need ${remRuns} runs in ${remBalls} balls)`;
+    targetBanner.innerText = `Target: ${m.target} (Need ${remRuns} runs off ${remBalls} balls, RRR: ${rrr})`;
     document.getElementById('rrrText').innerText = `RRR: ${rrr}`;
   } else {
     targetBanner.style.display = 'none';
     document.getElementById('rrrText').innerText = `RRR: -`;
   }
 
-  // Recent Balls Chips
+  // Recent Balls Chips (Requirement 3)
   const recentContainer = document.getElementById('recentBalls');
   recentContainer.innerHTML = '';
   const history = m.ballHistory || [];
@@ -431,6 +526,7 @@ function promptPendingAction(action) {
   else if (action === 'SELECT_BOWLER') openPlayerSelection('BOWLER');
 }
 
+// Improved Bowler Selection Flow (Gully Crix style - Requirement 3)
 function openPlayerSelection(type) {
   currentSelectionType = type;
   const m = activeMatch;
@@ -442,21 +538,46 @@ function openPlayerSelection(type) {
 
   const modal = document.getElementById('selectionModal');
   const title = document.getElementById('selectionTitle');
-  const select = document.getElementById('selectionDropdown');
-  select.innerHTML = '';
+  const bowlerContainer = document.getElementById('bowlerListContainer');
+  const dropdownGroup = document.getElementById('genericDropdownGroup');
+  const confirmBtn = document.getElementById('btnConfirmGenericSelection');
 
-  if (type === 'STRIKER' || type === 'NON_STRIKER') {
-    title.innerText = `Select ${type === 'STRIKER' ? 'Striker' : 'Non-Striker'}`;
-    const available = (battingTeam?.players || []).filter(p => !p.battingStats?.isOut && !p.battingStats?.isRetiredHurt && p.id !== m.strikerId && p.id !== m.nonStrikerId);
-    available.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.innerText = p.name;
-      select.appendChild(opt);
+  bowlerContainer.innerHTML = '';
+
+  if (type === 'BOWLER') {
+    title.innerText = 'Select Bowler for Next Over';
+    dropdownGroup.style.display = 'none';
+    confirmBtn.style.display = 'none';
+
+    (bowlingTeam?.players || []).forEach(p => {
+      const isLastBowler = p.id === m.lastBowlerId;
+      const stats = p.bowlingStats || { overs: 0, balls: 0, runsConceded: 0, wickets: 0 };
+
+      const item = document.createElement('div');
+      item.className = `bowler-option ${isLastBowler ? 'disabled' : ''}`;
+      if (!isLastBowler) {
+        item.onclick = () => selectBowlerDirect(p.id);
+      }
+
+      item.innerHTML = `
+        <div>
+          <div style="font-weight:700; color:#fff;">${p.name} ${isLastBowler ? '<span style="font-size:10px; color:#fca5a5;">(Last Bowler)</span>' : ''}</div>
+          <div style="font-size:11px; color:var(--text-muted);">${stats.overs}.${stats.balls} Ov | ${stats.runsConceded} Runs | ${stats.wickets} Wkts</div>
+        </div>
+        <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" ${isLastBowler ? 'disabled' : ''}>Select</button>
+      `;
+      bowlerContainer.appendChild(item);
     });
-  } else if (type === 'BOWLER') {
-    title.innerText = 'Select Bowler';
-    const available = (bowlingTeam?.players || []).filter(p => p.id !== m.lastBowlerId);
+
+  } else {
+    // Striker / Non-Striker selection
+    title.innerText = `Select ${type === 'STRIKER' ? 'Striker' : 'Non-Striker'}`;
+    dropdownGroup.style.display = 'block';
+    confirmBtn.style.display = 'block';
+
+    const select = document.getElementById('selectionDropdown');
+    select.innerHTML = '';
+    const available = (battingTeam?.players || []).filter(p => !p.battingStats?.isOut && !p.battingStats?.isRetiredHurt && p.id !== m.strikerId && p.id !== m.nonStrikerId);
     available.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
@@ -466,6 +587,24 @@ function openPlayerSelection(type) {
   }
 
   modal.classList.add('active');
+}
+
+async function selectBowlerDirect(bowlerId) {
+  if (!activeMatch) return;
+  const adjustmentBall = {
+    isAdjustment: true,
+    adjustmentSlot: 'BOWLER',
+    adjustmentPlayerId: bowlerId,
+    isLegalBall: false,
+    runs: 0,
+    extrasType: "NONE",
+    wicketType: "NONE"
+  };
+
+  activeMatch.currentBowlerId = bowlerId;
+  document.getElementById('selectionModal').classList.remove('active');
+  activeMatch = await window.CricStorage.addBall(activeMatch.id, adjustmentBall);
+  renderLiveScoring();
 }
 
 async function confirmPlayerSelection() {
@@ -486,7 +625,6 @@ async function confirmPlayerSelection() {
 
   if (slot === 'STRIKER') activeMatch.strikerId = selectedId;
   else if (slot === 'NON_STRIKER') activeMatch.nonStrikerId = selectedId;
-  else if (slot === 'BOWLER') activeMatch.currentBowlerId = selectedId;
 
   document.getElementById('selectionModal').classList.remove('active');
   activeMatch = await window.CricStorage.addBall(activeMatch.id, adjustmentBall);
@@ -505,7 +643,15 @@ async function addBall(runs) {
     bowlerId: activeMatch.currentBowlerId
   };
 
+  const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+
+  // End-of-Over Popup Detection (Requirement 3)
+  const newBalls = activeMatch.totalBalls || 0;
+  if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
+    checkAndShowOverEndModal();
+  }
+
   renderLiveScoring();
 }
 
@@ -539,7 +685,14 @@ async function addGrantedRun() {
     bowlerId: activeMatch.currentBowlerId
   };
 
+  const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+
+  const newBalls = activeMatch.totalBalls || 0;
+  if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
+    checkAndShowOverEndModal();
+  }
+
   renderLiveScoring();
 }
 
@@ -556,6 +709,31 @@ async function swapBatsmen() {
 
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
   renderLiveScoring();
+}
+
+function checkAndShowOverEndModal() {
+  if (!activeMatch) return;
+  const summaries = window.ScoringEngine.getOverSummaries(activeMatch);
+  if (summaries.length === 0) return;
+
+  const lastOver = summaries[summaries.length - 1];
+  const isBattingA = activeMatch.battingTeamId === activeMatch.teamA?.id;
+  const bowlingTeam = isBattingA ? activeMatch.teamB : activeMatch.teamA;
+  const lastBowler = (bowlingTeam?.players || []).find(p => p.id === activeMatch.lastBowlerId);
+
+  document.getElementById('overEndTitle').innerText = `End of Over ${lastOver.overNumber}`;
+  document.getElementById('overEndBody').innerText = `Runs in Over: ${lastOver.runs} | Wickets: ${lastOver.wickets}`;
+
+  if (lastBowler) {
+    const stats = lastBowler.bowlingStats || { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
+    document.getElementById('overEndBowlerStats').innerText = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts`;
+  }
+
+  document.getElementById('overEndModal').classList.add('active');
+}
+
+function closeOverEndModal() {
+  document.getElementById('overEndModal').classList.remove('active');
 }
 
 function openWicketModal() {
@@ -878,7 +1056,8 @@ async function handleCreateTeam() {
     await window.CricStorage.saveTournament(activeTournament);
   }
 
-  // Add players to global roster
+  await window.CricStorage.saveTeam(newTeam);
+
   for (const p of newTeam.players) {
     await window.CricStorage.addGlobalPlayer(p);
   }

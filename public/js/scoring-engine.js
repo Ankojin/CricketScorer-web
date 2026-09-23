@@ -185,7 +185,6 @@
         if (!activeBId) activeBId = ball.bowlerId;
       }
 
-      // Handle Adjustment Balls (SWAP, STRIKER, NON_STRIKER, BOWLER)
       if (ball.isAdjustment) {
         switch (ball.adjustmentSlot) {
           case 'STRIKER':
@@ -270,6 +269,17 @@
       if (current.currentInnings === 1 && inningsEnded) {
         current = {
           ...current,
+          innings1Data: {
+            runs: current.totalRuns,
+            wickets: current.totalWickets,
+            balls: current.totalBalls,
+            teamId: current.battingTeamId,
+            wicketHistory: current.wicketHistory,
+            wideCount: current.wideCount,
+            noBallCount: current.noBallCount,
+            byeCount: current.byeCount,
+            legByeCount: current.legByeCount
+          },
           currentInnings: 2,
           target: current.totalRuns + 1,
           battingTeamId: current.bowlingTeamId,
@@ -277,6 +287,10 @@
           totalRuns: 0,
           totalWickets: 0,
           totalBalls: 0,
+          wideCount: 0,
+          noBallCount: 0,
+          byeCount: 0,
+          legByeCount: 0,
           wicketHistory: [],
           strikerId: null,
           nonStrikerId: null,
@@ -309,7 +323,28 @@
     return current;
   }
 
-  // Overs Timeline Generator (OversViews.kt)
+  function getMatchResultString(match) {
+    if (!match || match.status !== 'COMPLETED') return 'Match In Progress';
+    if (!match.winnerId) return 'Match Tied';
+
+    const winner = match.winnerId === match.teamA?.id ? match.teamA : match.teamB;
+    const loser = match.winnerId === match.teamA?.id ? match.teamB : match.teamA;
+
+    if (match.winnerId === match.battingTeamId) {
+      // Chasing team won by wickets
+      const squadSize = (winner.players || []).length || 11;
+      const maxWickets = match.gullyRules?.lastManStanding ? squadSize : Math.max(1, squadSize - 1);
+      const wicketsRemaining = maxWickets - match.totalWickets;
+      return `🎉 ${winner.name} won by ${wicketsRemaining} wicket${wicketsRemaining !== 1 ? 's' : ''}`;
+    } else {
+      // Defending team won by runs
+      const target = match.target || (match.innings1Data?.runs ? match.innings1Data.runs + 1 : 0);
+      const runMargin = target - 1 - match.totalRuns;
+      return `🎉 ${winner.name} won by ${runMargin} run${runMargin !== 1 ? 's' : ''}`;
+    }
+  }
+
+  // Overs Timeline Generator
   function getOverSummaries(match) {
     if (!match || !match.ballHistory) return [];
 
@@ -371,7 +406,7 @@
     return overs;
   }
 
-  // Points Table & NRR Calculator
+  // Points Table Calculator
   function calculatePointsTable(teams, matches) {
     const table = (teams || []).map(t => ({
       teamId: t.id,
@@ -413,7 +448,8 @@
     isPhysicalBall,
     recalculateMatch,
     getOverSummaries,
-    calculatePointsTable
+    calculatePointsTable,
+    getMatchResultString
   };
 
 })(typeof exports === 'object' ? exports : window);

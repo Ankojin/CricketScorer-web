@@ -10,7 +10,7 @@
 </head>
 <body>
 
-  <!-- Top App Bar -->
+  <!-- Top App Header -->
   <header class="app-header">
     <div class="app-title">
       🏏 CricScore Pro
@@ -21,9 +21,12 @@
     </div>
   </header>
 
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
   <div class="container">
 
-    <!-- Screen 1: Matches List -->
+    <!-- Screen 1: Saved Matches List -->
     <div id="screenMatchList" class="screen">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
         <h2 style="font-size:18px;">Saved Matches</h2>
@@ -32,10 +35,16 @@
       <div id="matchListContainer"></div>
     </div>
 
-    <!-- Screen 2: New Match Setup -->
+    <!-- Screen 2: New Match Setup (Team Reuse & Config) -->
     <div id="screenNewMatch" class="screen">
       <div class="card">
         <h3 style="margin-bottom:14px;">Create New Match</h3>
+
+        <!-- Team Reuse Selector -->
+        <div class="form-group">
+          <label for="selectTeamA">Select Team A (or Custom)</label>
+          <select id="selectTeamA" class="form-control" onchange="onSelectTeamAChange()"></select>
+        </div>
 
         <div class="form-group">
           <label for="teamAName">Team A Name</label>
@@ -51,6 +60,12 @@
         </div>
 
         <hr style="border-color:var(--card-border); margin:16px 0;">
+
+        <!-- Team B Reuse Selector -->
+        <div class="form-group">
+          <label for="selectTeamB">Select Team B (or Custom)</label>
+          <select id="selectTeamB" class="form-control" onchange="onSelectTeamBChange()"></select>
+        </div>
 
         <div class="form-group">
           <label for="teamBName">Team B Name</label>
@@ -88,8 +103,15 @@
     <!-- Screen 3: Live Scoring (Main App Screen) -->
     <div id="screenLiveScoring" class="screen active">
 
+      <!-- Completed Match Summary Card -->
+      <div id="completedMatchCard" class="completed-summary-card" style="display:none;">
+        <div id="winnerTitle" class="winner-title">🎉 Rockets won!</div>
+        <div id="marginText" class="margin-text">Margin: 12 runs</div>
+      </div>
+
       <!-- Live Score Summary Card -->
       <div class="card score-card">
+        <span id="lastSavedTag" class="last-saved-tag">Saved 12:00 PM</span>
         <div id="scoringHeader" class="match-teams-title">Team A vs Team B</div>
         <div id="scoreMain" class="score-main">0/0</div>
         <div id="oversText" class="overs-main">Overs: 0.0 / 20</div>
@@ -146,7 +168,7 @@
         Pending Action
       </div>
 
-      <!-- Live Scoring Keypad Pad -->
+      <!-- Live Scoring Keypad -->
       <div class="keypad-grid">
         <button class="btn btn-run" onclick="addBall(0)">0</button>
         <button class="btn btn-run" onclick="addBall(1)">1</button>
@@ -182,7 +204,7 @@
       </div>
     </div>
 
-    <!-- Screen 6: Tournaments & Series Standings (TournamentDetailsScreen.kt) -->
+    <!-- Screen 6: Tournaments & Series Standings -->
     <div id="screenTournaments" class="screen">
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -193,7 +215,7 @@
       </div>
     </div>
 
-    <!-- Screen 7: Global Players & Teams Directory (GlobalPlayerRepository.kt) -->
+    <!-- Screen 7: Global Players & Teams Directory -->
     <div id="screenPlayers" class="screen">
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -207,7 +229,7 @@
       </div>
     </div>
 
-    <!-- Screen 8: Stats & Leaderboards (StatsViews.kt) -->
+    <!-- Screen 8: Stats & Leaderboards -->
     <div id="screenStats" class="screen">
       <div class="card">
         <h3 style="margin-bottom:12px;">Stats & Leaderboards</h3>
@@ -215,6 +237,20 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- End of Over Popup Modal -->
+  <div id="overEndModal" class="modal-overlay">
+    <div class="modal" style="text-align:center;">
+      <h3 id="overEndTitle" style="color:var(--accent-color); font-size:20px; font-weight:900; margin-bottom:8px;">End of Over 1</h3>
+      <div id="overEndBody" style="font-size:15px; font-weight:600; margin-bottom:16px;">
+        Runs in Over: 12 | Wickets: 1
+      </div>
+      <div id="overEndBowlerStats" style="font-size:13px; color:var(--text-muted); margin-bottom:20px; background:#0f172a; padding:10px; border-radius:8px;">
+        Charlie: 1.0 - 0 - 12 - 1
+      </div>
+      <button class="btn-primary" onclick="closeOverEndModal()">Continue Match</button>
+    </div>
   </div>
 
   <!-- Toss Modal -->
@@ -271,6 +307,7 @@
 
       <div style="display:flex; gap:8px; margin-top:20px;">
         <button class="btn-primary" onclick="saveMatchSettings()">Save Settings</button>
+        <button class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:13px;" onclick="wipeAllAppData()">🧹 Reset App Data</button>
         <button class="btn" style="background:#334155;" onclick="closeMatchSettingsModal()">Cancel</button>
       </div>
     </div>
@@ -298,15 +335,16 @@
     </div>
   </div>
 
-  <!-- Player Selection Modal -->
+  <!-- Improved Bowler Selection Modal (Gully Crix style) -->
   <div id="selectionModal" class="modal-overlay">
     <div class="modal">
       <h3 id="selectionTitle" style="margin-bottom:12px;">Select Player</h3>
-      <div class="form-group">
+      <div id="bowlerListContainer" class="form-group"></div>
+      <div class="form-group" id="genericDropdownGroup" style="display:none;">
         <label for="selectionDropdown">Choose Player</label>
         <select id="selectionDropdown" class="form-control"></select>
       </div>
-      <button class="btn-primary" onclick="confirmPlayerSelection()">Select Player</button>
+      <button class="btn-primary" id="btnConfirmGenericSelection" style="display:none;" onclick="confirmPlayerSelection()">Select Player</button>
     </div>
   </div>
 
