@@ -1,0 +1,29 @@
+{
+  "name": "cricscore-pro-web",
+  "version": "2.33.28",
+  "description": "CricScore Pro Web PWA - Serverless Cricket Scorer for Intune Managed Browsers",
+  "main": "dist/src/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "npx http-server public -p 8080",
+    "test": "npm run build && node --test dist/test/ScoringEngine.test.js"
+  },
+  "keywords": [
+    "cricket",
+    "pwa",
+    "aws",
+    "serverless",
+    "dynamodb"
+  ],
+  "author": "CricScore Pro Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.500.0",
+    "@aws-sdk/lib-dynamodb": "^3.500.0"
+  }
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CricScore Pro Static Web MVP</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d47a1">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-title">🏏 CricScore Pro Web</div>
+    <div>
+      <button class="nav-btn" onclick="loadMatchListScreen()">📋 Matches</button>
+      <button class="nav-btn" onclick="showNewMatchScreen()" style="background:#2196f3; margin-left:6px;">➕ New</button>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <!-- Screen 1: Match List -->
+    <div id="screenMatchList" class="screen active">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2>Saved Matches</h2>
+        <button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="showNewMatchScreen()">Create Match</button>
+      </div>
+      <div id="matchListContainer"></div>
+    </div>
+
+    <!-- Screen 2: New Match -->
+    <div id="screenNewMatch" class="screen">
+      <div class="card">
+        <h2 style="margin-bottom:12px;">Create New Match</h2>
+
+        <div class="form-group">
+          <label for="teamAName">Team A Name</label>
+          <input type="text" id="teamAName" class="form-control" value="Rockets">
+        </div>
+        <div class="form-group">
+          <label for="teamAColor">Team A Color</label>
+          <input type="color" id="teamAColor" class="form-control" value="#FF5722">
+        </div>
+
+        <div class="form-group" style="margin-top:16px;">
+          <label for="teamBName">Team B Name</label>
+          <input type="text" id="teamBName" class="form-control" value="Thunder">
+        </div>
+        <div class="form-group">
+          <label for="teamBColor">Team B Color</label>
+          <input type="color" id="teamBColor" class="form-control" value="#2196F3">
+        </div>
+
+        <div class="form-group" style="margin-top:16px;">
+          <label for="matchOvers">Overs Per Innings</label>
+          <input type="number" id="matchOvers" class="form-control" value="5">
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:20px;">
+          <button class="btn-primary" onclick="handleCreateMatch()">Start Match</button>
+          <button class="btn" style="background:#444;" onclick="loadMatchListScreen()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Live Scoring -->
+    <div id="screenLiveScoring" class="screen">
+      <!-- Live Score Summary -->
+      <div class="card score-display">
+        <div id="scoringHeader" style="font-size:14px; color:var(--text-muted);">Team A vs Team B</div>
+        <div id="scoreMain" class="score-main">0/0</div>
+        <div id="oversText" class="overs-text">Overs: 0.0 / 20</div>
+        <div class="rates-row">
+          <span id="crrText">CRR: 0.00</span>
+        </div>
+        <div id="targetBanner" class="target-banner" style="display:none;">Target: 0</div>
+        <div id="recentBalls" class="recent-balls"></div>
+      </div>
+
+      <!-- Live Scoring Keypad -->
+      <div class="keypad-grid">
+        <button class="btn btn-run" onclick="addBall(0)">0</button>
+        <button class="btn btn-run" onclick="addBall(1)">1</button>
+        <button class="btn btn-run" onclick="addBall(2)">2</button>
+        <button class="btn btn-run" onclick="addBall(3)">3</button>
+        <button class="btn btn-boundary" onclick="addBall(4)">4</button>
+        <button class="btn btn-boundary" onclick="addBall(6)">6</button>
+
+        <button class="btn btn-extra" onclick="addExtra('WIDE')">WD</button>
+        <button class="btn btn-extra" onclick="addExtra('NO_BALL')">NB</button>
+
+        <button class="btn btn-wicket" onclick="openWicketModal()">☝️ WICKET</button>
+        <button class="btn btn-undo" onclick="undoLastBall()">↩️ UNDO BALL</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Wicket Modal -->
+  <div id="wicketModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom:12px;">Select Wicket Type</h3>
+      <div class="form-group">
+        <label for="wicketTypeSelect">Dismissal Type</label>
+        <select id="wicketTypeSelect" class="form-control">
+          <option value="BOWLED">Bowled</option>
+          <option value="CAUGHT">Caught</option>
+          <option value="LBW">LBW</option>
+          <option value="RUN_OUT">Run Out</option>
+          <option value="STUMPED">Stumped</option>
+          <option value="RETIRED_HURT">Retired Hurt (No Wicket Count)</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn-primary" onclick="submitWicket()">Confirm Wicket</button>
+        <button class="btn" style="background:#444;" onclick="closeWicketModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Endpoint Configuration Switch -->
+  <script>
+    // Set your deployed AWS API Gateway Endpoint here or leave empty "" to use LocalStorage offline mode
+    window.CRIC_API_BASE = "";
+  </script>
+  <script src="js/scoring-engine.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(console.error);
+    }
+  </script>
+</body>
+</html>
