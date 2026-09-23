@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: CricScore Pro Web - Serverless Architecture (AWS Free Tier)
+Description: CricScore Pro Web - Serverless Architecture (AWS Free Tier / On-Demand Mode)
 
 Globals:
   Function:
@@ -12,15 +12,12 @@ Globals:
 
 Resources:
 
-  # 1. DynamoDB Table (Always Free Tier: 25 WCU / 25 RCU / 25 GB)
+  # 1. DynamoDB Table (PAY_PER_REQUEST / On-Demand = $0 Cost when Idle)
   CricMatchesTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: CricMatches
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 25
-        WriteCapacityUnits: 25
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: matchId
           AttributeType: S
