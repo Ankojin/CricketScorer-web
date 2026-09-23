@@ -110,6 +110,7 @@ Resources:
           - GET
           - POST
           - PUT
+          - DELETE
           - OPTIONS
         AllowHeaders:
           - Content-Type
@@ -130,32 +131,15 @@ Resources:
                 - dynamodb:GetItem
                 - dynamodb:PutItem
                 - dynamodb:Scan
+                - dynamodb:DeleteItem
               Resource: !GetAtt CricMatchesTable.Arn
       Events:
-        GetMatches:
+        ProxyApiRoot:
           Type: HttpApi
           Properties:
             ApiId: !Ref CricScoreHttpApi
-            Path: /matches
-            Method: GET
-        GetMatchById:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref CricScoreHttpApi
-            Path: /matches/{id}
-            Method: GET
-        PostMatches:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref CricScoreHttpApi
-            Path: /matches
-            Method: POST
-        PutMatchById:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref CricScoreHttpApi
-            Path: /matches/{id}
-            Method: PUT
+            Path: /{proxy+}
+            Method: ANY
 
 Outputs:
   WebUrl:

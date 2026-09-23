@@ -4,6 +4,7 @@ window.CRIC_API_BASE = window.CRIC_API_BASE || "";
 
 const CricStorage = {
 
+  // ------------------- MATCHES -------------------
   async listMatches() {
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
@@ -50,14 +51,14 @@ const CricStorage = {
         });
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const saved = await res.json();
-        this.saveLocalBackup(saved);
+        this.saveLocalMatchBackup(saved);
         return saved;
       } catch (err) {
         console.warn('API createMatch failed, saving to localStorage:', err);
       }
     }
 
-    return this.saveLocalBackup(match);
+    return this.saveLocalMatchBackup(match);
   },
 
   async saveMatch(match) {
@@ -72,17 +73,17 @@ const CricStorage = {
         });
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const saved = await res.json();
-        this.saveLocalBackup(saved);
+        this.saveLocalMatchBackup(saved);
         return saved;
       } catch (err) {
         console.warn('API saveMatch failed, updating localStorage:', err);
       }
     }
 
-    return this.saveLocalBackup(match);
+    return this.saveLocalMatchBackup(match);
   },
 
-  saveLocalBackup(match) {
+  saveLocalMatchBackup(match) {
     const raw = localStorage.getItem('cric_matches');
     const matches = raw ? JSON.parse(raw) : [];
     const updated = [match, ...matches.filter(m => m.id !== match.id)];
@@ -109,21 +110,81 @@ const CricStorage = {
     return await this.saveMatch(recalculated);
   },
 
-  // Tournaments Storage
+  // ------------------- TOURNAMENTS / SERIES -------------------
   async listTournaments() {
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/tournaments`);
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch (err) {
+        console.warn('API listTournaments failed, falling back to localStorage:', err);
+      }
+    }
+
     const raw = localStorage.getItem('cric_tournaments');
     return raw ? JSON.parse(raw) : [];
   },
 
   async saveTournament(tournament) {
+    if (!tournament.id) tournament.id = 'tourney_' + Date.now();
+
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/tournaments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tournament)
+        });
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const saved = await res.json();
+        this.saveLocalTourneyBackup(saved);
+        return saved;
+      } catch (err) {
+        console.warn('API saveTournament failed, falling back to localStorage:', err);
+      }
+    }
+
+    return this.saveLocalTourneyBackup(tournament);
+  },
+
+  async deleteTournament(tournamentId) {
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        await fetch(`${window.CRIC_API_BASE}/tournaments/${tournamentId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.warn('API deleteTournament failed:', err);
+      }
+    }
+
     const tourneys = await this.listTournaments();
+    const updated = tourneys.filter(t => t.id !== tournamentId);
+    localStorage.setItem('cric_tournaments', JSON.stringify(updated));
+    return updated;
+  },
+
+  saveLocalTourneyBackup(tournament) {
+    const raw = localStorage.getItem('cric_tournaments');
+    const tourneys = raw ? JSON.parse(raw) : [];
     const updated = [tournament, ...tourneys.filter(t => t.id !== tournament.id)];
     localStorage.setItem('cric_tournaments', JSON.stringify(updated));
     return tournament;
   },
 
-  // Global Player Directory Storage
+  // ------------------- GLOBAL PLAYERS & TEAMS -------------------
   async listGlobalPlayers() {
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/players`);
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      } catch (err) {
+        console.warn('API listGlobalPlayers failed, falling back to localStorage:', err);
+      }
+    }
+
     const raw = localStorage.getItem('cric_global_players');
     return raw ? JSON.parse(raw) : [
       { id: 'gp1', name: 'Alice', style: 'RHB', role: 'Batter' },
@@ -136,11 +197,48 @@ const CricStorage = {
   },
 
   async addGlobalPlayer(player) {
-    const players = await this.listGlobalPlayers();
     player.id = player.id || 'gp_' + Date.now();
-    const updated = [player, ...players.filter(p => p.id !== player.id)];
+
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/players`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(player)
+        });
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const saved = await res.json();
+        this.saveLocalPlayerBackup(saved);
+        return saved;
+      } catch (err) {
+        console.warn('API addGlobalPlayer failed, falling back to localStorage:', err);
+      }
+    }
+
+    return this.saveLocalPlayerBackup(player);
+  },
+
+  async deleteGlobalPlayer(playerId) {
+    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+      try {
+        await fetch(`${window.CRIC_API_BASE}/players/${playerId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.warn('API deleteGlobalPlayer failed:', err);
+      }
+    }
+
+    const players = await this.listGlobalPlayers();
+    const updated = players.filter(p => p.id !== playerId);
     localStorage.setItem('cric_global_players', JSON.stringify(updated));
     return updated;
+  },
+
+  saveLocalPlayerBackup(player) {
+    const raw = localStorage.getItem('cric_global_players');
+    const players = raw ? JSON.parse(raw) : [];
+    const updated = [player, ...players.filter(p => p.id !== player.id)];
+    localStorage.setItem('cric_global_players', JSON.stringify(updated));
+    return player;
   }
 };
 

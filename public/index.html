@@ -196,7 +196,10 @@
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3>Teams & Global Players</h3>
-          <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" onclick="openNewPlayerModal()">+ Add Player</button>
+          <div>
+            <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; margin-right:4px;" onclick="openNewTeamModal()">+ New Team</button>
+            <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; background:#10b981;" onclick="openNewPlayerModal()">+ Add Player</button>
+          </div>
         </div>
         <div id="playersContainer"></div>
       </div>
@@ -305,10 +308,34 @@
     </div>
   </div>
 
-  <!-- New Player Modal -->
+  <!-- Create Team Modal -->
+  <div id="teamModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom:12px;">Create New Team</h3>
+      <div class="form-group">
+        <label for="newTeamName">Team Name</label>
+        <input type="text" id="newTeamName" class="form-control" placeholder="e.g. Super Kings">
+      </div>
+      <div class="form-group">
+        <label for="newTeamColor">Team Color</label>
+        <input type="color" id="newTeamColor" class="form-control" value="#2196F3">
+      </div>
+      <div class="form-group">
+        <label for="newTeamPlayers">Players List (comma separated)</label>
+        <input type="text" id="newTeamPlayers" class="form-control" placeholder="e.g. Alice, Bob, Charlie">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn-primary" onclick="handleCreateTeam()">Create Team</button>
+        <button class="btn" style="background:#334155;" onclick="closeTeamModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New/Edit Player Modal -->
   <div id="playerModal" class="modal-overlay">
     <div class="modal">
-      <h3 style="margin-bottom:12px;">Add Global Player</h3>
+      <h3 id="playerModalTitle" style="margin-bottom:12px;">Add / Edit Player</h3>
+      <input type="hidden" id="editPlayerId">
       <div class="form-group">
         <label for="newPlayerName">Player Name</label>
         <input type="text" id="newPlayerName" class="form-control" placeholder="e.g. John Doe">
@@ -322,8 +349,15 @@
           <option value="Wicket-Keeper">Wicket-Keeper</option>
         </select>
       </div>
+      <div class="form-group">
+        <label for="newPlayerStyle">Batting Style</label>
+        <select id="newPlayerStyle" class="form-control">
+          <option value="RHB">Right Hand Bat (RHB)</option>
+          <option value="LHB">Left Hand Bat (LHB)</option>
+        </select>
+      </div>
       <div style="display:flex; gap:8px; margin-top:16px;">
-        <button class="btn-primary" onclick="handleCreatePlayer()">Save Player</button>
+        <button class="btn-primary" onclick="handleSavePlayer()">Save Player</button>
         <button class="btn" style="background:#334155;" onclick="closePlayerModal()">Cancel</button>
       </div>
     </div>

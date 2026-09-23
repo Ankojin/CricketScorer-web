@@ -582,7 +582,7 @@ function renderScorecard() {
   `;
 }
 
-// Overs Breakdown Timeline (OversViews.kt parity)
+// Overs Breakdown Timeline
 function renderOvers() {
   if (!activeMatch) return;
   const container = document.getElementById('oversContainer');
@@ -623,7 +623,7 @@ function renderOvers() {
   });
 }
 
-// Tournaments & Points Table (TournamentDetailsScreen.kt parity)
+// Tournaments & Series Standings
 async function renderTournaments() {
   const container = document.getElementById('tournamentsContainer');
   const tourneys = await window.CricStorage.listTournaments();
@@ -652,8 +652,11 @@ async function renderTournaments() {
     `).join('');
 
     card.innerHTML = `
-      <h4 style="font-size:16px; font-weight:800; color:#fff; margin-bottom:8px;">🏆 ${t.name}</h4>
-      <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Points Table</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h4 style="font-size:16px; font-weight:800; color:#fff;">🏆 ${t.name}</h4>
+        <button class="btn" style="background:#7f1d1d; color:#fca5a5; padding:4px 8px; font-size:11px;" onclick="deleteSeries('${t.id}')">🗑️ Delete</button>
+      </div>
+      <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-top:8px;">Points Table</div>
       <table class="stats-table">
         <thead>
           <tr><th>Team</th><th style="text-align:right">P</th><th style="text-align:right">W</th><th style="text-align:right">L</th><th style="text-align:right">PTS</th></tr>
@@ -689,11 +692,23 @@ async function handleCreateTournament() {
   renderTournaments();
 }
 
-// Global Player Roster (GlobalPlayerRepository.kt parity)
+async function deleteSeries(id) {
+  if (confirm("Are you sure you want to delete this tournament series?")) {
+    await window.CricStorage.deleteTournament(id);
+    renderTournaments();
+  }
+}
+
+// Global Players & Teams Directory
 async function renderPlayers() {
   const container = document.getElementById('playersContainer');
   const players = await window.CricStorage.listGlobalPlayers();
   container.innerHTML = '';
+
+  if (!players || players.length === 0) {
+    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No players in global roster. Click "+ Add Player" above!</div>';
+    return;
+  }
 
   players.forEach(p => {
     const item = document.createElement('div');
@@ -704,13 +719,58 @@ async function renderPlayers() {
         <div style="font-size:14px; font-weight:700; color:#fff;">👤 ${p.name}</div>
         <div style="font-size:11px; color:var(--text-muted);">${p.role || 'Batter'} | ${p.style || 'RHB'}</div>
       </div>
-      <span class="status-badge" style="background:#334155; color:#cbd5e1;">Available</span>
+      <div style="display:flex; gap:6px;">
+        <button class="btn" style="background:#334155; padding:4px 8px; font-size:11px;" onclick="openEditPlayerModal('${p.id}', '${p.name}', '${p.role}', '${p.style}')">✏️ Edit</button>
+        <button class="btn" style="background:#7f1d1d; color:#fca5a5; padding:4px 8px; font-size:11px;" onclick="deletePlayer('${p.id}')">🗑️ Delete</button>
+      </div>
     `;
     container.appendChild(item);
   });
 }
 
+function openNewTeamModal() {
+  document.getElementById('teamModal').classList.add('active');
+}
+
+function closeTeamModal() {
+  document.getElementById('teamModal').classList.remove('active');
+}
+
+async function handleCreateTeam() {
+  const name = document.getElementById('newTeamName').value;
+  const color = document.getElementById('newTeamColor').value;
+  const playersStr = document.getElementById('newTeamPlayers').value || 'Player 1, Player 2';
+  if (!name) return;
+
+  const players = playersStr.split(',').map((pName, i) => ({
+    id: `tp_${i}_${Date.now()}`,
+    name: pName.trim(),
+    role: 'Batter',
+    style: 'RHB'
+  }));
+
+  // Add players to global roster as well
+  for (const p of players) {
+    await window.CricStorage.addGlobalPlayer(p);
+  }
+
+  closeTeamModal();
+  renderPlayers();
+}
+
 function openNewPlayerModal() {
+  document.getElementById('editPlayerId').value = '';
+  document.getElementById('newPlayerName').value = '';
+  document.getElementById('playerModalTitle').innerText = 'Add Global Player';
+  document.getElementById('playerModal').classList.add('active');
+}
+
+function openEditPlayerModal(id, name, role, style) {
+  document.getElementById('editPlayerId').value = id;
+  document.getElementById('newPlayerName').value = name;
+  document.getElementById('newPlayerRole').value = role || 'Batter';
+  document.getElementById('newPlayerStyle').value = style || 'RHB';
+  document.getElementById('playerModalTitle').innerText = 'Edit Player Details';
   document.getElementById('playerModal').classList.add('active');
 }
 
@@ -718,23 +778,32 @@ function closePlayerModal() {
   document.getElementById('playerModal').classList.remove('active');
 }
 
-async function handleCreatePlayer() {
+async function handleSavePlayer() {
+  const id = document.getElementById('editPlayerId').value;
   const name = document.getElementById('newPlayerName').value;
   const role = document.getElementById('newPlayerRole').value;
+  const style = document.getElementById('newPlayerStyle').value;
   if (!name) return;
 
   await window.CricStorage.addGlobalPlayer({
-    id: 'gp_' + Date.now(),
+    id: id || ('gp_' + Date.now()),
     name,
     role,
-    style: 'RHB'
+    style
   });
 
   closePlayerModal();
   renderPlayers();
 }
 
-// Stats & Leaderboards (StatsViews.kt parity)
+async function deletePlayer(id) {
+  if (confirm("Are you sure you want to delete this player?")) {
+    await window.CricStorage.deleteGlobalPlayer(id);
+    renderPlayers();
+  }
+}
+
+// Stats & Leaderboards
 async function renderStats() {
   const container = document.getElementById('statsContainer');
   const matches = await window.CricStorage.listMatches();
