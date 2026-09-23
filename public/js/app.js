@@ -235,14 +235,13 @@ async function loadMatchListScreen() {
   matches.forEach(m => {
     const item = document.createElement('div');
     item.className = 'match-card-item';
-    item.onclick = () => selectMatch(m.id);
 
     const teamAColor = m.teamA?.colorHex || '#FF5722';
     const teamBColor = m.teamB?.colorHex || '#2196F3';
     const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
 
     item.innerHTML = `
-      <div>
+      <div style="flex:1; cursor:pointer;" onclick="selectMatch('${m.id}')">
         <div style="font-weight:700; font-size:15px; color:#fff;">
           <span class="team-badge" style="background:${teamAColor}"></span>${m.teamA?.name || 'Team A'} vs
           <span class="team-badge" style="background:${teamBColor}"></span>${m.teamB?.name || 'Team B'}
@@ -251,18 +250,59 @@ async function loadMatchListScreen() {
           Status: <span style="color:#3b82f6; font-weight:600;">${m.status || 'LIVE'}</span> | Overs: ${overStr} / ${m.oversPerInnings || 20}
         </div>
       </div>
-      <div style="font-size:22px; font-weight:900; color:#fff;">
-        ${m.totalRuns || 0}/${m.totalWickets || 0}
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="font-size:22px; font-weight:900; color:#fff; cursor:pointer;" onclick="selectMatch('${m.id}')">
+          ${m.totalRuns || 0}/${m.totalWickets || 0}
+        </div>
+        <button class="btn" style="background:#7f1d1d; color:#fca5a5; padding:6px 10px; font-size:12px; border-radius:8px;" onclick="handleDeleteMatch('${m.id}', event)">
+          🗑️ Delete
+        </button>
       </div>
     `;
     listEl.appendChild(item);
   });
 }
 
+async function handleDeleteMatch(matchId, event) {
+  if (event) event.stopPropagation();
+  if (confirm("Are you sure you want to delete this match permanently?")) {
+    await window.CricStorage.deleteMatch(matchId);
+    if (activeMatch && activeMatch.id === matchId) {
+      activeMatch = null;
+    }
+    showToast("Match deleted permanently", "info");
+    loadMatchListScreen();
+  }
+}
+
+async function handleDeleteActiveMatch() {
+  if (!activeMatch) return;
+  if (confirm(`Are you sure you want to delete "${activeMatch.teamA?.name} vs ${activeMatch.teamB?.name}" permanently?`)) {
+    const deletedId = activeMatch.id;
+    activeMatch = null;
+    await window.CricStorage.deleteMatch(deletedId);
+    showToast("Match deleted permanently", "info");
+    loadMatchListScreen();
+  }
+}
+
+async function getAllTeamsList() {
+  const globalTeams = await window.CricStorage.listTeams();
+  let tourneyTeams = [];
+  if (activeTournament && activeTournament.teams) {
+    tourneyTeams = activeTournament.teams;
+  }
+  const map = new Map();
+  [...globalTeams, ...tourneyTeams].forEach(t => {
+    if (t && t.id) map.set(t.id, t);
+  });
+  return Array.from(map.values());
+}
+
 async function showNewMatchScreen() {
   showScreen('screenNewMatch');
 
-  const teams = await window.CricStorage.listTeams();
+  const teams = await getAllTeamsList();
   const selectA = document.getElementById('selectTeamA');
   const selectB = document.getElementById('selectTeamB');
 
@@ -270,14 +310,15 @@ async function showNewMatchScreen() {
   selectB.innerHTML = '<option value="">-- Custom Team B --</option>';
 
   teams.forEach(t => {
+    const pCount = (t.players || []).length;
     const optA = document.createElement('option');
     optA.value = t.id;
-    optA.innerText = `${t.name} (${(t.players||[]).length} players)`;
+    optA.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
     selectA.appendChild(optA);
 
     const optB = document.createElement('option');
     optB.value = t.id;
-    optB.innerText = `${t.name} (${(t.players||[]).length} players)`;
+    optB.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
     selectB.appendChild(optB);
   });
 }
@@ -286,12 +327,14 @@ async function onSelectTeamAChange() {
   const teamId = document.getElementById('selectTeamA').value;
   if (!teamId) return;
 
-  const teams = await window.CricStorage.listTeams();
+  const teams = await getAllTeamsList();
   const found = teams.find(t => t.id === teamId);
   if (found) {
-    document.getElementById('teamAName').value = found.name;
+    document.getElementById('teamAName').value = found.name || '';
     document.getElementById('teamAColor').value = found.colorHex || '#FF5722';
-    document.getElementById('teamAPlayers').value = (found.players || []).map(p => p.name).join(', ');
+
+    const playerNames = (found.players || []).map(p => (typeof p === 'string' ? p : (p.name || ''))).filter(Boolean);
+    document.getElementById('teamAPlayers').value = playerNames.join(', ');
   }
 }
 
@@ -299,12 +342,14 @@ async function onSelectTeamBChange() {
   const teamId = document.getElementById('selectTeamB').value;
   if (!teamId) return;
 
-  const teams = await window.CricStorage.listTeams();
+  const teams = await getAllTeamsList();
   const found = teams.find(t => t.id === teamId);
   if (found) {
-    document.getElementById('teamBName').value = found.name;
+    document.getElementById('teamBName').value = found.name || '';
     document.getElementById('teamBColor').value = found.colorHex || '#2196F3';
-    document.getElementById('teamBPlayers').value = (found.players || []).map(p => p.name).join(', ');
+
+    const playerNames = (found.players || []).map(p => (typeof p === 'string' ? p : (p.name || ''))).filter(Boolean);
+    document.getElementById('teamBPlayers').value = playerNames.join(', ');
   }
 }
 
@@ -320,28 +365,87 @@ async function handleCreateMatch() {
   const overs = parseInt(document.getElementById('matchOvers').value) || 5;
   const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers').value) || 2;
 
-  const teamA = {
-    id: 'team_a_' + Date.now(),
-    name: teamAName,
-    colorHex: teamAColor,
-    players: teamAPlayersStr.split(',').map((n, i) => ({
+  const selectedTeamAId = document.getElementById('selectTeamA').value;
+  const selectedTeamBId = document.getElementById('selectTeamB').value;
+  const allTeams = await getAllTeamsList();
+
+  const foundA = allTeams.find(t => t.id === selectedTeamAId);
+  const foundB = allTeams.find(t => t.id === selectedTeamBId);
+
+  // Build Team A Players
+  let teamAPlayers = [];
+  if (foundA && foundA.players && foundA.players.length > 0) {
+    const inputNames = teamAPlayersStr.split(',').map(s => s.trim()).filter(Boolean);
+    if (inputNames.length > 0) {
+      teamAPlayers = inputNames.map((n, i) => {
+        const existingP = foundA.players[i];
+        return {
+          id: existingP ? existingP.id : `pa_${i}_${Date.now()}`,
+          name: n,
+          battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
+          bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+        };
+      });
+    } else {
+      teamAPlayers = foundA.players.map((p, i) => ({
+        id: p.id || `pa_${i}_${Date.now()}`,
+        name: typeof p === 'string' ? p : p.name,
+        battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
+        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+      }));
+    }
+  } else {
+    teamAPlayers = teamAPlayersStr.split(',').map((n, i) => ({
       id: `pa_${i}_${Date.now()}`,
       name: n.trim(),
       battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
       bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-    }))
-  };
+    }));
+  }
 
-  const teamB = {
-    id: 'team_b_' + Date.now(),
-    name: teamBName,
-    colorHex: teamBColor,
-    players: teamBPlayersStr.split(',').map((n, i) => ({
+  // Build Team B Players
+  let teamBPlayers = [];
+  if (foundB && foundB.players && foundB.players.length > 0) {
+    const inputNames = teamBPlayersStr.split(',').map(s => s.trim()).filter(Boolean);
+    if (inputNames.length > 0) {
+      teamBPlayers = inputNames.map((n, i) => {
+        const existingP = foundB.players[i];
+        return {
+          id: existingP ? existingP.id : `pb_${i}_${Date.now()}`,
+          name: n,
+          battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
+          bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+        };
+      });
+    } else {
+      teamBPlayers = foundB.players.map((p, i) => ({
+        id: p.id || `pb_${i}_${Date.now()}`,
+        name: typeof p === 'string' ? p : p.name,
+        battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
+        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+      }));
+    }
+  } else {
+    teamBPlayers = teamBPlayersStr.split(',').map((n, i) => ({
       id: `pb_${i}_${Date.now()}`,
       name: n.trim(),
       battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
       bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-    }))
+    }));
+  }
+
+  const teamA = {
+    id: selectedTeamAId || ('team_a_' + Date.now()),
+    name: teamAName,
+    colorHex: teamAColor,
+    players: teamAPlayers
+  };
+
+  const teamB = {
+    id: selectedTeamBId || ('team_b_' + Date.now()),
+    name: teamBName,
+    colorHex: teamBColor,
+    players: teamBPlayers
   };
 
   activeMatch = {
@@ -560,7 +664,7 @@ function renderLiveScoring() {
     completedCard.style.display = 'block';
     const resultStr = window.ScoringEngine.getMatchResultString(m);
 
-    // Calculate Man of the Match (MatchSummaryViews.kt parity)
+    // Calculate Man of the Match
     const motm = window.ScoringEngine.calculateMotm(m);
     const motmHtml = motm ? `<div style="font-size:13px; color:#fde047; font-weight:800; margin-top:8px;">🌟 MAN OF THE MATCH: ${motm.player.name.toUpperCase()} (Impact: ${motm.impactScore} pts)</div>` : '';
 
@@ -1291,7 +1395,7 @@ async function deletePlayer(id) {
   }
 }
 
-// Stats & Leaderboards (Porting StatsViews.kt + MatchSummaryViews.kt)
+// Stats & Leaderboards
 async function renderStats() {
   const container = document.getElementById('statsContainer');
   const m = activeMatch;

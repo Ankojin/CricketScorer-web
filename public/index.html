@@ -154,10 +154,16 @@
         <div id="targetBanner" class="target-banner" style="display:none;">Target: 0</div>
         <div id="recentBalls" class="recent-balls"></div>
 
-        <!-- WhatsApp Live Score Sharing Button -->
-        <button id="shareWhatsAppBtn" class="btn" style="background:#25d366; color:#000; font-size:13px; font-weight:800; width:100%; margin-top:12px; padding:10px;" onclick="shareLiveScoreWhatsApp()">
-          📲 Share Live Score on WhatsApp
-        </button>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <!-- WhatsApp Live Score Sharing Button -->
+          <button id="shareWhatsAppBtn" class="btn" style="background:#25d366; color:#000; font-size:13px; font-weight:800; flex:3; padding:10px;" onclick="shareLiveScoreWhatsApp()">
+            📲 Share Live Score
+          </button>
+          <!-- Live Match Delete Button -->
+          <button id="deleteMatchBtn" class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:13px; font-weight:800; flex:1; padding:10px; border-color:#dc2626;" onclick="handleDeleteActiveMatch()">
+            🗑️ Delete
+          </button>
+        </div>
       </div>
 
       <!-- Active Batters Card -->
@@ -258,7 +264,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3>Teams & Global Players</h3>
           <div>
-            <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; margin-right:4px;" onclick="openNewTeamModal()">+ Add Team</button>
+            <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; margin-right:4px;" onclick="openNewTeamModal()">+ New Team</button>
             <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; background:#10b981;" onclick="openNewPlayerModal()">+ Add Player</button>
           </div>
         </div>
