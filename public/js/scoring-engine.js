@@ -278,7 +278,8 @@
             wideCount: current.wideCount,
             noBallCount: current.noBallCount,
             byeCount: current.byeCount,
-            legByeCount: current.legByeCount
+            legByeCount: current.legByeCount,
+            recordedBallsCount: i + 1
           },
           currentInnings: 2,
           target: current.totalRuns + 1,
@@ -328,20 +329,142 @@
     if (!match.winnerId) return 'Match Tied';
 
     const winner = match.winnerId === match.teamA?.id ? match.teamA : match.teamB;
-    const loser = match.winnerId === match.teamA?.id ? match.teamB : match.teamA;
 
     if (match.winnerId === match.battingTeamId) {
-      // Chasing team won by wickets
       const squadSize = (winner.players || []).length || 11;
       const maxWickets = match.gullyRules?.lastManStanding ? squadSize : Math.max(1, squadSize - 1);
       const wicketsRemaining = maxWickets - match.totalWickets;
       return `🎉 ${winner.name} won by ${wicketsRemaining} wicket${wicketsRemaining !== 1 ? 's' : ''}`;
     } else {
-      // Defending team won by runs
       const target = match.target || (match.innings1Data?.runs ? match.innings1Data.runs + 1 : 0);
       const runMargin = target - 1 - match.totalRuns;
       return `🎉 ${winner.name} won by ${runMargin} run${runMargin !== 1 ? 's' : ''}`;
     }
+  }
+
+  // Calculate detailed Innings Stats (matching ScoringUtils.kt)
+  function calculateInningsStats(balls) {
+    let sR = 0, dR = 0, tR = 0, fR = 0, siR = 0, oR = 0, dots = 0, exR = 0, w = 0, wC = 0, nbC = 0;
+    let ppR = 0, ppW = 0, midR = 0, midW = 0, finR = 0, finW = 0;
+    let pB = 0, lB = 0;
+
+    (balls || []).forEach(b => {
+      if (b.isAdjustment) return;
+
+      const ballTotal = (b.runs || 0) + (b.extraRuns || 0);
+      const isW = b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT';
+
+      if (pB < 36) { ppR += ballTotal; if (isW) ppW++; }
+      else if (pB < 90) { midR += ballTotal; if (isW) midW++; }
+      else { finR += ballTotal; if (isW) finW++; }
+
+      if (isW) w++;
+      if (b.extrasType && b.extrasType !== 'NONE' && b.extrasType !== 'GRANTED') exR += b.extraRuns || 0;
+      if (b.extrasType === 'WIDE') wC++;
+      if (b.extrasType === 'NO_BALL') nbC++;
+
+      const runs = b.runs || 0;
+      if (isPhysicalBall(b)) pB++;
+      if (b.isLegalBall !== false && b.extrasType !== 'WIDE' && b.extrasType !== 'NO_BALL') lB++;
+
+      switch (runs) {
+        case 0: if (b.isLegalBall !== false && !b.extraRuns) dots++; break;
+        case 1: sR += 1; break;
+        case 2: dR += 2; break;
+        case 3: tR += 3; break;
+        case 4: fR += 4; break;
+        case 6: siR += 6; break;
+        default: if (runs > 0) oR += runs; break;
+      }
+    });
+
+    const dP = lB > 0 ? Math.round((dots * 100) / lB) : 0;
+
+    return {
+      singlesRuns: sR,
+      doublesRuns: dR,
+      triplesRuns: tR,
+      foursRuns: fR,
+      sixesRuns: siR,
+      otherBatRuns: oR,
+      dots,
+      extrasRuns: exR,
+      wickets: w,
+      wideCount: wC,
+      noBallCount: nbC,
+      ppRuns: ppR,
+      ppWickets: ppW,
+      midRuns: midR,
+      midWickets: midW,
+      finRuns: finR,
+      finWickets: finW,
+      boundaryRuns: fR + siR,
+      dotPercent: dP,
+      totalLegalBalls: lB,
+      hasMid: pB > 36,
+      hasFin: pB > 90
+    };
+  }
+
+  // Calculate Partnerships (matching ScoringUtils.kt)
+  function calculatePartnerships(balls, match) {
+    const partnerships = [];
+    if (!balls || balls.length === 0) return partnerships;
+
+    let currentB1Id = null, currentB2Id = null;
+    let runs1 = 0, balls1 = 0, runs2 = 0, balls2 = 0, pExtras = 0;
+
+    function recoverName(id) {
+      if (!id) return "Player";
+      const pA = (match.teamA?.players || []).find(p => p.id === id);
+      if (pA) return pA.name;
+      const pB = (match.teamB?.players || []).find(p => p.id === id);
+      if (pB) return pB.name;
+      return id;
+    }
+
+    (balls || []).forEach(b => {
+      if (b.isAdjustment) return;
+
+      if (!currentB1Id) {
+        currentB1Id = b.strikerId;
+        currentB2Id = b.nonStrikerId;
+      }
+
+      if (b.strikerId === currentB1Id) {
+        runs1 += b.runs || 0;
+        if (b.extrasType !== 'WIDE') balls1++;
+      } else if (b.strikerId === currentB2Id) {
+        runs2 += b.runs || 0;
+        if (b.extrasType !== 'WIDE') balls2++;
+      }
+
+      pExtras += b.extraRuns || 0;
+
+      if (b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT') {
+        partnerships.add?.({
+          batter1Name: recoverName(currentB1Id), batter1Runs: runs1, batter1Balls: balls1,
+          batter2Name: recoverName(currentB2Id), batter2Runs: runs2, batter2Balls: balls2,
+          totalRuns: runs1 + runs2 + pExtras, totalBalls: balls1 + balls2
+        }) || partnerships.push({
+          batter1Name: recoverName(currentB1Id), batter1Runs: runs1, batter1Balls: balls1,
+          batter2Name: recoverName(currentB2Id), batter2Runs: runs2, batter2Balls: balls2,
+          totalRuns: runs1 + runs2 + pExtras, totalBalls: balls1 + balls2
+        });
+        currentB1Id = null; currentB2Id = null;
+        runs1 = 0; balls1 = 0; runs2 = 0; balls2 = 0; pExtras = 0;
+      }
+    });
+
+    if (currentB1Id) {
+      partnerships.push({
+        batter1Name: recoverName(currentB1Id), batter1Runs: runs1, batter1Balls: balls1,
+        batter2Name: recoverName(currentB2Id), batter2Runs: runs2, batter2Balls: balls2,
+        totalRuns: runs1 + runs2 + pExtras, totalBalls: balls1 + balls2
+      });
+    }
+
+    return partnerships;
   }
 
   // Overs Timeline Generator
@@ -449,7 +572,9 @@
     recalculateMatch,
     getOverSummaries,
     calculatePointsTable,
-    getMatchResultString
+    getMatchResultString,
+    calculateInningsStats,
+    calculatePartnerships
   };
 
 })(typeof exports === 'object' ? exports : window);
