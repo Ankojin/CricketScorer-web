@@ -234,9 +234,111 @@
     return current;
   }
 
+  // Overs Timeline Generator (OversViews.kt)
+  function getOverSummaries(match) {
+    if (!match || !match.ballHistory) return [];
+
+    const overs = [];
+    let currentOverBalls = [];
+    let currentOverRuns = 0;
+    let currentOverWickets = 0;
+    let physicalCount = 0;
+    let overIndex = 1;
+    let accumRuns = 0;
+    let accumWickets = 0;
+
+    (match.ballHistory || []).forEach((b) => {
+      const isPhysical = isPhysicalBall(b);
+      const isRealWicket = b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT';
+      const runsThisBall = b.runs + (b.extraRuns || 0);
+
+      currentOverBalls.push(b);
+      currentOverRuns += runsThisBall;
+      accumRuns += runsThisBall;
+
+      if (isRealWicket) {
+        currentOverWickets++;
+        accumWickets++;
+      }
+
+      if (isPhysical) {
+        physicalCount++;
+        if (physicalCount === 6) {
+          overs.push({
+            overNumber: overIndex,
+            runs: currentOverRuns,
+            wickets: currentOverWickets,
+            balls: [...currentOverBalls],
+            teamTotalRuns: accumRuns,
+            teamTotalWickets: accumWickets
+          });
+          overIndex++;
+          physicalCount = 0;
+          currentOverRuns = 0;
+          currentOverWickets = 0;
+          currentOverBalls = [];
+        }
+      }
+    });
+
+    if (currentOverBalls.length > 0) {
+      overs.push({
+        overNumber: overIndex,
+        runs: currentOverRuns,
+        wickets: currentOverWickets,
+        balls: [...currentOverBalls],
+        teamTotalRuns: accumRuns,
+        teamTotalWickets: accumWickets,
+        isPartial: true
+      });
+    }
+
+    return overs;
+  }
+
+  // Points Table & NRR Calculator (TournamentRepository.kt)
+  function calculatePointsTable(teams, matches) {
+    const table = (teams || []).map(t => ({
+      teamId: t.id,
+      name: t.name,
+      colorHex: t.colorHex || '#2196F3',
+      played: 0,
+      won: 0,
+      lost: 0,
+      tied: 0,
+      points: 0,
+      nrr: '0.000'
+    }));
+
+    (matches || []).forEach(m => {
+      if (m.status !== 'COMPLETED') return;
+      const tA = table.find(x => x.teamId === m.teamA?.id);
+      const tB = table.find(x => x.teamId === m.teamB?.id);
+      if (!tA || !tB) return;
+
+      tA.played++;
+      tB.played++;
+
+      if (m.winnerId === m.teamA?.id) {
+        tA.won++; tA.points += 2;
+        tB.lost++;
+      } else if (m.winnerId === m.teamB?.id) {
+        tB.won++; tB.points += 2;
+        tA.lost++;
+      } else {
+        tA.tied++; tA.points += 1;
+        tB.tied++; tB.points += 1;
+      }
+    });
+
+    return table.sort((a, b) => b.points - a.points);
+  }
+
   exports.ScoringEngine = {
     isPhysicalBall,
-    recalculateMatch
+    recalculateMatch,
+    getOverSummaries,
+    calculatePointsTable
   };
 
 })(typeof exports === 'object' ? exports : window);

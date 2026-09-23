@@ -12,25 +12,21 @@ Globals:
 
 Resources:
 
-  # 1. DynamoDB Single Table (Always Free Tier: 25 WCU / 25 RCU / 25 GB)
-  CricScoreTable:
+  # 1. DynamoDB Table (Always Free Tier: 25 WCU / 25 RCU / 25 GB)
+  CricMatchesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: CricScoreData
+      TableName: CricMatches
       BillingMode: PROVISIONED
       ProvisionedThroughput:
         ReadCapacityUnits: 25
         WriteCapacityUnits: 25
       AttributeDefinitions:
-        - AttributeName: PK
-          AttributeType: S
-        - AttributeName: SK
+        - AttributeName: matchId
           AttributeType: S
       KeySchema:
-        - AttributeName: PK
+        - AttributeName: matchId
           KeyType: HASH
-        - AttributeName: SK
-          KeyType: RANGE
 
   # 2. Private S3 Bucket for Static Web UI Hosting (5 GB Always Free)
   CricScoreWebBucket:
@@ -113,7 +109,7 @@ Resources:
         AllowMethods:
           - GET
           - POST
-          - DELETE
+          - PUT
           - OPTIONS
         AllowHeaders:
           - Content-Type
@@ -126,10 +122,15 @@ Resources:
       Handler: index.handler
       Environment:
         Variables:
-          TABLE_NAME: !Ref CricScoreTable
+          TABLE_NAME: !Ref CricMatchesTable
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref CricScoreTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:Scan
+              Resource: !GetAtt CricMatchesTable.Arn
       Events:
         GetMatches:
           Type: HttpApi
@@ -137,36 +138,24 @@ Resources:
             ApiId: !Ref CricScoreHttpApi
             Path: /matches
             Method: GET
+        GetMatchById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CricScoreHttpApi
+            Path: /matches/{id}
+            Method: GET
         PostMatches:
           Type: HttpApi
           Properties:
             ApiId: !Ref CricScoreHttpApi
             Path: /matches
             Method: POST
-        GetMatch:
+        PutMatchById:
           Type: HttpApi
           Properties:
             ApiId: !Ref CricScoreHttpApi
-            Path: /matches/{matchId}
-            Method: GET
-        PostBall:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref CricScoreHttpApi
-            Path: /matches/{matchId}/balls
-            Method: POST
-        PostUndo:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref CricScoreHttpApi
-            Path: /matches/{matchId}/undo
-            Method: POST
-        DeleteMatch:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref CricScoreHttpApi
-            Path: /matches/{matchId}
-            Method: DELETE
+            Path: /matches/{id}
+            Method: PUT
 
 Outputs:
   WebUrl:

@@ -1,111 +1,120 @@
 :root {
-  --bg-color: #121212;
-  --card-bg: #1e1e1e;
-  --card-border: #2d2d2d;
-  --primary-color: #2196f3;
-  --accent-color: #ff9800;
-  --text-color: #ffffff;
-  --text-muted: #a0a0a0;
-  --danger-color: #f44336;
-  --success-color: #4caf50;
-  --chip-4: #00e676;
-  --chip-6: #00b0ff;
-  --chip-w: #ff2a2a;
-  --chip-extra: #ff9800;
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --card-border: #334155;
+  --primary-color: #3b82f6;
+  --primary-dark: #1d4ed8;
+  --accent-color: #f59e0b;
+  --text-color: #f8fafc;
+  --text-muted: #94a3b8;
+  --danger-color: #ef4444;
+  --success-color: #10b981;
+  --chip-4: #10b981;
+  --chip-6: #06b6d4;
+  --chip-w: #ef4444;
+  --chip-extra: #f59e0b;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
   background-color: var(--bg-color);
   color: var(--text-color);
-  padding-bottom: 40px;
+  padding-bottom: 80px;
 }
 
-.navbar {
-  background-color: #0d47a1;
+.app-header {
+  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
   padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  border-bottom: 1px solid var(--card-border);
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
-.navbar-title {
+.app-title {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.nav-btn {
-  background: rgba(255,255,255,0.15);
-  border: none;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 13px;
+.status-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.1);
+  color: var(--text-muted);
   font-weight: 600;
-  cursor: pointer;
+}
+
+.status-badge.online {
+  background: #064e3b;
+  color: #34d399;
 }
 
 .container {
-  max-width: 600px;
+  max-width: 550px;
   margin: 0 auto;
   padding: 12px;
 }
 
-.screen {
-  display: none;
-}
-
-.screen.active {
-  display: block;
-}
+.screen { display: none; }
+.screen.active { display: block; }
 
 .card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 16px;
   margin-bottom: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 
 .team-badge {
   display: inline-block;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: middle;
 }
 
-.score-display {
+.score-card {
   text-align: center;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-color: #3b82f644;
+}
+
+.match-teams-title {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .score-main {
-  font-size: 48px;
-  font-weight: 800;
+  font-size: 52px;
+  font-weight: 900;
+  color: #ffffff;
   line-height: 1.1;
-  margin: 6px 0;
+  margin: 4px 0;
 }
 
-.overs-text {
+.overs-main {
   font-size: 18px;
   color: var(--accent-color);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .rates-row {
@@ -118,36 +127,36 @@ body {
 }
 
 .target-banner {
-  background: rgba(255, 152, 0, 0.15);
+  background: rgba(245, 158, 11, 0.15);
   border: 1px solid var(--accent-color);
   color: var(--accent-color);
-  padding: 8px;
+  padding: 8px 12px;
   border-radius: 8px;
   font-weight: 700;
-  font-size: 14px;
-  text-align: center;
+  font-size: 13px;
   margin-top: 10px;
 }
 
 .recent-balls {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   overflow-x: auto;
   padding: 8px 0 2px 0;
   margin-top: 8px;
+  justify-content: center;
 }
 
 .ball-chip {
   min-width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #333;
+  background: #334155;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: 700;
-  color: #fff;
+  font-weight: 800;
+  color: #ffffff;
   flex-shrink: 0;
 }
 
@@ -156,70 +165,78 @@ body {
 .ball-chip.wicket { background: var(--chip-w); color: #fff; }
 .ball-chip.extra { background: var(--chip-extra); color: #000; }
 
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+
+.stats-table th {
+  text-align: left;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.stats-table td {
+  padding: 8px 0;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.striker-star {
+  color: #f59e0b;
+  margin-left: 4px;
+}
+
 .keypad-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .btn {
-  background: #2a2a2a;
-  color: white;
+  background: #1e293b;
+  color: #f8fafc;
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 16px 8px;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   text-align: center;
-  user-select: none;
 }
 
 .btn:active {
-  transform: scale(0.96);
-  background: #3a3a3a;
+  transform: scale(0.95);
+  background: #334155;
 }
 
-.btn-run { background: #1f2937; }
-.btn-boundary { background: #064e3b; color: #4ade80; border-color: #059669; }
+.btn-run { background: #1e293b; }
+.btn-boundary { background: #064e3b; color: #34d399; border-color: #059669; }
 .btn-extra { background: #78350f; color: #fde047; border-color: #d97706; }
 .btn-wicket { background: #7f1d1d; color: #fca5a5; border-color: #dc2626; grid-column: span 2; }
-.btn-undo { background: #374151; color: #e5e7eb; grid-column: span 2; }
-.btn-primary { background: var(--primary-color); color: white; border: none; width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; }
+.btn-undo { background: #334155; color: #cbd5e1; grid-column: span 2; }
+.btn-primary { background: var(--primary-color); color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
 
-.form-group {
-  margin-bottom: 12px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.form-control {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  background: #121212;
-  border: 1px solid var(--card-border);
-  color: white;
-  font-size: 14px;
-}
-
-.match-item {
+.match-card-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: #252525;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  padding: 14px;
+  background: #1e293b;
+  border-radius: 12px;
+  margin-bottom: 10px;
   cursor: pointer;
   border: 1px solid var(--card-border);
 }
+
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
+.form-control { width: 100%; padding: 10px; border-radius: 8px; background: #0f172a; border: 1px solid var(--card-border); color: white; font-size: 14px; }
 
 .modal-overlay {
   position: fixed;
@@ -231,14 +248,49 @@ body {
   z-index: 200;
   padding: 16px;
 }
-
 .modal-overlay.active { display: flex; }
 
 .modal {
   background: var(--card-bg);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
   width: 100%;
   max-width: 450px;
   border: 1px solid var(--card-border);
 }
+
+/* Over Card Item */
+.over-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background: #0f172a;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--card-border);
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #0f172a;
+  border-top: 1px solid var(--card-border);
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 0;
+  z-index: 100;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.bottom-nav-item.active { color: var(--primary-color); }
+.bottom-nav-icon { font-size: 18px; margin-bottom: 1px; }
