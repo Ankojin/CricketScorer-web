@@ -15,7 +15,8 @@
       players: (team.players || []).map(p => ({
         ...p,
         battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 },
+        fieldingStats: { catches: 0, stumpings: 0, runOuts: 0 }
       }))
     };
   }
@@ -87,7 +88,8 @@
               overs: no,
               wickets: (np.bowlingStats?.wickets || 0) + (isBowlerWicket ? 1 : 0),
               wides: (np.bowlingStats?.wides || 0) + (ball.extrasType === 'WIDE' ? 1 : 0),
-              noBalls: (np.bowlingStats?.noBalls || 0) + (ball.extrasType === 'NO_BALL' ? 1 : 0)
+              noBalls: (np.bowlingStats?.noBalls || 0) + (ball.extrasType === 'NO_BALL' ? 1 : 0),
+              dotBalls: (np.bowlingStats?.dotBalls || 0) + (ball.runs === 0 && !ball.extraRuns ? 1 : 0)
             }
           };
         }
@@ -342,7 +344,114 @@
     }
   }
 
-  // Calculate detailed Innings Stats (matching ScoringUtils.kt)
+  // ICC Standard Impact Engine for Man of the Match (MatchSummaryViews.kt parity)
+  function calculateMotm(match) {
+    if (!match) return null;
+    const allPlayers = [...(match.teamA?.players || []), ...(match.teamB?.players || [])];
+    const playerScores = {};
+
+    allPlayers.forEach(p => {
+      let score = 0;
+      const b = p.battingStats || {};
+      const bw = p.bowlingStats || {};
+      const f = p.fieldingStats || {};
+
+      // 1. Batting
+      if (b.balls > 0) {
+        score += (b.runs || 0) * 1.0;
+        score += (b.fours || 0) * 1.0;
+        score += (b.sixes || 0) * 2.0;
+
+        if (b.runs >= 50) score += 20.0;
+        else if (b.runs >= 30) score += 10.0;
+
+        const sr = (b.runs / b.balls) * 100;
+        if (b.balls >= 10) {
+          if (sr > 200) score += 15.0;
+          else if (sr > 150) score += 8.0;
+        }
+      }
+
+      // 2. Bowling
+      if (bw.overs > 0 || bw.balls > 0) {
+        score += (bw.wickets || 0) * 25.0;
+        if (bw.wickets >= 3) score += 25.0;
+        else if (bw.wickets >= 2) score += 10.0;
+
+        const totalOvers = (bw.overs || 0) + ((bw.balls || 0) / 6);
+        if (totalOvers >= 1.0) {
+          const eco = bw.runsConceded / totalOvers;
+          if (eco < 6.0) score += 15.0;
+          else if (eco < 8.0) score += 5.0;
+          else if (eco > 11.0) score -= 10.0;
+        }
+
+        score += (bw.dotBalls || 0) * 1.0;
+      }
+
+      // 3. Fielding
+      score += (f.catches || 0) * 10.0;
+      score += (f.stumpings || 0) * 10.0;
+      score += (f.runOuts || 0) * 15.0;
+
+      // 4. Winning Bias
+      const isWinner = match.winnerId != null && (
+        (match.teamA?.players.some(x => x.id === p.id) && match.winnerId === match.teamA?.id) ||
+        (match.teamB?.players.some(x => x.id === p.id) && match.winnerId === match.teamB?.id)
+      );
+      if (isWinner) score += 25.0;
+
+      playerScores[p.id] = score;
+    });
+
+    let bestPlayer = null;
+    let maxScore = 0;
+    allPlayers.forEach(p => {
+      const s = playerScores[p.id] || 0;
+      if (s > maxScore) {
+        maxScore = s;
+        bestPlayer = p;
+      }
+    });
+
+    return bestPlayer ? { player: bestPlayer, impactScore: Math.round(maxScore) } : null;
+  }
+
+  // ESPNcricinfo Forecaster Win Probability (MatchSummaryViews.kt parity)
+  function calculateForecaster(match) {
+    if (!match) return { teamAWin: 50, teamBWin: 50, projCurrent: 0, proj10: 0 };
+
+    const totalBalls = (match.oversPerInnings || 5) * 6;
+    const currentBalls = match.totalBalls || 0;
+    const remainingBalls = Math.max(0, totalBalls - currentBalls);
+
+    const crr = currentBalls > 0 ? ((match.totalRuns || 0) / currentBalls) * 6 : 0;
+    const projCurrent = Math.round((match.totalRuns || 0) + (crr * (remainingBalls / 6)));
+    const proj10 = Math.round((match.totalRuns || 0) + (10.0 * (remainingBalls / 6)));
+
+    let teamAWin = 50.0;
+
+    if (match.currentInnings === 1) {
+      teamAWin = match.battingTeamId === match.teamA?.id ? (projCurrent / 160) * 100 : 100 - (projCurrent / 160) * 100;
+    } else if (match.target != null) {
+      const runsNeeded = match.target - match.totalRuns;
+      if (remainingBalls > 0) {
+        const rrr = (runsNeeded / remainingBalls) * 6;
+        const wicketFactor = (10 - match.totalWickets) / 10;
+        const baseProb = Math.max(0, Math.min(1, 1.0 - (rrr / 16.0)));
+        teamAWin = match.battingTeamId === match.teamA?.id ? baseProb * 100 * wicketFactor : (1.0 - (baseProb * wicketFactor)) * 100;
+      } else {
+        teamAWin = match.totalRuns >= match.target ? (match.battingTeamId === match.teamA?.id ? 100 : 0) : (match.battingTeamId === match.teamA?.id ? 0 : 100);
+      }
+    }
+
+    teamAWin = Math.max(5, Math.min(95, Math.round(teamAWin)));
+    const teamBWin = 100 - teamAWin;
+
+    return { teamAWin, teamBWin, projCurrent, proj10 };
+  }
+
+  // Calculate detailed Innings Stats
   function calculateInningsStats(balls) {
     let sR = 0, dR = 0, tR = 0, fR = 0, siR = 0, oR = 0, dots = 0, exR = 0, w = 0, wC = 0, nbC = 0;
     let ppR = 0, ppW = 0, midR = 0, midW = 0, finR = 0, finW = 0;
@@ -406,7 +515,7 @@
     };
   }
 
-  // Calculate Partnerships (matching ScoringUtils.kt)
+  // Calculate Partnerships
   function calculatePartnerships(balls, match) {
     const partnerships = [];
     if (!balls || balls.length === 0) return partnerships;
@@ -442,11 +551,7 @@
       pExtras += b.extraRuns || 0;
 
       if (b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT') {
-        partnerships.add?.({
-          batter1Name: recoverName(currentB1Id), batter1Runs: runs1, batter1Balls: balls1,
-          batter2Name: recoverName(currentB2Id), batter2Runs: runs2, batter2Balls: balls2,
-          totalRuns: runs1 + runs2 + pExtras, totalBalls: balls1 + balls2
-        }) || partnerships.push({
+        partnerships.push({
           batter1Name: recoverName(currentB1Id), batter1Runs: runs1, batter1Balls: balls1,
           batter2Name: recoverName(currentB2Id), batter2Runs: runs2, batter2Balls: balls2,
           totalRuns: runs1 + runs2 + pExtras, totalBalls: balls1 + balls2
@@ -574,7 +679,9 @@
     calculatePointsTable,
     getMatchResultString,
     calculateInningsStats,
-    calculatePartnerships
+    calculatePartnerships,
+    calculateMotm,
+    calculateForecaster
   };
 
 })(typeof exports === 'object' ? exports : window);

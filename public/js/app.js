@@ -559,8 +559,13 @@ function renderLiveScoring() {
   if (m.status === 'COMPLETED') {
     completedCard.style.display = 'block';
     const resultStr = window.ScoringEngine.getMatchResultString(m);
+
+    // Calculate Man of the Match (MatchSummaryViews.kt parity)
+    const motm = window.ScoringEngine.calculateMotm(m);
+    const motmHtml = motm ? `<div style="font-size:13px; color:#fde047; font-weight:800; margin-top:8px;">🌟 MAN OF THE MATCH: ${motm.player.name.toUpperCase()} (Impact: ${motm.impactScore} pts)</div>` : '';
+
     document.getElementById('winnerTitle').innerText = resultStr;
-    document.getElementById('marginText').innerText = `Match Completed | ${m.currentInnings === 2 ? 'Target Reached / Innings Ended' : 'Innings Completed'}`;
+    document.getElementById('marginText').innerHTML = `Match Completed | ${m.currentInnings === 2 ? 'Target Reached / Innings Ended' : 'Innings Completed'}${motmHtml}`;
   } else {
     completedCard.style.display = 'none';
   }
@@ -1286,7 +1291,7 @@ async function deletePlayer(id) {
   }
 }
 
-// Stats & Leaderboards (Porting StatsViews.kt + ChartComponents.kt)
+// Stats & Leaderboards (Porting StatsViews.kt + MatchSummaryViews.kt)
 async function renderStats() {
   const container = document.getElementById('statsContainer');
   const m = activeMatch;
@@ -1308,10 +1313,50 @@ async function renderStats() {
   const i1Partnerships = window.ScoringEngine.calculatePartnerships(i1Balls, m);
   const i2Partnerships = window.ScoringEngine.calculatePartnerships(i2Balls, m);
 
+  const motm = window.ScoringEngine.calculateMotm(m);
+  const fc = window.ScoringEngine.calculateForecaster(m);
+
   const i1Name = m.initialBattingTeamId === teamA.id ? teamA.name : teamB.name;
   const i2Name = m.initialBattingTeamId === teamA.id ? teamB.name : teamA.name;
 
+  const motmCardHtml = motm ? `
+    <div class="card" style="background:linear-gradient(135deg, #1e1b4b 0%, #1a237e 100%); border-color:#ffd700; padding:16px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="font-size:36px;">🌟</div>
+        <div>
+          <div style="font-size:11px; color:#fde047; font-weight:800; text-transform:uppercase;">MAN OF THE MATCH • ICC RANKED</div>
+          <div style="font-size:18px; font-weight:900; color:#fff;">${motm.player.name.toUpperCase()}</div>
+          <div style="font-size:12px; color:#e2e8f0;">Impact Score: <span style="color:#ffd700; font-weight:800;">${motm.impactScore} pts</span></div>
+        </div>
+      </div>
+    </div>
+  ` : '';
+
+  const forecasterCardHtml = `
+    <div class="card" style="padding:16px;">
+      <h4 style="font-size:13px; color:var(--primary-color); font-weight:900; text-transform:uppercase; margin-bottom:10px;">🔮 MATCH FORECASTER</h4>
+
+      <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; margin-bottom:4px;">
+        <span style="color:${teamA.colorHex||'#FF5722'}">${teamA.name.toUpperCase()} (${fc.teamAWin}%)</span>
+        <span style="color:${teamB.colorHex||'#2196F3'}">${teamB.name.toUpperCase()} (${fc.teamBWin}%)</span>
+      </div>
+
+      <div style="height:10px; background:#0f172a; border-radius:6px; overflow:hidden; display:flex;">
+        <div style="width:${fc.teamAWin}%; background:${teamA.colorHex||'#FF5722'}; transition:width 0.5s ease;"></div>
+        <div style="width:${fc.teamBWin}%; background:${teamB.colorHex||'#2196F3'}; transition:width 0.5s ease;"></div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-top:10px; border-top:1px solid var(--card-border); padding-top:8px;">
+        <span>Projected Current CRR: <b>${fc.projCurrent}</b></span>
+        <span>At 10.0 RPO: <b>${fc.proj10}</b></span>
+      </div>
+    </div>
+  `;
+
   container.innerHTML = `
+    ${motmCardHtml}
+    ${forecasterCardHtml}
+
     <!-- 1. Scoring Breakdown Card -->
     <div class="card" style="padding:16px;">
       <h4 style="font-size:13px; color:var(--primary-color); font-weight:900; text-transform:uppercase; margin-bottom:12px;">📊 SCORING BREAKDOWN</h4>
@@ -1412,7 +1457,6 @@ function drawProgressCanvasChart(match, i1Balls, i2Balls, color1, color2) {
   const w = canvas.width - padL - padR;
   const h = canvas.height - padT - padB;
 
-  // Build points
   function buildPoints(balls) {
     const pts = [{ over: 0, runs: 0, isWicket: false }];
     let runs = 0, pBalls = 0;
@@ -1430,7 +1474,6 @@ function drawProgressCanvasChart(match, i1Balls, i2Balls, color1, color2) {
   const p2 = buildPoints(i2Balls);
   const maxRuns = Math.max(20, Math.max(...p1.map(p => p.runs), ...p2.map(p => p.runs)));
 
-  // Grid
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 0.5;
   ctx.fillStyle = '#94a3b8';
@@ -1455,7 +1498,6 @@ function drawProgressCanvasChart(match, i1Balls, i2Balls, color1, color2) {
     ctx.fillText(`${o}ov`, xPx - 8, canvas.height - 10);
   }
 
-  // Draw Innings 1 Line
   function drawLine(pts, color) {
     if (!pts || pts.length === 0) return;
     ctx.strokeStyle = color;
@@ -1469,7 +1511,6 @@ function drawProgressCanvasChart(match, i1Balls, i2Balls, color1, color2) {
     });
     ctx.stroke();
 
-    // Wicket Dots
     pts.forEach(pt => {
       if (pt.isWicket) {
         const x = padL + (pt.over / totalOvers) * w;
