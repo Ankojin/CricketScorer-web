@@ -1661,7 +1661,7 @@ function renderLiveScoring() {
       const isC = isCaptainPlayer(p, battingTeam.id, m);
       const isVC = isViceCaptainPlayer(p, battingTeam.id, m);
 
-      const editBtn = (isReadOnlySpectator || !m.gullyRules?.playersSwitchMidMatch) ? '' : `
+      const editBtn = isReadOnlySpectator ? '' : `
         <button class="edit-player-btn" onclick="requestPendingAction('REPLACE_${role}')" title="Change ${isStriker ? 'Striker' : 'Non-Striker'}">✏️</button>
       `;
 
@@ -1716,7 +1716,7 @@ function renderLiveScoring() {
     const isC = isCaptainPlayer(bowler, bowlingTeam.id, m);
     const isVC = isViceCaptainPlayer(bowler, bowlingTeam.id, m);
 
-    const editBtn = (isReadOnlySpectator || !m.gullyRules?.playersSwitchMidMatch) ? '' : `
+    const editBtn = isReadOnlySpectator ? '' : `
       <button class="edit-player-btn" onclick="requestPendingAction('REPLACE_BOWLER')" title="Change Bowler">✏️</button>
     `;
 
@@ -1748,7 +1748,12 @@ function renderLiveScoring() {
   if (m.status === 'LIVE' && m.pendingAction && m.pendingAction !== 'NONE' && !isReadOnlySpectator) {
     actionBanner.style.display = 'block';
     actionBanner.innerText = `Pending Action: ${m.pendingAction.replace(/_/g, ' ')}`;
-    promptPendingAction(m.pendingAction);
+
+    const selectionModal = document.getElementById('selectionModal');
+    const isSelectionOpen = selectionModal && selectionModal.classList.contains('active');
+    if (!isSelectionOpen) {
+      promptPendingAction(m.pendingAction);
+    }
   } else {
     actionBanner.style.display = 'none';
   }
@@ -1848,11 +1853,6 @@ function clearPendingAction(expectedAction = null) {
 
 function requestPendingAction(action) {
   if (!activeMatch || isReadOnlySpectator) return;
-  const isReplaceAction = action === 'REPLACE_STRIKER' || action === 'REPLACE_NON_STRIKER' || action === 'REPLACE_BOWLER';
-  if (isReplaceAction && !activeMatch.gullyRules?.playersSwitchMidMatch) {
-    showToast('Players Switch Mid-Match rule is disabled for this match', 'warning');
-    return;
-  }
   setPendingAction(action);
   promptPendingAction(action);
 }
@@ -1878,9 +1878,12 @@ function isSelectionPendingAction(action) {
     || action === 'REPLACE_BOWLER';
 }
 
-function closeSelectionModal() {
-  document.getElementById('selectionModal').classList.remove('active');
-  if (activeMatch && isSelectionPendingAction(activeMatch.pendingAction)) {
+function closeSelectionModal(options = {}) {
+  const modal = document.getElementById('selectionModal');
+  if (modal) modal.classList.remove('active');
+
+  const clearPending = options && options.clearPending === true;
+  if (clearPending && activeMatch && isSelectionPendingAction(activeMatch.pendingAction)) {
     clearPendingAction();
   }
 }

@@ -745,7 +745,7 @@
     <div class="modal">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
         <h3 id="selectionTitle">Select Player</h3>
-        <button style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;" onclick="closeSelectionModal()">✕</button>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;" onclick="closeSelectionModal({ clearPending: true })">✕</button>
       </div>
       <div id="bowlerListContainer" class="form-group"></div>
       <div class="form-group" id="genericDropdownGroup" style="display:none;">
@@ -754,7 +754,7 @@
       </div>
       <div style="display:flex; gap:8px; margin-top:16px;">
         <button class="btn-primary" id="btnConfirmGenericSelection" style="display:none;" onclick="confirmPlayerSelection()">Confirm Selection</button>
-        <button class="btn" style="background:#334155;" onclick="closeSelectionModal()">Cancel</button>
+        <button class="btn" style="background:#334155;" onclick="closeSelectionModal({ clearPending: true })">Cancel</button>
       </div>
     </div>
   </div>
