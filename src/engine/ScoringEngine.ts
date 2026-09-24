@@ -1,4 +1,4 @@
-import type {
+import {
   Match,
   Team,
   Player,
@@ -8,9 +8,10 @@ import type {
   FieldingStats,
   WicketRecord,
   InningsSummary,
+  MatchStatus,
   PendingAction,
+  isPhysicalBall
 } from '../models/types.js';
-import { isPhysicalBall } from '../models/types.js';
 
 export class ScoringEngine {
 
@@ -84,6 +85,21 @@ export class ScoringEngine {
     );
   }
 
+  public static isPlayerInTeam(
+    id: string | null | undefined,
+    team: Team
+  ): boolean {
+    if (!id) return false;
+    return (team.players || []).some(p => p.id === id);
+  }
+
+  public static ensureTeamPlayer(
+    id: string | null | undefined,
+    team: Team
+  ): string | null {
+    return this.isPlayerInTeam(id, team) ? id || null : null;
+  }
+
   public static isPlayerOut(pId: string | null | undefined, m: Match): boolean {
     if (!pId) return false;
     const p = (m.teamA.players || []).find(x => x.id === pId) || (m.teamB.players || []).find(x => x.id === pId);
@@ -94,18 +110,6 @@ export class ScoringEngine {
     if (!pId) return false;
     const p = (m.teamA.players || []).find(x => x.id === pId) || (m.teamB.players || []).find(x => x.id === pId);
     return p?.battingStats?.isOut === true || p?.battingStats?.isRetiredHurt === true;
-  }
-
-  public static isPlayerInTeam(id: string | null | undefined, team: Team): boolean {
-    if (!id) return false;
-    return (team.players || []).some(p => p.id === id);
-  }
-
-  public static ensureTeamPlayer(
-    id: string | null | undefined,
-    team: Team
-  ): string | null {
-    return this.isPlayerInTeam(id, team) ? id || null : null;
   }
 
   public static recalculateMatch(match: Match): Match {
@@ -638,6 +642,9 @@ export class ScoringEngine {
         'SELECT_RUNS_WICKET',
         'SELECT_FIELDER_DROPPED_CATCH',
         'SELECT_RUNS_DROPPED_CATCH',
+        'SELECT_STRIKER',
+        'SELECT_NON_STRIKER',
+        'SELECT_BOWLER',
         'REPLACE_STRIKER',
         'REPLACE_NON_STRIKER',
         'REPLACE_BOWLER'
@@ -690,28 +697,17 @@ export class ScoringEngine {
     }
   }
 
-  public static calculateInningsStats(
-    balls: Ball[],
-    config?: { powerplayOvers?: number | null; oversPerInnings?: number | null }
-  ) {
+  public static calculateInningsStats(balls: Ball[], options?: { powerplayOvers?: number; oversPerInnings?: number }) {
     let sR = 0, dR = 0, tR = 0, fR = 0, siR = 0, oR = 0, dots = 0, exR = 0, w = 0, wC = 0, nbC = 0;
     let ppR = 0, ppW = 0, midR = 0, midW = 0, finR = 0, finW = 0;
     let pB = 0, lB = 0;
 
-    const rawInningsOvers = Number(config?.oversPerInnings || 0);
-    const inningsBallsCap = rawInningsOvers > 0 ? rawInningsOvers * 6 : null;
-
-    const defaultPowerplayBalls = 36;
-    const requestedPowerplayOvers = Number(config?.powerplayOvers || 0);
-    const requestedPowerplayBalls = requestedPowerplayOvers > 0 ? requestedPowerplayOvers * 6 : defaultPowerplayBalls;
-    const ppBalls = inningsBallsCap != null
-      ? Math.max(0, Math.min(requestedPowerplayBalls, inningsBallsCap))
-      : requestedPowerplayBalls;
-
-    const defaultDeathStartBall = 90;
-    const deathStartBall = inningsBallsCap != null
-      ? Math.max(ppBalls, Math.max(0, inningsBallsCap - 30))
-      : defaultDeathStartBall;
+    const totalOvers = Math.max(1, Number(options?.oversPerInnings || 20));
+    const configuredPp = Number(options?.powerplayOvers || 0) > 0 ? Number(options?.powerplayOvers) : 6;
+    const powerplayOvers = Math.max(0, Math.min(configuredPp, totalOvers));
+    const powerplayBalls = powerplayOvers * 6;
+    const deathStartOver = Math.max(powerplayOvers, Math.max(0, totalOvers - 5)) + 1;
+    const deathStartBalls = (deathStartOver - 1) * 6;
 
     (balls || []).forEach(b => {
       if (b.isAdjustment) return;
@@ -719,9 +715,16 @@ export class ScoringEngine {
       const ballTotal = (b.runs || 0) + (b.extraRuns || 0);
       const isW = b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT';
 
-      if (pB < ppBalls) { ppR += ballTotal; if (isW) ppW++; }
-      else if (pB < deathStartBall) { midR += ballTotal; if (isW) midW++; }
-      else { finR += ballTotal; if (isW) finW++; }
+      if (pB < powerplayBalls) {
+        ppR += ballTotal;
+        if (isW) ppW++;
+      } else if (pB < deathStartBalls) {
+        midR += ballTotal;
+        if (isW) midW++;
+      } else {
+        finR += ballTotal;
+        if (isW) finW++;
+      }
 
       if (isW) w++;
       if (b.extrasType && b.extrasType !== 'NONE' && b.extrasType !== 'GRANTED') exR += b.extraRuns || 0;
@@ -766,8 +769,8 @@ export class ScoringEngine {
       boundaryRuns: fR + siR,
       dotPercent: dP,
       totalLegalBalls: lB,
-      hasMid: deathStartBall > ppBalls && pB > ppBalls,
-      hasFin: pB > deathStartBall
+      hasMid: pB > powerplayBalls && pB > 0,
+      hasFin: pB > deathStartBalls && pB > 0
     };
   }
 
@@ -1016,23 +1019,8 @@ export class ScoringEngine {
       lost: 0,
       tied: 0,
       points: 0,
-      nrr: '0.000',
-      nrrValue: 0,
-      runsFor: 0,
-      ballsFaced: 0,
-      runsAgainst: 0,
-      ballsBowled: 0
+      nrr: '0.000'
     }));
-
-    const addInningsToTeam = (teamId: string | null | undefined, runs: number, balls: number, oppRuns: number, oppBalls: number) => {
-      if (!teamId) return;
-      const row = table.find(x => x.teamId === teamId);
-      if (!row) return;
-      row.runsFor += Math.max(0, runs || 0);
-      row.ballsFaced += Math.max(0, balls || 0);
-      row.runsAgainst += Math.max(0, oppRuns || 0);
-      row.ballsBowled += Math.max(0, oppBalls || 0);
-    };
 
     (matches || []).forEach(m => {
       if (m.status !== 'COMPLETED') return;
@@ -1053,39 +1041,9 @@ export class ScoringEngine {
         tA.tied++; tA.points += 1;
         tB.tied++; tB.points += 1;
       }
-
-      // NRR from completed innings snapshots.
-      if (m.currentInnings === 2 && m.innings1Data?.teamId) {
-        const innings1TeamId = m.innings1Data.teamId;
-        const innings1Runs = m.innings1Data.runs || 0;
-        const innings1Balls = m.innings1Data.balls || 0;
-
-        const innings2TeamId = innings1TeamId === m.teamA?.id ? m.teamB?.id : m.teamA?.id;
-        const innings2Runs = m.totalRuns || 0;
-        const innings2Balls = m.totalBalls || 0;
-
-        addInningsToTeam(innings1TeamId, innings1Runs, innings1Balls, innings2Runs, innings2Balls);
-        addInningsToTeam(innings2TeamId, innings2Runs, innings2Balls, innings1Runs, innings1Balls);
-      }
     });
 
-    table.forEach(row => {
-      const forOvers = row.ballsFaced > 0 ? row.ballsFaced / 6 : 0;
-      const againstOvers = row.ballsBowled > 0 ? row.ballsBowled / 6 : 0;
-      const forRate = forOvers > 0 ? row.runsFor / forOvers : 0;
-      const againstRate = againstOvers > 0 ? row.runsAgainst / againstOvers : 0;
-      row.nrrValue = forRate - againstRate;
-      row.nrr = `${row.nrrValue >= 0 ? '+' : ''}${row.nrrValue.toFixed(3)}`;
-    });
-
-    return table
-      .sort((a, b) => {
-        if (b.points !== a.points) return b.points - a.points;
-        if (b.nrrValue !== a.nrrValue) return b.nrrValue - a.nrrValue;
-        if (b.won !== a.won) return b.won - a.won;
-        return a.name.localeCompare(b.name);
-      })
-      .map(({ nrrValue, runsFor, ballsFaced, runsAgainst, ballsBowled, ...rest }) => rest);
+    return table.sort((a, b) => b.points - a.points);
   }
 
   public static updateTeamStats(
@@ -1203,16 +1161,22 @@ export class ScoringEngine {
           };
         }
 
-        if (!isBat && ball.fielderId && p.id === ball.fielderId) {
-          const fStats = np.fieldingStats || this.createDefaultFieldingStats();
+        if (!isBat && p.id === ball.fielderId) {
           np = {
             ...np,
             fieldingStats: {
-              ...fStats,
-              catches: (fStats.catches || 0) + (ball.wicketType === 'CAUGHT' ? 1 : 0),
-              runOuts: (fStats.runOuts || 0) + (ball.wicketType === 'RUN_OUT' ? 1 : 0),
-              stumpings: (fStats.stumpings || 0) + (ball.wicketType === 'STUMPED' ? 1 : 0),
-              droppedCatches: (fStats.droppedCatches || 0) + (ball.isDroppedCatch || ball.wasDroppedCatch ? 1 : 0)
+              ...np.fieldingStats,
+              catches:
+                np.fieldingStats.catches +
+                (ball.wicketType === 'CAUGHT' ? 1 : 0),
+              runOuts:
+                np.fieldingStats.runOuts +
+                (ball.wicketType === 'RUN_OUT' ? 1 : 0),
+              stumpings:
+                np.fieldingStats.stumpings +
+                (ball.wicketType === 'STUMPED' ? 1 : 0),
+              droppedCatches:
+                np.fieldingStats.droppedCatches + (ball.isDroppedCatch ? 1 : 0)
             }
           };
         }
