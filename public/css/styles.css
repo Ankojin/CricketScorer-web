@@ -118,6 +118,24 @@ body {
 .screen.active { display: block; }
 html.session-restoring #screenLanding { display: none !important; }
 
+.edit-player-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  line-height: 1;
+  color: #94a3b8;
+  margin-left: 4px;
+  transition: all 0.2s ease;
+}
+
+.edit-player-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
 .card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
@@ -523,6 +541,25 @@ html.session-restoring #screenLanding { display: none !important; }
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-top: 8px;
+}
+
+.keypad-grid-mobile {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+@media (max-width: 480px) {
+  .keypad-grid-mobile {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.keypad-grid-mobile .btn {
+  padding: 12px 4px;
+  font-size: 13px;
+  border-radius: 10px;
 }
 
 .btn {

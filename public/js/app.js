@@ -154,7 +154,7 @@ function updateAuthUI() {
 }
 
 // WhatsApp Live Score Sharing & Spectator Mode
-function shareLiveScoreWhatsApp() {
+function goLiveShare() {
   if (!activeMatch) return;
 
   const m = activeMatch;
@@ -162,10 +162,29 @@ function shareLiveScoreWhatsApp() {
   const scoreStr = `${m.totalRuns || 0}/${m.totalWickets || 0} (${overStr} Ov)`;
   const matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}`;
 
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(matchUrl).catch(() => {});
+  }
+
+  showToast('🟢 Live Spectator Link Copied!', 'success');
+
   const text = `🏏 *Live Cricket Score*\n*${m.teamA?.name} vs ${m.teamB?.name}*\nScore: *${scoreStr}*\nStatus: ${m.status || 'LIVE'}\n\n👇 *Watch Live Score Updates here:*\n${matchUrl}`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 
   window.open(whatsappUrl, '_blank');
+}
+
+function shareLiveScoreWhatsApp() {
+  goLiveShare();
+}
+
+function hexToRgb(hex) {
+  if (!hex || typeof hex !== 'string') return '59, 130, 246';
+  let c = hex.replace('#', '').trim();
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return '59, 130, 246';
+  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
 // Multi-Tab Persistence Sync
@@ -914,15 +933,33 @@ function renderLiveScoring() {
   const battingTeam = isBattingA ? m.teamA : m.teamB;
   const bowlingTeam = isBattingA ? m.teamB : m.teamA;
 
-  // Spectator Banner & Keypad Hiding
+  const teamAColor = m.teamA?.colorHex || '#FF5722';
+  const teamBColor = m.teamB?.colorHex || '#2196F3';
+  const battingTeamColor = battingTeam?.colorHex || (isBattingA ? teamAColor : teamBColor);
+  const bowlingTeamColor = bowlingTeam?.colorHex || (isBattingA ? teamBColor : teamAColor);
+
+  // Score Card Accent Border
+  const scoreCardEl = document.getElementById('mainScoreCard');
+  if (scoreCardEl) {
+    scoreCardEl.style.borderTop = `4px solid ${battingTeamColor}`;
+  }
+
+  // Spectator Banner & Keypad / Action Controls Hiding
   const spectatorBanner = document.getElementById('spectatorBanner');
   const scoringKeypad = document.getElementById('scoringKeypad');
+  const goLiveBtn = document.getElementById('goLiveBtn');
+  const btnSwapBatsmen = document.getElementById('btnSwapBatsmen');
+
   if (isReadOnlySpectator) {
     if (spectatorBanner) spectatorBanner.style.display = 'block';
     if (scoringKeypad) scoringKeypad.style.display = 'none';
+    if (goLiveBtn) goLiveBtn.style.display = 'none';
+    if (btnSwapBatsmen) btnSwapBatsmen.style.display = 'none';
   } else {
     if (spectatorBanner) spectatorBanner.style.display = 'none';
     if (scoringKeypad) scoringKeypad.style.display = 'grid';
+    if (goLiveBtn) goLiveBtn.style.display = 'block';
+    if (btnSwapBatsmen) btnSwapBatsmen.style.display = 'flex';
   }
 
   // Last Saved Tag
@@ -948,16 +985,38 @@ function renderLiveScoring() {
     completedCard.style.display = 'none';
   }
 
-  // Header Match Info
-  const teamAColor = m.teamA?.colorHex || '#FF5722';
-  const teamBColor = m.teamB?.colorHex || '#2196F3';
-  document.getElementById('scoringHeader').innerHTML = `
-    <span class="team-badge" style="background:${teamAColor}"></span>${m.teamA?.name} vs
-    <span class="team-badge" style="background:${teamBColor}"></span>${m.teamB?.name}
-  `;
+  // Header Match Info & Team Accents
+  const tossWinner = m.tossWinnerId === m.teamA?.id ? m.teamA?.name : (m.tossWinnerId === m.teamB?.id ? m.teamB?.name : null);
+  const tossStr = tossWinner ? ` · ${tossWinner} opt to ${m.tossDecision?.toLowerCase()}` : '';
 
-  // Score Main
-  document.getElementById('scoreMain').innerText = `${m.totalRuns || 0}/${m.totalWickets || 0}`;
+  const scoringHeader = document.getElementById('scoringHeader');
+  if (scoringHeader) {
+    scoringHeader.innerHTML = `
+      <div style="margin-bottom:8px;">
+        <span style="background:${battingTeamColor}; color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block; letter-spacing:0.5px; box-shadow:0 2px 8px rgba(0,0,0,0.3);">🏏 ${battingTeam?.name?.toUpperCase() || ''} BATTING</span>
+      </div>
+      <div style="font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <span style="color:${teamAColor}; border-bottom:2px solid ${teamAColor}; padding-bottom:1px; display:inline-flex; align-items:center; gap:4px;">
+          <span class="team-badge" style="background:${teamAColor};"></span>${m.teamA?.name || 'Team A'}
+        </span>
+        <span style="color:var(--text-muted); font-size:12px;">vs</span>
+        <span style="color:${teamBColor}; border-bottom:2px solid ${teamBColor}; padding-bottom:1px; display:inline-flex; align-items:center; gap:4px;">
+          <span class="team-badge" style="background:${teamBColor};"></span>${m.teamB?.name || 'Team B'}
+        </span>
+      </div>
+      <div style="font-size:12px; color:var(--text-muted); font-weight:600; margin-top:6px;">
+        Batting: <span style="color:${battingTeamColor}; font-weight:800;">${battingTeam?.name || ''}</span>${tossStr}
+      </div>
+    `;
+  }
+
+  // Score Main Accent
+  const scoreMainEl = document.getElementById('scoreMain');
+  if (scoreMainEl) {
+    scoreMainEl.innerText = `${m.totalRuns || 0}/${m.totalWickets || 0}`;
+    scoreMainEl.style.color = battingTeamColor;
+  }
+
   const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
   document.getElementById('oversText').innerText = `Overs: ${overStr} / ${m.oversPerInnings || 20}`;
 
@@ -1010,11 +1069,26 @@ function renderLiveScoring() {
     } else if (b.extrasType === 'NO_BALL') {
       div.classList.add('extra');
       div.innerText = `${(b.runs || 0) + (b.extraRuns || 1)}NB`;
+    } else if (b.extrasType === 'BYE') {
+      div.classList.add('extra');
+      div.innerText = `${b.extraRuns || 1}B`;
+    } else if (b.extrasType === 'LEG_BYE') {
+      div.classList.add('extra');
+      div.innerText = `${b.extraRuns || 1}LB`;
     } else {
       div.innerText = b.runs || 0;
     }
     recentContainer.appendChild(div);
   });
+
+  // Batting Card Title Accent
+  const battingTitleEl = document.getElementById('battingCardTitle');
+  if (battingTitleEl) {
+    battingTitleEl.style.color = battingTeamColor;
+    battingTitleEl.style.borderLeft = `4px solid ${battingTeamColor}`;
+    battingTitleEl.style.paddingLeft = '8px';
+    battingTitleEl.innerText = `${battingTeam?.name || ''} Batting`;
+  }
 
   // Batters Table
   const battersBody = document.getElementById('battersTable');
@@ -1023,34 +1097,64 @@ function renderLiveScoring() {
   const striker = (battingTeam?.players || []).find(p => p.id === m.strikerId);
   const nonStriker = (battingTeam?.players || []).find(p => p.id === m.nonStrikerId);
 
-  [striker, nonStriker].forEach((p, idx) => {
-    if (!p) return;
+  [
+    { player: striker, isStriker: true, role: 'STRIKER' },
+    { player: nonStriker, isStriker: false, role: 'NON_STRIKER' }
+  ].forEach(({ player: p, isStriker, role }) => {
     const tr = document.createElement('tr');
-    const isStriker = idx === 0;
-    const stats = p.battingStats || { runs: 0, balls: 0, fours: 0, sixes: 0 };
-    const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
+    if (isStriker) {
+      const rgb = hexToRgb(battingTeamColor);
+      tr.style.background = `rgba(${rgb}, 0.12)`;
+      tr.style.borderLeft = `3px solid ${battingTeamColor}`;
+    }
 
-    const isC = isCaptainPlayer(p, battingTeam.id, m);
-    const isVC = isViceCaptainPlayer(p, battingTeam.id, m);
+    if (p) {
+      const stats = p.battingStats || { runs: 0, balls: 0, fours: 0, sixes: 0 };
+      const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
 
-    tr.innerHTML = `
-      <td style="font-weight:700; color:#fff;">
-        ${p.name}
-        ${isC ? '<span class="badge-c">(C)</span>' : ''}
-        ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
-        ${isStriker ? '<span class="striker-star">★</span>' : ''}
-      </td>
-      <td style="text-align:right"><b>${stats.runs}</b></td>
-      <td style="text-align:right">${stats.balls}</td>
-      <td style="text-align:right">${stats.fours}</td>
-      <td style="text-align:right">${stats.sixes}</td>
-      <td style="text-align:right">${sr}</td>
-    `;
+      const isC = isCaptainPlayer(p, battingTeam.id, m);
+      const isVC = isViceCaptainPlayer(p, battingTeam.id, m);
+
+      const editBtn = isReadOnlySpectator ? '' : `
+        <button class="edit-player-btn" onclick="openPlayerSelection('${role}')" title="Change ${isStriker ? 'Striker' : 'Non-Striker'}">✏️</button>
+      `;
+
+      tr.innerHTML = `
+        <td style="font-weight:700; color:#fff;">
+          <div style="display:flex; align-items:center; gap:2px;">
+            <span>${p.name}</span>
+            ${isC ? '<span class="badge-c">(C)</span>' : ''}
+            ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
+            ${isStriker ? '<span class="striker-star">★</span>' : ''}
+            ${editBtn}
+          </div>
+        </td>
+        <td style="text-align:right"><b>${stats.runs}</b></td>
+        <td style="text-align:right">${stats.balls}</td>
+        <td style="text-align:right">${stats.fours}</td>
+        <td style="text-align:right">${stats.sixes}</td>
+        <td style="text-align:right">${sr}</td>
+      `;
+    } else {
+      const selectBtn = isReadOnlySpectator ? '' : `
+        <button class="btn-primary" style="width:auto; padding:2px 8px; font-size:11px;" onclick="openPlayerSelection('${role}')">Select ${isStriker ? 'Striker' : 'Non-Striker'}</button>
+      `;
+      tr.innerHTML = `
+        <td colspan="6" style="padding:8px; text-align:left;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="color:var(--text-muted); font-size:12px;">No ${isStriker ? 'Striker' : 'Non-Striker'} selected</span>
+            ${selectBtn}
+          </div>
+        </td>
+      `;
+    }
     battersBody.appendChild(tr);
   });
 
-  if (!striker && !nonStriker) {
-    battersBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:10px;">Select Batters</td></tr>';
+  // Bowling Card Title
+  const bowlingTitleEl = document.getElementById('bowlingCardTitle');
+  if (bowlingTitleEl) {
+    bowlingTitleEl.innerText = `Bowling — ${bowlingTeam?.name || ''}`;
   }
 
   // Bowler Table
@@ -1066,11 +1170,18 @@ function renderLiveScoring() {
     const isC = isCaptainPlayer(bowler, bowlingTeam.id, m);
     const isVC = isViceCaptainPlayer(bowler, bowlingTeam.id, m);
 
+    const editBtn = isReadOnlySpectator ? '' : `
+      <button class="edit-player-btn" onclick="openPlayerSelection('BOWLER')" title="Change Bowler">✏️</button>
+    `;
+
     tr.innerHTML = `
       <td style="font-weight:700; color:#fff;">
-        ${bowler.name}
-        ${isC ? '<span class="badge-c">(C)</span>' : ''}
-        ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
+        <div style="display:flex; align-items:center; gap:2px;">
+          <span>${bowler.name}</span>
+          ${isC ? '<span class="badge-c">(C)</span>' : ''}
+          ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
+          ${editBtn}
+        </div>
       </td>
       <td style="text-align:right">${stats.overs}.${stats.balls}</td>
       <td style="text-align:right">${stats.maidens}</td>
@@ -1080,7 +1191,10 @@ function renderLiveScoring() {
     `;
     bowlerBody.appendChild(tr);
   } else {
-    bowlerBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:10px;">Select Bowler</td></tr>';
+    const editBtn = isReadOnlySpectator ? '' : `
+      <button class="btn-primary" style="width:auto; padding:2px 8px; font-size:11px;" onclick="openPlayerSelection('BOWLER')">Select Bowler</button>
+    `;
+    bowlerBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:10px;">Select Bowler ${editBtn}</td></tr>`;
   }
 
   // Action Prompt Banner
@@ -1098,6 +1212,10 @@ function promptPendingAction(action) {
   if (action === 'SELECT_STRIKER') openPlayerSelection('STRIKER');
   else if (action === 'SELECT_NON_STRIKER') openPlayerSelection('NON_STRIKER');
   else if (action === 'SELECT_BOWLER') openPlayerSelection('BOWLER');
+}
+
+function closeSelectionModal() {
+  document.getElementById('selectionModal').classList.remove('active');
 }
 
 function openPlayerSelection(type) {
@@ -1119,26 +1237,35 @@ function openPlayerSelection(type) {
   bowlerContainer.innerHTML = '';
 
   if (type === 'BOWLER') {
-    title.innerText = 'Select Bowler for Next Over';
+    title.innerText = 'Select Bowler';
     dropdownGroup.style.display = 'none';
     confirmBtn.style.display = 'none';
 
     (bowlingTeam?.players || []).forEach(p => {
       const isLastBowler = p.id === m.lastBowlerId;
+      const isCurrent = p.id === m.currentBowlerId;
       const stats = p.bowlingStats || { overs: 0, balls: 0, runsConceded: 0, wickets: 0 };
+      const maxOvers = m.maxOversPerBowler || 0;
+      const maxReached = maxOvers > 0 && stats.overs >= maxOvers;
+      const isDisabled = isLastBowler || maxReached;
 
       const item = document.createElement('div');
-      item.className = `bowler-option ${isLastBowler ? 'disabled' : ''}`;
-      if (!isLastBowler) {
+      item.className = `bowler-option ${isDisabled ? 'disabled' : ''}`;
+      if (!isDisabled) {
         item.onclick = () => selectBowlerDirect(p.id);
       }
 
+      let tag = '';
+      if (isCurrent) tag = '<span style="font-size:10px; color:#60a5fa; margin-left:4px;">(Current)</span>';
+      else if (isLastBowler) tag = '<span style="font-size:10px; color:#fca5a5; margin-left:4px;">(Last Bowler)</span>';
+      else if (maxReached) tag = '<span style="font-size:10px; color:#fca5a5; margin-left:4px;">(Max Overs)</span>';
+
       item.innerHTML = `
         <div>
-          <div style="font-weight:700; color:#fff;">${p.name} ${isLastBowler ? '<span style="font-size:10px; color:#fca5a5;">(Last Bowler)</span>' : ''}</div>
+          <div style="font-weight:700; color:#fff; display:flex; align-items:center;">${p.name} ${tag}</div>
           <div style="font-size:11px; color:var(--text-muted);">${stats.overs}.${stats.balls} Ov | ${stats.runsConceded} Runs | ${stats.wickets} Wkts</div>
         </div>
-        <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" ${isLastBowler ? 'disabled' : ''}>Select</button>
+        <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" ${isDisabled ? 'disabled' : ''}>Select</button>
       `;
       bowlerContainer.appendChild(item);
     });
@@ -1150,13 +1277,37 @@ function openPlayerSelection(type) {
 
     const select = document.getElementById('selectionDropdown');
     select.innerHTML = '';
-    const available = (battingTeam?.players || []).filter(p => !p.battingStats?.isOut && !p.battingStats?.isRetiredHurt && p.id !== m.strikerId && p.id !== m.nonStrikerId);
-    available.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.innerText = p.name;
-      select.appendChild(opt);
+
+    const otherId = type === 'STRIKER' ? m.nonStrikerId : m.strikerId;
+    const currentId = type === 'STRIKER' ? m.strikerId : m.nonStrikerId;
+
+    const available = (battingTeam?.players || []).filter(p => {
+      if (!p) return false;
+      if (p.id === otherId) return false;
+      if (p.battingStats?.isOut) return false;
+      if (p.battingStats?.isRetiredHurt) return false;
+      return true;
     });
+
+    if (available.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.innerText = 'No available batters';
+      select.appendChild(opt);
+      confirmBtn.disabled = true;
+    } else {
+      confirmBtn.disabled = false;
+      available.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        const isCurrent = p.id === currentId;
+        const runs = p.battingStats?.runs || 0;
+        const balls = p.battingStats?.balls || 0;
+        opt.innerText = `${p.name} (${runs} runs, ${balls}b)${isCurrent ? ' [Current]' : ''}`;
+        if (isCurrent) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
   }
 
   modal.classList.add('active');
@@ -1167,6 +1318,7 @@ async function selectBowlerDirect(bowlerId) {
   const adjustmentBall = {
     isAdjustment: true,
     adjustmentSlot: 'BOWLER',
+    isReplacement: true,
     adjustmentPlayerId: bowlerId,
     isLegalBall: false,
     runs: 0,
@@ -1175,7 +1327,7 @@ async function selectBowlerDirect(bowlerId) {
   };
 
   activeMatch.currentBowlerId = bowlerId;
-  document.getElementById('selectionModal').classList.remove('active');
+  closeSelectionModal();
   activeMatch = await window.CricStorage.addBall(activeMatch.id, adjustmentBall);
   renderLiveScoring();
 }
@@ -1189,6 +1341,7 @@ async function confirmPlayerSelection() {
   const adjustmentBall = {
     isAdjustment: true,
     adjustmentSlot: slot,
+    isReplacement: true,
     adjustmentPlayerId: selectedId,
     isLegalBall: false,
     runs: 0,
@@ -1199,7 +1352,7 @@ async function confirmPlayerSelection() {
   if (slot === 'STRIKER') activeMatch.strikerId = selectedId;
   else if (slot === 'NON_STRIKER') activeMatch.nonStrikerId = selectedId;
 
-  document.getElementById('selectionModal').classList.remove('active');
+  closeSelectionModal();
   activeMatch = await window.CricStorage.addBall(activeMatch.id, adjustmentBall);
   renderLiveScoring();
 }
@@ -1229,17 +1382,67 @@ async function addBall(runs) {
 
 async function addExtra(type) {
   if (!activeMatch || isReadOnlySpectator) return;
+  const isByes = type === 'BYE' || type === 'LEG_BYE';
   const ball = {
     runs: 0,
     extrasType: type,
     extraRuns: 1,
+    isLegalBall: isByes ? true : false,
     wicketType: 'NONE',
     strikerId: activeMatch.strikerId,
     nonStrikerId: activeMatch.nonStrikerId,
     bowlerId: activeMatch.currentBowlerId
   };
 
+  const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+
+  const newBalls = activeMatch.totalBalls || 0;
+  if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
+    checkAndShowOverEndModal();
+  }
+
+  renderLiveScoring();
+}
+
+async function handleRetireBatter() {
+  if (!activeMatch || isReadOnlySpectator) return;
+  const striker = activeMatch.strikerId;
+  if (!striker) {
+    showToast('No active striker to retire', 'warning');
+    return;
+  }
+  if (confirm('Retire current striker? (Retired Hurt)')) {
+    const ball = {
+      runs: 0,
+      extrasType: 'NONE',
+      extraRuns: 0,
+      wicketType: 'RETIRED_HURT',
+      isLegalBall: false,
+      strikerId: activeMatch.strikerId,
+      nonStrikerId: activeMatch.nonStrikerId,
+      bowlerId: activeMatch.currentBowlerId
+    };
+    activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+    showToast('Batter retired hurt', 'info');
+    renderLiveScoring();
+  }
+}
+
+async function recordDroppedCatch() {
+  if (!activeMatch || isReadOnlySpectator) return;
+  const ball = {
+    runs: 0,
+    extrasType: 'NONE',
+    extraRuns: 0,
+    wicketType: 'NONE',
+    wasDroppedCatch: true,
+    strikerId: activeMatch.strikerId,
+    nonStrikerId: activeMatch.nonStrikerId,
+    bowlerId: activeMatch.currentBowlerId
+  };
+  activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  showToast('Dropped catch recorded', 'warning');
   renderLiveScoring();
 }
 
@@ -2083,7 +2286,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const userMode = localStorage.getItem('cric_user_mode');
   const user = window.CricStorage.getCurrentUser();
 
-  if (user || userMode === 'GUEST') {
+  if (user || userMode === 'GUEST' || userMode === 'REGISTERED') {
     const matches = await window.CricStorage.listMatches();
     if (matches && matches.length > 0) {
       selectMatch(matches[0].id);

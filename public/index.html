@@ -4,21 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>CricScore Pro Web</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f172a">
+  <style>
+    html.session-restoring #screenLanding { display: none !important; }
+    html.session-restoring body { background: #0f172a; }
+  </style>
   <script>
     (function() {
       try {
-        const hasUser = !!localStorage.getItem('cric_auth_user');
-        const isGuest = localStorage.getItem('cric_user_mode') === 'GUEST';
+        const rawUser = localStorage.getItem('cric_auth_user');
+        const userMode = localStorage.getItem('cric_user_mode');
+        const hasUser = !!rawUser && rawUser !== 'null' && rawUser !== 'undefined';
+        const isGuest = userMode === 'GUEST';
+        const isRegistered = userMode === 'REGISTERED' || hasUser;
         const isSpectator = window.location.search.includes('matchId=');
-        if (hasUser || isGuest || isSpectator) {
+
+        if (hasUser || isGuest || isRegistered || isSpectator) {
           document.documentElement.classList.add('session-restoring');
         }
       } catch (e) {}
     })();
   </script>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
 </head>
 <body>
 
@@ -206,7 +214,7 @@
       </div>
 
       <!-- Live Score Summary Card -->
-      <div class="card score-card">
+      <div class="card score-card" id="mainScoreCard">
         <span id="lastSavedTag" class="last-saved-tag">Saved 12:00 PM</span>
         <div id="scoringHeader" class="match-teams-title">Team A vs Team B</div>
         <div id="scoreMain" class="score-main">0/0</div>
@@ -218,21 +226,17 @@
         <div id="targetBanner" class="target-banner" style="display:none;">Target: 0</div>
         <div id="recentBalls" class="recent-balls"></div>
 
-        <div style="display:flex; gap:8px; margin-top:12px;">
-          <!-- WhatsApp Live Score Sharing Button -->
-          <button id="shareWhatsAppBtn" class="btn" style="background:#25d366; color:#000; font-size:13px; font-weight:800; flex:3; padding:10px;" onclick="shareLiveScoreWhatsApp()">
-            📲 Share Live Score
-          </button>
-          <!-- Live Match Delete Button -->
-          <button id="deleteMatchBtn" class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:13px; font-weight:800; flex:1; padding:10px; border-color:#dc2626;" onclick="handleDeleteActiveMatch()">
-            🗑️ Delete
+        <div style="margin-top:12px;">
+          <!-- Go Live Button -->
+          <button id="goLiveBtn" class="btn" style="background:linear-gradient(135deg, #25d366 0%, #059669 100%); color:#fff; font-size:14px; font-weight:800; width:100%; padding:12px; border:none; box-shadow:0 4px 12px rgba(37,211,102,0.3);" onclick="goLiveShare()">
+            📡 GO LIVE (SHARE MATCH)
           </button>
         </div>
       </div>
 
       <!-- Active Batters Card -->
       <div class="card" style="padding:12px 16px;">
-        <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Batting</div>
+        <div id="battingCardTitle" style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:8px;">Batting</div>
         <table class="stats-table">
           <thead>
             <tr>
@@ -248,11 +252,16 @@
             <tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:10px;">Select Batters</td></tr>
           </tbody>
         </table>
+
+        <!-- Prominent SWAP BATSMEN Bar -->
+        <button id="btnSwapBatsmen" class="btn" style="background:#1e293b; color:#f8fafc; font-weight:700; font-size:12px; width:100%; padding:10px; margin-top:10px; border:1px dashed #475569; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="swapBatsmen()">
+          🔀 SWAP BATSMEN (FIX SELECTION)
+        </button>
       </div>
 
       <!-- Active Bowler Card -->
       <div class="card" style="padding:12px 16px;">
-        <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Bowling</div>
+        <div id="bowlingCardTitle" style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:8px;">Bowling</div>
         <table class="stats-table">
           <thead>
             <tr>
@@ -276,8 +285,8 @@
       </div>
 
       <!-- Live Scoring Keypad -->
-      <div id="scoringKeypad" class="keypad-grid">
-        <button class="btn btn-run" onclick="addBall(0)">0</button>
+      <div id="scoringKeypad" class="keypad-grid-mobile">
+        <button class="btn btn-run" onclick="addBall(0)">0 (DOT)</button>
         <button class="btn btn-run" onclick="addBall(1)">1</button>
         <button class="btn btn-run" onclick="addBall(2)">2</button>
         <button class="btn btn-run" onclick="addBall(3)">3</button>
@@ -286,11 +295,14 @@
 
         <button class="btn btn-extra" onclick="addExtra('WIDE')">WD</button>
         <button class="btn btn-extra" onclick="addExtra('NO_BALL')">NB</button>
+        <button class="btn btn-extra" onclick="addExtra('BYE')">BYE</button>
+        <button class="btn btn-extra" onclick="addExtra('LEG_BYE')">L-BYE</button>
         <button class="btn btn-extra" onclick="addGrantedRun()">1G</button>
-        <button class="btn btn-extra" onclick="swapBatsmen()">🔀 SWAP</button>
 
-        <button class="btn btn-wicket" onclick="openWicketModal()">☝️ WICKET / RETIRE</button>
-        <button class="btn btn-undo" onclick="undoLastBall()">↩️ UNDO BALL</button>
+        <button class="btn btn-wicket" onclick="openWicketModal()">☝️ WICKET</button>
+        <button class="btn btn-extra" style="background:#4338ca; color:#fff;" onclick="recordDroppedCatch()">🖐️ DROP</button>
+        <button class="btn btn-extra" style="background:#7c2d12; color:#ffedd5;" onclick="handleRetireBatter()">🏃 RETIRE</button>
+        <button class="btn btn-undo" style="grid-column: span 2;" onclick="undoLastBall()">↩️ UNDO BALL</button>
       </div>
 
     </div>
@@ -457,10 +469,10 @@
         <input type="checkbox" id="ruleUnequal" style="transform:scale(1.2);">
       </div>
 
-      <div style="display:flex; gap:8px; margin-top:20px;">
-        <button class="btn-primary" onclick="saveMatchSettings()">Save Settings</button>
-        <button class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:13px;" onclick="wipeAllAppData()">🧹 Reset App Data</button>
-        <button class="btn" style="background:#334155;" onclick="closeMatchSettingsModal()">Cancel</button>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:20px;">
+        <button class="btn-primary" style="flex:2;" onclick="saveMatchSettings()">Save Settings</button>
+        <button class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:12px; flex:1;" onclick="closeMatchSettingsModal(); handleDeleteActiveMatch();">🗑️ Delete Match</button>
+        <button class="btn" style="background:#334155; font-size:12px;" onclick="closeMatchSettingsModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -490,13 +502,19 @@
   <!-- Player Selection Modal -->
   <div id="selectionModal" class="modal-overlay">
     <div class="modal">
-      <h3 id="selectionTitle" style="margin-bottom:12px;">Select Player</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 id="selectionTitle">Select Player</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;" onclick="closeSelectionModal()">✕</button>
+      </div>
       <div id="bowlerListContainer" class="form-group"></div>
       <div class="form-group" id="genericDropdownGroup" style="display:none;">
         <label for="selectionDropdown">Choose Player</label>
         <select id="selectionDropdown" class="form-control"></select>
       </div>
-      <button class="btn-primary" id="btnConfirmGenericSelection" style="display:none;" onclick="confirmPlayerSelection()">Select Player</button>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn-primary" id="btnConfirmGenericSelection" style="display:none;" onclick="confirmPlayerSelection()">Confirm Selection</button>
+        <button class="btn" style="background:#334155;" onclick="closeSelectionModal()">Cancel</button>
+      </div>
     </div>
   </div>
 
