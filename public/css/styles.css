@@ -1,18 +1,18 @@
 :root {
-  --bg-color: #0f172a;
-  --card-bg: #1e293b;
-  --card-border: #334155;
-  --primary-color: #3b82f6;
-  --primary-dark: #1d4ed8;
-  --accent-color: #f59e0b;
+  --bg-color: #121826;
+  --card-bg: #1e2640;
+  --card-border: #323d5e;
+  --primary-color: #818cf8;
+  --primary-dark: #6366f1;
+  --accent-color: #fbbf24;
   --text-color: #f8fafc;
   --text-muted: #94a3b8;
-  --danger-color: #ef4444;
-  --success-color: #10b981;
-  --chip-4: #10b981;
-  --chip-6: #06b6d4;
-  --chip-w: #ef4444;
-  --chip-extra: #f59e0b;
+  --danger-color: #f87171;
+  --success-color: #34d399;
+  --chip-4: #34d399;
+  --chip-6: #38bdf8;
+  --chip-w: #f87171;
+  --chip-extra: #fbbf24;
 }
 
 * {
@@ -31,7 +31,7 @@ body {
 
 /* App Header */
 .app-header {
-  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #1e1b4b 0%, #121826 100%);
   padding: 12px 16px;
   display: flex;
   align-items: center;
@@ -50,6 +50,7 @@ body {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  color: #c7d2fe;
 }
 
 .status-badge {
@@ -64,12 +65,12 @@ body {
 
 .status-badge.online {
   background: #064e3b;
-  color: #34d399;
+  color: #6ee7b7;
 }
 
 .status-badge.guest {
-  background: #78350f;
-  color: #fde047;
+  background: #451a03;
+  color: #fef08a;
 }
 
 /* Toast Notifications */
@@ -85,7 +86,7 @@ body {
 }
 
 .toast {
-  background: #1e293b;
+  background: #1e2640;
   color: #fff;
   border: 1px solid var(--primary-color);
   padding: 12px 16px;
@@ -156,8 +157,8 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .score-card {
   text-align: center;
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  border-color: #3b82f644;
+  background: linear-gradient(180deg, #1e2640 0%, #121826 100%);
+  border-color: #818cf844;
   position: relative;
 }
 
@@ -200,7 +201,7 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .target-banner {
-  background: rgba(245, 158, 11, 0.15);
+  background: rgba(251, 191, 36, 0.15);
   border: 1px solid var(--accent-color);
   color: var(--accent-color);
   padding: 8px 12px;
@@ -211,7 +212,7 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .completed-summary-card {
-  background: linear-gradient(135deg, #064e3b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #064e3b 0%, #121826 100%);
   border: 1px solid #059669;
   text-align: center;
   padding: 16px;
@@ -234,8 +235,8 @@ html.session-restoring #screenLanding { display: none !important; }
 
 /* Captain (C) subtle blue & Vice-Captain (VC) subtle amber badges */
 .badge-c {
-  color: #60a5fa;
-  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.25);
   font-weight: 800;
   font-size: 11px;
   padding: 1px 5px;
@@ -247,7 +248,7 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .badge-vc {
   color: #fde047;
-  background: rgba(245, 158, 11, 0.2);
+  background: rgba(245, 158, 11, 0.25);
   font-weight: 800;
   font-size: 11px;
   padding: 1px 5px;
@@ -260,7 +261,7 @@ html.session-restoring #screenLanding { display: none !important; }
 /* ------------------- CREATE MATCH SQUAD BUILDER STYLES ------------------- */
 
 .team-builder-block {
-  background: #0f172a;
+  background: #161f33;
   padding: 14px;
   border-radius: 12px;
   border: 1px solid var(--card-border);
@@ -304,7 +305,7 @@ html.session-restoring #screenLanding { display: none !important; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #1e293b;
+  background: #283454;
   border: 1px solid var(--card-border);
   border-radius: 8px;
   padding: 8px 12px;
@@ -326,7 +327,7 @@ html.session-restoring #screenLanding { display: none !important; }
   font-weight: 800;
   border-radius: 6px;
   border: 1px solid var(--card-border);
-  background: #0f172a;
+  background: #121826;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -408,7 +409,7 @@ html.session-restoring #screenLanding { display: none !important; }
 .landing-card {
   text-align: center;
   padding: 24px 16px;
-  background: linear-gradient(180deg, #1e1b4b 0%, #1e293b 100%);
+  background: linear-gradient(180deg, #1e1b4b 0%, #1e2640 100%);
   border-color: var(--primary-color);
 }
 
@@ -444,7 +445,7 @@ html.session-restoring #screenLanding { display: none !important; }
   height: 100%;
   border-radius: 50%;
   object-fit: contain;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
   transition: transform 0.8s ease-in-out;
 }
 
@@ -471,8 +472,8 @@ html.session-restoring #screenLanding { display: none !important; }
   margin-top: 10px;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid #334155;
-  background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+  border: 1px solid var(--card-border);
+  background: linear-gradient(90deg, rgba(18, 24, 38, 0.95) 0%, rgba(30, 38, 64, 0.95) 100%);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -497,8 +498,8 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .pending-action-banner {
-  background: linear-gradient(135deg, #78350f 0%, #451a03 100%);
-  border-color: #f59e0b;
+  background: linear-gradient(135deg, #451a03 0%, #2e1002 100%);
+  border-color: #d97706;
   color: #fef3c7;
   font-weight: 800;
   text-align: center;
@@ -518,11 +519,12 @@ html.session-restoring #screenLanding { display: none !important; }
   letter-spacing: 0.1px;
 }
 
+/* Pastel Ball Chips */
 .ball-chip {
   min-width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #334155;
+  background: #323d5e;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -535,30 +537,30 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .ball-chip.four {
   background: var(--chip-4);
-  color: #000;
+  color: #064e3b;
   font-weight: 900;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
 }
 
 .ball-chip.six {
   background: var(--chip-6);
-  color: #000;
+  color: #0c4a6e;
   font-weight: 900;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
 }
 
 .ball-chip.wicket {
   background: var(--chip-w);
-  color: #fff;
+  color: #7f1d1d;
   font-weight: 900;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.6);
 }
 
 .ball-chip.extra {
   background: var(--chip-extra);
-  color: #000;
+  color: #451a03;
   font-weight: 900;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
 }
 
 .stats-table {
@@ -583,7 +585,7 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .striker-star {
-  color: #f59e0b;
+  color: #fbbf24;
   margin-left: 4px;
 }
 
@@ -614,7 +616,7 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .btn {
-  background: #1e293b;
+  background: #283454;
   color: #f8fafc;
   border: 1px solid var(--card-border);
   border-radius: 12px;
@@ -627,14 +629,14 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .btn:active {
   transform: scale(0.95);
-  background: #334155;
+  background: #323d5e;
 }
 
-.btn-run { background: #1e293b; }
-.btn-boundary { background: #064e3b; color: #34d399; border-color: #059669; }
-.btn-extra { background: #78350f; color: #fde047; border-color: #d97706; }
-.btn-wicket { background: #7f1d1d; color: #fca5a5; border-color: #dc2626; grid-column: span 2; }
-.btn-undo { background: #334155; color: #cbd5e1; grid-column: span 2; }
+.btn-run { background: #283454; }
+.btn-boundary { background: #064e3b; color: #6ee7b7; border-color: #059669; }
+.btn-extra { background: #451a03; color: #fef08a; border-color: #d97706; }
+.btn-wicket { background: #7f1d1d; color: #fecaca; border-color: #dc2626; grid-column: span 2; }
+.btn-undo { background: #323d5e; color: #cbd5e1; grid-column: span 2; }
 .btn-primary { background: var(--primary-color); color: white; border: none; width: 100%; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
 
 .match-card-item {
@@ -642,7 +644,7 @@ html.session-restoring #screenLanding { display: none !important; }
   justify-content: space-between;
   align-items: center;
   padding: 14px;
-  background: #1e293b;
+  background: #1e2640;
   border-radius: 12px;
   margin-bottom: 10px;
   cursor: pointer;
@@ -651,7 +653,7 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .form-group { margin-bottom: 12px; }
 .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
-.form-control { width: 100%; padding: 10px; border-radius: 8px; background: #0f172a; border: 1px solid var(--card-border); color: white; font-size: 14px; }
+.form-control { width: 100%; padding: 10px; border-radius: 8px; background: #121826; border: 1px solid var(--card-border); color: white; font-size: 14px; }
 
 .modal-overlay {
   position: fixed;
@@ -679,7 +681,7 @@ html.session-restoring #screenLanding { display: none !important; }
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  background: #0f172a;
+  background: #121826;
   border: 1px solid var(--card-border);
   border-radius: 10px;
   margin-bottom: 8px;
@@ -689,7 +691,7 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .bowler-option:hover {
   border-color: var(--primary-color);
-  background: #1e293b;
+  background: #1e2640;
 }
 
 .bowler-option.disabled {
@@ -699,15 +701,19 @@ html.session-restoring #screenLanding { display: none !important; }
   border-color: #27272a;
 }
 
+/* Responsive Bottom Navigation Bar */
 .bottom-nav {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  background: #0f172a;
+  background: #121826;
   border-top: 1px solid var(--card-border);
   display: flex;
   justify-content: space-around;
-  padding: 6px 0;
+  padding: 8px 12px;
   z-index: 100;
+  max-width: 550px;
+  margin: 0 auto;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
 }
 
 .bottom-nav-item {
@@ -718,7 +724,22 @@ html.session-restoring #screenLanding { display: none !important; }
   color: var(--text-muted);
   cursor: pointer;
   font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
 }
 
-.bottom-nav-item.active { color: var(--primary-color); }
-.bottom-nav-icon { font-size: 18px; margin-bottom: 1px; }
+.bottom-nav-item:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.05);
+}
+
+.bottom-nav-item.active {
+  color: var(--primary-color);
+  background: rgba(129, 140, 248, 0.12);
+}
+
+.bottom-nav-icon {
+  font-size: 18px;
+  margin-bottom: 2px;
+}

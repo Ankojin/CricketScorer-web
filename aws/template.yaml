@@ -25,7 +25,19 @@ Resources:
         - AttributeName: matchId
           KeyType: HASH
 
-  # 2. Private S3 Bucket for Static Web UI Hosting (5 GB Always Free)
+  # 2. JWT Signing Key Secret in AWS Secrets Manager
+  JwtSigningSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "cricscore-jwt-secret-${AWS::StackName}"
+      Description: "JWT Signing Secret for CricScore Pro Web API"
+      GenerateSecretString:
+        SecretStringTemplate: '{"secretKey": ""}'
+        GenerateStringKey: "secretKey"
+        PasswordLength: 64
+        ExcludePunctuation: true
+
+  # 3. Private S3 Bucket for Static Web UI Hosting (5 GB Always Free)
   CricScoreWebBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -36,7 +48,7 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
 
-  # 3. CloudFront Origin Access Control (OAC)
+  # 4. CloudFront Origin Access Control (OAC)
   CloudFrontOAC:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
@@ -46,7 +58,7 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
-  # 4. S3 Bucket Policy allowing CloudFront Read Access
+  # 5. S3 Bucket Policy allowing CloudFront Read Access
   CricScoreWebBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -64,7 +76,7 @@ Resources:
               StringEquals:
                 AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CricScoreCDN}"
 
-  # 5. CloudFront Distribution (1 TB Always Free Data Transfer)
+  # 6. CloudFront Distribution (1 TB Always Free Data Transfer)
   CricScoreCDN:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -95,14 +107,14 @@ Resources:
             ResponseCode: 200
             ResponsePagePath: /index.html
 
-  # 6. API Gateway HTTP API v2 (1 Million Requests Free)
+  # 7. API Gateway HTTP API v2 (1 Million Requests Free)
   CricScoreHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       Name: CricScoreHttpApi
       CorsConfiguration:
         AllowOrigins:
-          - "*"
+          - !Sub "https://${CricScoreCDN.DomainName}"
         AllowMethods:
           - GET
           - POST
@@ -113,7 +125,7 @@ Resources:
           - Content-Type
           - Authorization
 
-  # 7. AWS Lambda Backend API Handler (1 Million Requests Always Free)
+  # 8. AWS Lambda Backend API Handler (1 Million Requests Always Free)
   CricScoreApiLambda:
     Type: AWS::Serverless::Function
     Properties:
@@ -122,6 +134,7 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref CricMatchesTable
+          JWT_SECRET_ARN: !Ref JwtSigningSecret
       Policies:
         - Statement:
             - Effect: Allow
@@ -131,6 +144,10 @@ Resources:
                 - dynamodb:Scan
                 - dynamodb:DeleteItem
               Resource: !GetAtt CricMatchesTable.Arn
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref JwtSigningSecret
       Events:
         PostAuthRegister:
           Type: HttpApi

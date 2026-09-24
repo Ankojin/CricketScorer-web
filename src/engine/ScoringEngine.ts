@@ -621,7 +621,6 @@ export class ScoringEngine {
           byeCount: 0,
           legByeCount: 0,
           wicketHistory: [],
-          battingOrder: [],
           strikerId: presetStrikerId,
           nonStrikerId:
             !Boolean(current.gullyRules?.singleSideBatting) && presetNonStrikerId && presetNonStrikerId !== presetStrikerId
@@ -1019,6 +1018,10 @@ export class ScoringEngine {
       lost: 0,
       tied: 0,
       points: 0,
+      runsFor: 0,
+      oversFor: 0,
+      runsAgainst: 0,
+      oversAgainst: 0,
       nrr: '0.000'
     }));
 
@@ -1041,9 +1044,51 @@ export class ScoringEngine {
         tA.tied++; tA.points += 1;
         tB.tied++; tB.points += 1;
       }
+
+      // Calculate Net Run Rate (NRR) contributions
+      const i1Runs = m.innings1Data?.runs || 0;
+      const i1Overs = (m.innings1Data?.balls || 0) / 6;
+      const i2Runs = m.totalRuns || 0;
+      const i2Overs = (m.totalBalls || 0) / 6;
+
+      const teamABatFirst = m.initialBattingTeamId === m.teamA?.id || m.innings1Data?.teamId === m.teamA?.id;
+
+      if (teamABatFirst) {
+        tA.runsFor += i1Runs;
+        tA.oversFor += i1Overs;
+        tA.runsAgainst += i2Runs;
+        tA.oversAgainst += i2Overs;
+
+        tB.runsFor += i2Runs;
+        tB.oversFor += i2Overs;
+        tB.runsAgainst += i1Runs;
+        tB.oversAgainst += i1Overs;
+      } else {
+        tB.runsFor += i1Runs;
+        tB.oversFor += i1Overs;
+        tB.runsAgainst += i2Runs;
+        tB.oversAgainst += i2Overs;
+
+        tA.runsFor += i2Runs;
+        tA.oversFor += i2Overs;
+        tA.runsAgainst += i1Runs;
+        tA.oversAgainst += i1Overs;
+      }
     });
 
-    return table.sort((a, b) => b.points - a.points);
+    table.forEach(t => {
+      const rpoFor = t.oversFor > 0 ? t.runsFor / t.oversFor : 0;
+      const rpoAgainst = t.oversAgainst > 0 ? t.runsAgainst / t.oversAgainst : 0;
+      const nrrVal = rpoFor - rpoAgainst;
+      t.nrr = (nrrVal >= 0 ? '+' : '') + nrrVal.toFixed(3);
+    });
+
+    return table.sort((a, b) => {
+      if (b.points !== a.points) {
+        return b.points - a.points;
+      }
+      return parseFloat(b.nrr) - parseFloat(a.nrr);
+    });
   }
 
   public static updateTeamStats(

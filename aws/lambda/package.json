@@ -4,5 +4,11 @@
   "description": "CricScore Pro AWS Lambda API Handler",
   "main": "index.mjs",
   "type": "module",
-  "dependencies": {}
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "latest",
+    "@aws-sdk/client-secrets-manager": "latest",
+    "@aws-sdk/lib-dynamodb": "latest",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  }
 }

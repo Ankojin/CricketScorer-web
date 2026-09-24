@@ -2126,10 +2126,17 @@ function canSelectBowlerNow(match, bowlerId) {
   const blockers = getBowlerSelectionBlockers(match, bowler);
   if (blockers.length === 0) return true;
 
+  // Fallback: If ALL bowlers in the team have blockers, allow selecting any bowler so scoring is never stuck!
+  const allBowlers = bowlingTeam?.players || [];
+  const strictEligible = allBowlers.filter(p => getBowlerSelectionBlockers(match, p).length === 0);
+  if (strictEligible.length === 0) {
+    return true;
+  }
+
   const nonLastBowlerBlockers = blockers.filter(b => b !== 'last-bowler');
   if (nonLastBowlerBlockers.length > 0) return false;
 
-  const alternatives = (bowlingTeam?.players || []).filter(p => {
+  const alternatives = allBowlers.filter(p => {
     const b = getBowlerSelectionBlockers(match, p);
     return b.length === 0 || (b.length === 1 && b[0] === 'last-bowler');
   });
