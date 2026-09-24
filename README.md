@@ -55,10 +55,27 @@ A high-performance, deterministic, event-sourced Progressive Web Application (PW
 
 ---
 
+## ☁️ AWS Resources & Architecture
+
+| Resource | AWS Service | Identifier / Endpoint |
+| :--- | :--- | :--- |
+| **Stack Name** | AWS SAM / CloudFormation | `cricscore-pro-web` |
+| **S3 Web Bucket** | Amazon S3 | `cricscore-pro-web-112232725342-us-east-1` |
+| **CDN Distribution** | Amazon CloudFront | `E2FADRQRZIIFJQ` |
+| **HTTP API v2** | Amazon API Gateway | `https://zqa91yrypg.execute-api.us-east-1.amazonaws.com` |
+| **Database Table** | Amazon DynamoDB | `CricMatches` |
+| **Lambda Function** | AWS Lambda | `CricScoreApiLambda` (Node.js 20.x) |
+
+---
+
 ## 🚀 Deployment Commands
 
-Sync static web files to AWS S3 & invalidate CloudFront:
+### 1. Deploy Infrastructure with AWS SAM
+```powershell
+sam deploy --no-confirm-changeset --stack-name cricscore-pro-web --template-file aws/template.yaml --capabilities CAPABILITY_IAM --resolve-s3
+```
 
+### 2. Sync Static Web Files to S3 & Invalidate CloudFront
 ```powershell
 aws s3 sync public/ s3://cricscore-pro-web-112232725342-us-east-1/ --delete
 aws cloudfront create-invalidation --distribution-id E2FADRQRZIIFJQ --paths "/*"

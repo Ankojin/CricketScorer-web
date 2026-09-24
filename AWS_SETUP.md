@@ -58,18 +58,35 @@ Follow these exact steps to verify that data survives refreshes, browser restart
 
 ---
 
-## 🚀 AWS SAM Deployment Commands
+## ☁️ AWS Provisioned Infrastructure & Resources
 
-Deploy the infrastructure using AWS SAM CLI:
+| Resource | AWS Service | Resource Name / ID |
+| :--- | :--- | :--- |
+| **Database** | Amazon DynamoDB | `CricMatches` (On-Demand / Pay-per-request) |
+| **S3 Bucket** | Amazon S3 | `cricscore-pro-web-112232725342-us-east-1` |
+| **CDN Distribution** | Amazon CloudFront | `E2FADRQRZIIFJQ` (OAC Secured) |
+| **API Gateway** | HTTP API v2 | `CricScoreHttpApi` (`https://zqa91yrypg.execute-api.us-east-1.amazonaws.com`) |
+| **Backend Compute** | AWS Lambda | `CricScoreApiLambda` (Node.js 20.x) |
+| **CloudFormation Stack**| AWS SAM | `cricscore-pro-web` |
+
+---
+
+## 🚀 AWS SAM Infrastructure & Web Deployment Commands
+
+1. **Deploy / Update SAM Backend Infrastructure**:
 
 ```powershell
-cd D:\CricketScorer-web
-sam deploy --stack-name cricscore-pro-web --template-file aws/template.yaml --capabilities CAPABILITY_IAM --resolve-s3
+sam deploy --no-confirm-changeset --stack-name cricscore-pro-web --template-file aws/template.yaml --capabilities CAPABILITY_IAM --resolve-s3
 ```
 
-Sync web assets to S3 and invalidate CloudFront:
+2. **Sync Frontend Static Web Assets to Amazon S3**:
 
 ```powershell
-aws s3 sync public/ s3://YOUR_S3_BUCKET_NAME/ --delete
-aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
+aws s3 sync public/ s3://cricscore-pro-web-112232725342-us-east-1/ --delete
+```
+
+3. **Invalidate CloudFront Cache for Instant CDN Updates**:
+
+```powershell
+aws cloudfront create-invalidation --distribution-id E2FADRQRZIIFJQ --paths "/*"
 ```

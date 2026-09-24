@@ -46,6 +46,7 @@ function updateBottomNavVisibility(screenId) {
 }
 
 function showScreen(screenId) {
+  document.documentElement.classList.remove('session-restoring');
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const screen = document.getElementById(screenId);
   if (screen) screen.classList.add('active');
@@ -864,11 +865,28 @@ async function wipeAllAppData() {
 }
 
 async function selectMatch(matchId) {
-  activeMatch = await window.CricStorage.getMatch(matchId);
-  if (!activeMatch) return;
+  try {
+    activeMatch = await window.CricStorage.getMatch(matchId);
+    if (!activeMatch) {
+      if (isReadOnlySpectator) {
+        showToast('Match not found', 'danger');
+        showLandingScreen();
+      } else {
+        loadMatchListScreen();
+      }
+      return;
+    }
 
-  activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
-  showLiveScreen();
+    activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
+    showLiveScreen();
+  } catch (err) {
+    console.error('Failed to select match:', err);
+    if (isReadOnlySpectator) {
+      showLandingScreen();
+    } else {
+      loadMatchListScreen();
+    }
+  }
 }
 
 function isCaptainPlayer(p, teamId, match) {

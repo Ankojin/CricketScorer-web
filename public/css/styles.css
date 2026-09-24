@@ -116,6 +116,7 @@ body {
 
 .screen { display: none; }
 .screen.active { display: block; }
+html.session-restoring #screenLanding { display: none !important; }
 
 .card {
   background: var(--card-bg);

@@ -7,6 +7,18 @@
   <link rel="stylesheet" href="css/styles.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
+  <script>
+    (function() {
+      try {
+        const hasUser = !!localStorage.getItem('cric_auth_user');
+        const isGuest = localStorage.getItem('cric_user_mode') === 'GUEST';
+        const isSpectator = window.location.search.includes('matchId=');
+        if (hasUser || isGuest || isSpectator) {
+          document.documentElement.classList.add('session-restoring');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
 
