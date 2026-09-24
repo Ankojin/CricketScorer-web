@@ -186,6 +186,10 @@
             <input type="number" id="maxBowlerOvers" class="form-control" value="2">
           </div>
         </div>
+        <div class="form-group">
+          <label for="matchPowerplayOvers">Powerplay Overs (optional)</label>
+          <input type="number" id="matchPowerplayOvers" class="form-control" placeholder="e.g. 2" min="0">
+        </div>
 
         <div class="checkbox-row">
           <input type="checkbox" id="saveTeamsForReuse" checked>
@@ -225,6 +229,10 @@
         </div>
         <div id="targetBanner" class="target-banner" style="display:none;">Target: 0</div>
         <div id="recentBalls" class="recent-balls"></div>
+        <div id="liveTicker" class="live-ticker-strip">
+          <span class="live-ticker-label">LIVE FEED</span>
+          <span id="liveTickerText" class="live-ticker-text">Match ready</span>
+        </div>
 
         <div style="margin-top:12px;">
           <!-- Go Live Button -->
@@ -280,7 +288,7 @@
       </div>
 
       <!-- Action Prompt Banner -->
-      <div id="actionBanner" class="card" style="background:#78350f; border-color:#f59e0b; color:#fef3c7; font-weight:700; display:none; text-align:center;">
+      <div id="actionBanner" class="card pending-action-banner" style="display:none;">
         Pending Action
       </div>
 
@@ -311,7 +319,15 @@
     <!-- Screen 4: Detailed Scorecard -->
     <div id="screenScorecard" class="screen">
       <div class="card">
-        <h3 style="margin-bottom:12px;">Full Match Scorecard</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+          <h3 style="margin:0;">Full Match Scorecard</h3>
+          <button class="btn" style="background:#0f766e; color:#a7f3d0; width:auto; padding:8px 12px; font-size:12px;" onclick="exportActiveScorecardSnapshot()">📸 Snapshot</button>
+        </div>
+        <div style="display:flex; gap:6px; background:#0f172a; padding:4px; border-radius:8px; margin-bottom:10px;">
+          <button id="scorecardTabFull" class="btn" style="flex:1; padding:6px; font-size:11px; background:var(--primary-color);" onclick="setScorecardTab('FULL')">FULL</button>
+          <button id="scorecardTabI1" class="btn" style="flex:1; padding:6px; font-size:11px; background:transparent;" onclick="setScorecardTab('INNINGS1')">INNINGS 1</button>
+          <button id="scorecardTabI2" class="btn" style="flex:1; padding:6px; font-size:11px; background:transparent;" onclick="setScorecardTab('INNINGS2')">INNINGS 2</button>
+        </div>
         <div id="scorecardContent"></div>
       </div>
     </div>
@@ -455,6 +471,10 @@
         <label for="editMaxBowlerOvers">Max Overs Per Bowler</label>
         <input type="number" id="editMaxBowlerOvers" class="form-control" value="2">
       </div>
+      <div class="form-group">
+        <label for="editPowerplayOvers">Powerplay Overs (optional)</label>
+        <input type="number" id="editPowerplayOvers" class="form-control" placeholder="e.g. 2" min="0">
+      </div>
       <div style="display:flex; gap:8px;">
         <div class="form-group" style="flex:1;">
           <label for="editTeamAWK">Team A Wicket-Keeper</label>
@@ -482,11 +502,22 @@
 
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:20px;">
         <button class="btn-primary" style="flex:2;" onclick="saveMatchSettings()">Save Settings</button>
+        <button id="btnAbandonResume" class="btn" style="background:#7f1d1d; color:#fecaca; font-size:12px; flex:1;" onclick="toggleMatchAbandonedStatus()">⛔ Abandon Match</button>
         <button class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:12px; flex:1;" onclick="closeMatchSettingsModal(); handleDeleteActiveMatch();">🗑️ Delete Match</button>
         <button class="btn" style="background:#334155; font-size:12px;" onclick="closeMatchSettingsModal()">Cancel</button>
       </div>
+
+      <hr style="border-color:var(--card-border); margin:14px 0;">
+      <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Device Sync & Backup</h4>
+      <div id="deviceSyncStatus" style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">Sync status loading...</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" style="background:#1e3a8a; color:#bfdbfe; font-size:11px; width:auto; padding:8px 10px;" onclick="exportActiveMatchBackup()">⬇️ Export Match JSON</button>
+        <button class="btn" style="background:#065f46; color:#a7f3d0; font-size:11px; width:auto; padding:8px 10px;" onclick="triggerImportMatchBackup()">⬆️ Import Match JSON</button>
+      </div>
     </div>
   </div>
+
+  <input type="file" id="importMatchFileInput" accept="application/json" style="display:none;" onchange="handleImportMatchBackup(event)">
 
   <!-- Wicket Modal -->
   <div id="wicketModal" class="modal-overlay">
@@ -501,6 +532,8 @@
           <option value="RUN_OUT">Run Out</option>
           <option value="STUMPED">Stumped</option>
           <option value="HIT_WICKET">Hit Wicket</option>
+          <option value="HANDLED_BALL">Handled Ball</option>
+          <option value="OBSTRUCTING_FIELD">Obstructing the Field</option>
           <option value="RETIRED_HURT">Retired Hurt (No Wicket Count)</option>
         </select>
       </div>
@@ -628,6 +661,59 @@
     </div>
   </div>
 
+  <!-- Edit Ball Modal -->
+  <div id="editBallModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom:12px;">Edit Ball</h3>
+      <div class="form-group">
+        <label for="editBallRuns">Runs (bat)</label>
+        <input type="number" id="editBallRuns" class="form-control" min="0" max="12" value="0">
+      </div>
+      <div class="form-group">
+        <label for="editBallExtrasType">Extras Type</label>
+        <select id="editBallExtrasType" class="form-control">
+          <option value="NONE">NONE</option>
+          <option value="WIDE">WIDE</option>
+          <option value="NO_BALL">NO_BALL</option>
+          <option value="BYE">BYE</option>
+          <option value="LEG_BYE">LEG_BYE</option>
+          <option value="GRANTED">GRANTED</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="editBallExtraRuns">Extra Runs</label>
+        <input type="number" id="editBallExtraRuns" class="form-control" min="0" max="10" value="0">
+      </div>
+      <div class="form-group">
+        <label for="editBallWicketType">Wicket Type</label>
+        <select id="editBallWicketType" class="form-control">
+          <option value="NONE">NONE</option>
+          <option value="BOWLED">BOWLED</option>
+          <option value="CAUGHT">CAUGHT</option>
+          <option value="LBW">LBW</option>
+          <option value="RUN_OUT">RUN_OUT</option>
+          <option value="STUMPED">STUMPED</option>
+          <option value="HIT_WICKET">HIT_WICKET</option>
+          <option value="HANDLED_BALL">HANDLED_BALL</option>
+          <option value="OBSTRUCTING_FIELD">OBSTRUCTING_FIELD</option>
+          <option value="RETIRED_HURT">RETIRED_HURT</option>
+        </select>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="editBallIsLegal" checked>
+        <label for="editBallIsLegal">Legal Ball</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="editBallRotateStrike" checked>
+        <label for="editBallRotateStrike">Rotate Strike</label>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn-primary" onclick="confirmEditBall()">Save Changes</button>
+        <button class="btn" style="background:#334155;" onclick="closeEditBallModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Player Selection Modal -->
   <div id="selectionModal" class="modal-overlay">
     <div class="modal">
@@ -650,13 +736,56 @@
   <!-- New Tournament Modal -->
   <div id="tournamentModal" class="modal-overlay">
     <div class="modal">
-      <h3 style="margin-bottom:12px;">Create Tournament Series</h3>
+      <h3 id="tournamentModalTitle" style="margin-bottom:12px;">Create Tournament Series</h3>
       <div class="form-group">
         <label for="tourneyName">Series Name</label>
         <input type="text" id="tourneyName" class="form-control" value="Premier League 2025">
       </div>
+
+      <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Default Match Settings</h4>
+      <div style="display:flex; gap:8px;">
+        <div class="form-group" style="flex:1;">
+          <label for="tourneyDefaultOvers">Overs / Innings</label>
+          <input type="number" id="tourneyDefaultOvers" class="form-control" value="5" min="1">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label for="tourneyDefaultMaxBowlerOvers">Max Bowler Overs</label>
+          <input type="number" id="tourneyDefaultMaxBowlerOvers" class="form-control" value="2" min="1">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <div class="form-group" style="flex:1;">
+          <label for="tourneyDefaultPowerplayOvers">Powerplay Overs (optional)</label>
+          <input type="number" id="tourneyDefaultPowerplayOvers" class="form-control" placeholder="e.g. 2" min="0">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label for="tourneyDefaultQuotaBowlersCount">Quota Bowlers Count (optional)</label>
+          <input type="number" id="tourneyDefaultQuotaBowlersCount" class="form-control" placeholder="e.g. 3" min="0">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="tourneyDefaultQuotaMaxOvers">Quota Max Overs (optional)</label>
+        <input type="number" id="tourneyDefaultQuotaMaxOvers" class="form-control" placeholder="e.g. 2" min="0">
+      </div>
+
+      <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Default Gully Rules</h4>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="tourneyRuleNoExtras" style="margin:0;">No Extra Runs for Wides/NB</label>
+        <input type="checkbox" id="tourneyRuleNoExtras" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="tourneyRuleLMS" style="margin:0;">Last Man Standing (LMS)</label>
+        <input type="checkbox" id="tourneyRuleLMS" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="tourneyRuleUnequal" style="margin:0;">Unequal Teams</label>
+        <input type="checkbox" id="tourneyRuleUnequal" style="transform:scale(1.2);">
+      </div>
+
       <div style="display:flex; gap:8px; margin-top:16px;">
-        <button class="btn-primary" onclick="handleCreateTournament()">Create Series</button>
+        <button id="tournamentModalSubmitBtn" class="btn-primary" onclick="handleCreateTournament()">Create Series</button>
         <button class="btn" style="background:#334155;" onclick="closeTournamentModal()">Cancel</button>
       </div>
     </div>

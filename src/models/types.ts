@@ -102,6 +102,7 @@ export interface Ball {
   rotateStrike?: boolean;
   hadCrossed?: boolean;
   isDroppedCatch?: boolean;
+  wasDroppedCatch?: boolean;
   dismissalReason?: string | null;
   isAdjustment?: boolean;
   adjustmentSlot?: string | null;
@@ -189,6 +190,7 @@ export interface Match {
   winnerId?: string | null;
   manOfTheMatchId?: string | null;
   oversPerInnings: number;
+  powerplayOvers?: number | null;
   maxOversPerBowler?: number | null;
   quotaBowlersCount?: number | null;
   quotaMaxOvers?: number | null;

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test, describe } from 'node:test';
-import { ScoringEngine } from '../src/engine/ScoringEngine.ts';
-import type { Match, Team, Player, Ball } from '../src/models/types.ts';
+import { ScoringEngine } from '../src/engine/ScoringEngine.js';
+import type { Match, Team, Player, Ball } from '../src/models/types.js';
 
 describe('ScoringEngine Core Rules & Transition Tests', () => {
 
@@ -157,6 +157,50 @@ describe('ScoringEngine Core Rules & Transition Tests', () => {
     assert.equal(res.totalBalls, 1); // Only 1 physical ball (dot ball)
   });
 
+  test('WIDE with 4 additional runs adds 5 total extras and does NOT increment legal balls', () => {
+    const widePlus4: Ball = {
+      runs: 0,
+      extrasType: 'WIDE',
+      extraRuns: 5,
+      isLegalBall: false,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+
+    const match: Match = { ...baseMatch, ballHistory: [widePlus4] };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.totalRuns, 5);
+    assert.equal(res.wideCount, 5);
+    assert.equal(res.totalBalls, 0);
+    assert.equal(res.teamB.players[0].bowlingStats.runsConceded, 5);
+    assert.equal(res.teamB.players[0].bowlingStats.wides, 1);
+  });
+
+  test('WIDE additional runs options 0-4 produce expected totals and no legal-ball increment', () => {
+    for (let extraTaken = 0; extraTaken <= 4; extraTaken++) {
+      const wideBall: Ball = {
+        runs: 0,
+        extrasType: 'WIDE',
+        extraRuns: 1 + extraTaken,
+        isLegalBall: false,
+        strikerId: 'p1',
+        nonStrikerId: 'p2',
+        bowlerId: 'b1'
+      };
+
+      const match: Match = { ...baseMatch, ballHistory: [wideBall] };
+      const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+      assert.equal(res.totalRuns, 1 + extraTaken);
+      assert.equal(res.wideCount, 1 + extraTaken);
+      assert.equal(res.totalBalls, 0);
+      assert.equal(res.teamB.players[0].bowlingStats.wides, 1);
+      assert.equal(res.teamB.players[0].bowlingStats.runsConceded, 1 + extraTaken);
+    }
+  });
+
   test('NO_BALL with 4 bat runs adds 5 total runs, credits batter 4 runs, charges bowler 5 runs, does NOT increment legal balls', () => {
     const noBall4: Ball = {
       runs: 4,
@@ -264,6 +308,63 @@ describe('ScoringEngine Core Rules & Transition Tests', () => {
     assert.equal(res.bowlingTeamId, 'teamA');
     assert.equal(res.totalRuns, 0); // Reset for 2nd innings
     assert.equal(res.totalWickets, 0);
+  });
+
+  test('2nd innings manual selections persist before first innings-2 ball', () => {
+    const i1Balls: Ball[] = [
+      { runs: 4, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' }
+    ];
+
+    const match: Match = {
+      ...baseMatch,
+      oversPerInnings: 1,
+      ballHistory: i1Balls,
+      currentInnings: 2,
+      isSecondInningsStarted: true,
+      battingTeamId: 'teamB',
+      bowlingTeamId: 'teamA',
+      strikerId: 'b1',
+      nonStrikerId: 'b2',
+      currentBowlerId: 'p1',
+      pendingAction: 'NONE'
+    };
+
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.currentInnings, 2);
+    assert.equal(res.strikerId, 'b1');
+    assert.equal(res.nonStrikerId, 'b2');
+    assert.equal(res.currentBowlerId, 'p1');
+    assert.equal(res.pendingAction, 'NONE');
+  });
+
+  test('Editing a historical legal ball and recalculating updates totals and batter stats deterministically', () => {
+    const originalHistory: Ball[] = [
+      { runs: 1, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p2', nonStrikerId: 'p1', bowlerId: 'b1' }
+    ];
+
+    const base = ScoringEngine.recalculateMatchFromHistory({ ...baseMatch, ballHistory: originalHistory });
+    assert.equal(base.totalRuns, 1);
+    assert.equal(base.totalBalls, 2);
+    assert.equal(base.teamA.players[0].battingStats.runs, 1);
+    assert.equal(base.teamA.players[1].battingStats.runs, 0);
+
+    const editedHistory: Ball[] = [...originalHistory];
+    editedHistory[1] = { ...editedHistory[1], runs: 4 };
+
+    const edited = ScoringEngine.recalculateMatchFromHistory({ ...baseMatch, ballHistory: editedHistory });
+    assert.equal(edited.totalRuns, 5);
+    assert.equal(edited.totalBalls, 2);
+    assert.equal(edited.teamA.players[0].battingStats.runs, 1);
+    assert.equal(edited.teamA.players[1].battingStats.runs, 4);
+    assert.equal(edited.teamA.players[1].battingStats.fours, 1);
+    assert.equal(edited.teamB.players[0].bowlingStats.runsConceded, 5);
   });
 
   test('Match completes when Chasing Team B reaches target in 2nd Innings', () => {
@@ -401,5 +502,365 @@ describe('ScoringEngine Core Rules & Transition Tests', () => {
     assert.equal(res.strikerId, null); // Striker slot empty because 1 run completed & rotated
     assert.equal(res.nonStrikerId, 'p1'); // Remaining batter p1 moved to non-striker
     assert.equal(res.pendingAction, 'SELECT_STRIKER');
+  });
+
+  test('RUN_OUT two-step variants for striker/non-striker preserve wicket attribution and selection prompts', () => {
+    const strikerRunOutBall: Ball = {
+      runs: 0,
+      extrasType: 'NONE',
+      wicketType: 'RUN_OUT',
+      outPlayerId: 'p1',
+      fielderId: 'b2',
+      isLegalBall: true,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+
+    const strikerRunOut = ScoringEngine.recalculateMatchFromHistory({
+      ...baseMatch,
+      ballHistory: [strikerRunOutBall]
+    });
+
+    assert.equal(strikerRunOut.totalRuns, 0);
+    assert.equal(strikerRunOut.totalWickets, 1);
+    assert.equal(strikerRunOut.teamA.players[0].battingStats.isOut, true);
+    assert.equal(strikerRunOut.teamA.players[1].battingStats.isOut, false);
+    assert.equal(strikerRunOut.strikerId, null);
+    assert.equal(strikerRunOut.nonStrikerId, 'p2');
+    assert.equal(strikerRunOut.pendingAction, 'SELECT_STRIKER');
+    assert.equal(strikerRunOut.teamB.players[1].fieldingStats?.runOuts, 1);
+
+    const nonStrikerRunOutBall: Ball = {
+      runs: 2,
+      extrasType: 'NONE',
+      wicketType: 'RUN_OUT',
+      outPlayerId: 'p2',
+      fielderId: 'b2',
+      isLegalBall: true,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+
+    const nonStrikerRunOut = ScoringEngine.recalculateMatchFromHistory({
+      ...baseMatch,
+      ballHistory: [nonStrikerRunOutBall]
+    });
+
+    assert.equal(nonStrikerRunOut.totalRuns, 2);
+    assert.equal(nonStrikerRunOut.totalWickets, 1);
+    assert.equal(nonStrikerRunOut.teamA.players[1].battingStats.isOut, true);
+    assert.equal(nonStrikerRunOut.teamA.players[0].battingStats.isOut, false);
+    assert.equal(nonStrikerRunOut.strikerId, 'p1');
+    assert.equal(nonStrikerRunOut.nonStrikerId, null);
+    assert.equal(nonStrikerRunOut.pendingAction, 'SELECT_NON_STRIKER');
+    assert.equal(nonStrikerRunOut.teamB.players[1].fieldingStats?.runOuts, 1);
+  });
+
+  test('STUMPED dismissal records bowler/fielder linkage and increments keeper stumpings', () => {
+    const stumpedBall: Ball = {
+      runs: 0,
+      extrasType: 'NONE',
+      wicketType: 'STUMPED',
+      fielderId: 'b2',
+      isLegalBall: true,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+
+    const match: Match = { ...baseMatch, ballHistory: [stumpedBall] };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.totalWickets, 1);
+    assert.equal(res.wicketHistory.length, 1);
+    assert.equal(res.wicketHistory[0].wicketType, 'STUMPED');
+    assert.equal(res.wicketHistory[0].bowlerName, 'Dave');
+    assert.equal(res.wicketHistory[0].fielderName, 'Eve');
+    assert.equal(res.teamA.players[0].battingStats.dismissalBowlerId, 'b1');
+    assert.equal(res.teamA.players[0].battingStats.dismissalFielderId, 'b2');
+    assert.equal(res.teamB.players[1].fieldingStats?.stumpings, 1);
+  });
+
+  test('HANDLED_BALL wicket is recorded as a wicket type and increments wicket state', () => {
+    const handledBall: Ball = {
+      runs: 0,
+      extrasType: 'NONE',
+      wicketType: 'HANDLED_BALL',
+      isLegalBall: true,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+
+    const match: Match = { ...baseMatch, ballHistory: [handledBall] };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.totalWickets, 1);
+    assert.equal(res.wicketHistory.length, 1);
+    assert.equal(res.wicketHistory[0].wicketType, 'HANDLED_BALL');
+    assert.equal(res.teamA.players[0].battingStats.isOut, true);
+    assert.equal(res.teamA.players[0].battingStats.wicketType, 'HANDLED_BALL');
+  });
+
+  test('max overs quota yields over-break bowler change requirement', () => {
+    const history: Ball[] = [
+      ...Array.from({ length: 6 }, () => ({
+        runs: 0,
+        extrasType: 'NONE',
+        isLegalBall: true,
+        strikerId: 'p1',
+        nonStrikerId: 'p2',
+        bowlerId: 'b1'
+      } as Ball)),
+      {
+        runs: 1,
+        extrasType: 'NONE',
+        isLegalBall: true,
+        strikerId: 'p2',
+        nonStrikerId: 'p1',
+        bowlerId: 'b2'
+      }
+    ];
+
+    const match: Match = {
+      ...baseMatch,
+      oversPerInnings: 2,
+      maxOversPerBowler: 1,
+      ballHistory: history
+    };
+
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+    assert.equal(res.lastBowlerId, 'b1');
+    assert.equal(res.teamB.players[0].bowlingStats.overs, 1);
+    assert.equal(res.teamB.players[1].bowlingStats.balls, 1);
+    assert.equal(res.currentBowlerId, 'b2');
+  });
+
+  test('quota bowlers count caps unique bowlers used in innings history', () => {
+    const history: Ball[] = [
+      ...Array.from({ length: 6 }, () => ({
+        runs: 0,
+        extrasType: 'NONE',
+        isLegalBall: true,
+        strikerId: 'p1',
+        nonStrikerId: 'p2',
+        bowlerId: 'b1'
+      } as Ball)),
+      ...Array.from({ length: 6 }, () => ({
+        runs: 0,
+        extrasType: 'NONE',
+        isLegalBall: true,
+        strikerId: 'p2',
+        nonStrikerId: 'p1',
+        bowlerId: 'b2'
+      } as Ball))
+    ];
+
+    const match: Match = {
+      ...baseMatch,
+      oversPerInnings: 3,
+      quotaBowlersCount: 2,
+      ballHistory: history
+    };
+
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+    const usedBowlerIds = new Set((res.ballHistory || []).map(b => b.bowlerId).filter(Boolean));
+
+    assert.equal(usedBowlerIds.size, 2);
+    assert.equal(usedBowlerIds.has('b1'), true);
+    assert.equal(usedBowlerIds.has('b2'), true);
+    assert.equal(usedBowlerIds.has('b3'), false);
+    assert.equal(res.pendingAction, 'SELECT_BOWLER');
+    assert.equal(res.lastBowlerId, 'b2');
+  });
+
+  test('last-bowler fallback scenario remains selectable when quota bowlers count is 1', () => {
+    const history: Ball[] = Array.from({ length: 6 }, () => ({
+      runs: 0,
+      extrasType: 'NONE',
+      isLegalBall: true,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    }));
+
+    const match: Match = {
+      ...baseMatch,
+      oversPerInnings: 2,
+      quotaBowlersCount: 1,
+      quotaMaxOvers: 4,
+      ballHistory: history
+    };
+
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+    assert.equal(res.pendingAction, 'SELECT_BOWLER');
+    assert.equal(res.lastBowlerId, 'b1');
+    assert.equal(res.currentBowlerId, null);
+    assert.equal(res.teamB.players[0].bowlingStats.overs, 1);
+  });
+
+  test('ABANDONED status is preserved even if innings-2 history reaches target', () => {
+    const i1Balls: Ball[] = [
+      { runs: 4, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' }
+    ];
+
+    const i2Balls: Ball[] = [
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'b1', nonStrikerId: 'b2', bowlerId: 'p1' },
+      { runs: 6, extrasType: 'NONE', isLegalBall: true, strikerId: 'b1', nonStrikerId: 'b2', bowlerId: 'p1' }
+    ];
+
+    const match: Match = {
+      ...baseMatch,
+      status: 'ABANDONED',
+      winnerId: null,
+      oversPerInnings: 1,
+      ballHistory: [...i1Balls, ...i2Balls]
+    };
+
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.status, 'ABANDONED');
+    assert.equal(res.winnerId, null);
+    assert.equal(res.currentInnings, 2);
+    assert.equal(res.totalRuns, 12);
+  });
+
+  test('Points table sorts tied points by NRR (desc)', () => {
+    const teams: Team[] = [
+      { ...teamA, id: 'A', name: 'Team A' },
+      { ...teamB, id: 'B', name: 'Team B' },
+      { ...teamB, id: 'C', name: 'Team C', players: [bowler1, bowler2] }
+    ];
+
+    const m1: Match = {
+      ...baseMatch,
+      id: 'm1',
+      teamA: teams[0],
+      teamB: teams[1],
+      battingTeamId: 'B',
+      bowlingTeamId: 'A',
+      status: 'COMPLETED',
+      winnerId: 'B',
+      currentInnings: 2,
+      totalRuns: 91,
+      totalBalls: 60,
+      innings1Data: {
+        runs: 90,
+        wickets: 5,
+        balls: 60,
+        teamId: 'A',
+        wicketHistory: [],
+        wideCount: 0,
+        noBallCount: 0,
+        byeCount: 0,
+        legByeCount: 0,
+        recordedBallsCount: 60,
+        durationMinutes: 0,
+        battingOrder: []
+      }
+    };
+
+    const m2: Match = {
+      ...baseMatch,
+      id: 'm2',
+      teamA: teams[0],
+      teamB: teams[2],
+      battingTeamId: 'A',
+      bowlingTeamId: 'C',
+      status: 'COMPLETED',
+      winnerId: 'A',
+      currentInnings: 2,
+      totalRuns: 75,
+      totalBalls: 60,
+      innings1Data: {
+        runs: 100,
+        wickets: 4,
+        balls: 60,
+        teamId: 'C',
+        wicketHistory: [],
+        wideCount: 0,
+        noBallCount: 0,
+        byeCount: 0,
+        legByeCount: 0,
+        recordedBallsCount: 60,
+        durationMinutes: 0,
+        battingOrder: []
+      }
+    };
+
+    const table = ScoringEngine.calculatePointsTable(teams, [m1, m2]);
+
+    assert.equal(table[0].teamId, 'B');
+    assert.equal(table[0].points, 2);
+    assert.equal(table[1].teamId, 'A');
+    assert.equal(table[1].points, 2);
+    assert.equal(parseFloat(table[0].nrr) > parseFloat(table[1].nrr), true);
+  });
+
+  test('Points table handles missing innings snapshots without crashing and keeps base points', () => {
+    const teams: Team[] = [
+      { ...teamA, id: 'A', name: 'Team A' },
+      { ...teamB, id: 'B', name: 'Team B' }
+    ];
+
+    const legacyCompleted: Match = {
+      ...baseMatch,
+      id: 'legacy1',
+      teamA: teams[0],
+      teamB: teams[1],
+      status: 'COMPLETED',
+      winnerId: 'A',
+      // Intentionally missing innings1Data to simulate legacy persisted data.
+      innings1Data: null,
+      currentInnings: 2,
+      totalRuns: 50,
+      totalBalls: 30
+    };
+
+    const table = ScoringEngine.calculatePointsTable(teams, [legacyCompleted]);
+    const rowA = table.find(r => r.teamId === 'A');
+    const rowB = table.find(r => r.teamId === 'B');
+
+    assert.equal(rowA?.points, 2);
+    assert.equal(rowA?.played, 1);
+    assert.equal(rowB?.points, 0);
+    assert.equal(rowB?.played, 1);
+    assert.equal(typeof rowA?.nrr, 'string');
+    assert.equal(typeof rowB?.nrr, 'string');
+  });
+
+  test('Innings stats phase buckets follow configured powerplay and innings overs', () => {
+    const balls: Ball[] = Array.from({ length: 40 }, (_, idx) => ({
+      runs: 1,
+      extrasType: 'NONE',
+      isLegalBall: true,
+      wicketType: idx === 4 || idx === 19 || idx === 34 ? 'BOWLED' : 'NONE',
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    }));
+
+    const stats = ScoringEngine.calculateInningsStats(balls, {
+      powerplayOvers: 2,
+      oversPerInnings: 10
+    });
+
+    // 10-over match -> death starts at over 6 (ball 31). With 40 balls:
+    // PP: first 12 balls, Mid: next 18 balls, Death: remaining 10 balls.
+    assert.equal(stats.ppRuns, 12);
+    assert.equal(stats.midRuns, 18);
+    assert.equal(stats.finRuns, 10);
+    assert.equal(stats.ppWickets, 1);
+    assert.equal(stats.midWickets, 1);
+    assert.equal(stats.finWickets, 1);
+    assert.equal(stats.hasMid, true);
+    assert.equal(stats.hasFin, true);
   });
 });

@@ -467,6 +467,57 @@ html.session-restoring #screenLanding { display: none !important; }
   justify-content: center;
 }
 
+.live-ticker-strip {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.live-ticker-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.live-ticker-text {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pending-action-banner {
+  background: linear-gradient(135deg, #78350f 0%, #451a03 100%);
+  border-color: #f59e0b;
+  color: #fef3c7;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35) inset;
+}
+
+.scorecard-batter-name {
+  font-weight: 700;
+  color: #fff;
+}
+
+.scorecard-dismissal-text {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.1px;
+}
+
 .ball-chip {
   min-width: 32px;
   height: 32px;

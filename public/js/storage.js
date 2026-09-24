@@ -231,6 +231,19 @@ const CricStorage = {
     return await this.saveMatch(recalculated);
   },
 
+  async updateBall(matchId, index, updatedBall) {
+    const match = await this.getMatch(matchId);
+    if (!match || !Array.isArray(match.ballHistory)) return match;
+    if (index < 0 || index >= match.ballHistory.length) return match;
+
+    const newHistory = [...match.ballHistory];
+    newHistory[index] = updatedBall;
+    match.ballHistory = newHistory;
+
+    const recalculated = window.ScoringEngine.recalculateMatch(match);
+    return await this.saveMatch(recalculated);
+  },
+
   // ------------------- TEAMS LAYER -------------------
   async listTeams() {
     const raw = localStorage.getItem('cric_teams');

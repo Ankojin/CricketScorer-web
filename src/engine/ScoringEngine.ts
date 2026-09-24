@@ -8,10 +8,9 @@ import type {
   FieldingStats,
   WicketRecord,
   InningsSummary,
-  MatchStatus,
-  PendingAction
-} from '../models/types.ts';
-import { isPhysicalBall } from '../models/types.ts';
+  PendingAction,
+} from '../models/types.js';
+import { isPhysicalBall } from '../models/types.js';
 
 export class ScoringEngine {
 
@@ -97,6 +96,18 @@ export class ScoringEngine {
     return p?.battingStats?.isOut === true || p?.battingStats?.isRetiredHurt === true;
   }
 
+  public static isPlayerInTeam(id: string | null | undefined, team: Team): boolean {
+    if (!id) return false;
+    return (team.players || []).some(p => p.id === id);
+  }
+
+  public static ensureTeamPlayer(
+    id: string | null | undefined,
+    team: Team
+  ): string | null {
+    return this.isPlayerInTeam(id, team) ? id || null : null;
+  }
+
   public static recalculateMatch(match: Match): Match {
     return this.recalculateMatchFromHistory(match);
   }
@@ -115,6 +126,9 @@ export class ScoringEngine {
     const innings1BattingTeamId = teamABatsFirst ? match.teamA.id : match.teamB.id;
     const innings1BowlingTeamId =
       innings1BattingTeamId === match.teamA.id ? match.teamB.id : match.teamA.id;
+    const history = match.ballHistory || [];
+    const hasHistory = history.length > 0;
+    const replayStartsInnings = hasHistory ? 1 : match.currentInnings || 1;
 
     let current: Match = {
       ...match,
@@ -130,18 +144,19 @@ export class ScoringEngine {
       teamA: this.resetTeamStats(match.teamA || { id: 'teamA', name: 'Team A', players: [] }),
       teamB: this.resetTeamStats(match.teamB || { id: 'teamB', name: 'Team B', players: [] }),
       status: match.status || 'LIVE',
-      currentInnings: match.currentInnings || 1,
-      battingTeamId: match.currentInnings === 2 ? innings1BowlingTeamId : innings1BattingTeamId,
-      bowlingTeamId: match.currentInnings === 2 ? innings1BattingTeamId : innings1BowlingTeamId,
-      strikerId: match.strikerId || null,
-      nonStrikerId: match.nonStrikerId || null,
-      currentBowlerId: match.currentBowlerId || null,
-      lastBowlerId: match.lastBowlerId || null,
+      currentInnings: replayStartsInnings,
+      battingTeamId:
+        replayStartsInnings === 2 ? innings1BowlingTeamId : innings1BattingTeamId,
+      bowlingTeamId:
+        replayStartsInnings === 2 ? innings1BattingTeamId : innings1BowlingTeamId,
+      strikerId: hasHistory ? null : match.strikerId || null,
+      nonStrikerId: hasHistory ? null : match.nonStrikerId || null,
+      currentBowlerId: hasHistory ? null : match.currentBowlerId || null,
+      lastBowlerId: hasHistory ? null : match.lastBowlerId || null,
       pendingAction: 'NONE'
     };
 
     let ballsInOver = 0;
-    const history = match.ballHistory || [];
 
     for (let i = 0; i < history.length; i++) {
       const ball = history[i];
@@ -375,6 +390,40 @@ export class ScoringEngine {
         current.totalBalls >= current.oversPerInnings * 6;
 
       if (current.currentInnings === 1 && inningsEnded) {
+        const nextBattingTeam = this.isTeamA(current.bowlingTeamId, current)
+          ? current.teamA
+          : current.teamB;
+        const nextBowlingTeam = this.isTeamA(current.battingTeamId, current)
+          ? current.teamA
+          : current.teamB;
+        const carrySecondInningsSelections =
+          match.currentInnings === 2 && match.isSecondInningsStarted === true;
+
+        const presetStrikerId = carrySecondInningsSelections
+          ? this.ensureTeamPlayer(
+              this.healLegacyId(match.strikerId, nextBattingTeam),
+              nextBattingTeam
+            )
+          : null;
+        const presetNonStrikerId = carrySecondInningsSelections
+          ? this.ensureTeamPlayer(
+              this.healLegacyId(match.nonStrikerId, nextBattingTeam),
+              nextBattingTeam
+            )
+          : null;
+        const presetBowlerId = carrySecondInningsSelections
+          ? this.ensureTeamPlayer(
+              this.healLegacyId(match.currentBowlerId, nextBowlingTeam),
+              nextBowlingTeam
+            )
+          : null;
+        const presetLastBowlerId = carrySecondInningsSelections
+          ? this.ensureTeamPlayer(
+              this.healLegacyId(match.lastBowlerId, nextBowlingTeam),
+              nextBowlingTeam
+            )
+          : null;
+
         const i1EndTime = match.innings1EndTimeMillis || Date.now();
         const i1StartTime = match.startTimeMillis || i1EndTime;
         const i1Duration = Math.max(0, Math.floor((i1EndTime - i1StartTime) / 60000));
@@ -410,10 +459,13 @@ export class ScoringEngine {
           legByeCount: 0,
           wicketHistory: [],
           battingOrder: [],
-          strikerId: null,
-          nonStrikerId: null,
-          currentBowlerId: null,
-          lastBowlerId: null,
+          strikerId: presetStrikerId,
+          nonStrikerId:
+            presetNonStrikerId && presetNonStrikerId !== presetStrikerId
+              ? presetNonStrikerId
+              : null,
+          currentBowlerId: presetBowlerId,
+          lastBowlerId: presetLastBowlerId,
           pendingAction: match.isSecondInningsStarted
             ? 'NONE'
             : 'START_SECOND_INNINGS'
@@ -445,6 +497,29 @@ export class ScoringEngine {
     }
 
     if (current.status === 'LIVE') {
+      const currentBattingTeam = this.isTeamA(current.battingTeamId, current)
+        ? current.teamA
+        : current.teamB;
+      const currentBowlingTeam = this.isTeamA(current.bowlingTeamId, current)
+        ? current.teamA
+        : current.teamB;
+
+      const safeStrikerId = this.ensureTeamPlayer(current.strikerId, currentBattingTeam);
+      const safeNonStrikerRaw = this.ensureTeamPlayer(
+        current.nonStrikerId,
+        currentBattingTeam
+      );
+      const safeNonStrikerId =
+        safeNonStrikerRaw && safeNonStrikerRaw !== safeStrikerId ? safeNonStrikerRaw : null;
+
+      current = {
+        ...current,
+        strikerId: safeStrikerId,
+        nonStrikerId: safeNonStrikerId,
+        currentBowlerId: this.ensureTeamPlayer(current.currentBowlerId, currentBowlingTeam),
+        lastBowlerId: this.ensureTeamPlayer(current.lastBowlerId, currentBowlingTeam)
+      };
+
       const batTeam = this.isTeamA(current.battingTeamId, current)
         ? current.teamA
         : current.teamB;
@@ -468,6 +543,40 @@ export class ScoringEngine {
         current.totalBalls >= current.oversPerInnings * 6;
 
       if (current.currentInnings === 1 && inningsEnded) {
+        const nextBattingTeam = this.isTeamA(current.bowlingTeamId, current)
+          ? current.teamA
+          : current.teamB;
+        const nextBowlingTeam = this.isTeamA(current.battingTeamId, current)
+          ? current.teamA
+          : current.teamB;
+        const carrySecondInningsSelections =
+          match.currentInnings === 2 && match.isSecondInningsStarted === true;
+
+        const presetStrikerId = carrySecondInningsSelections
+          ? this.ensureTeamPlayer(
+              this.healLegacyId(match.strikerId, nextBattingTeam),
+              nextBattingTeam
+            )
+          : null;
+        const presetNonStrikerId = carrySecondInningsSelections
+          ? this.ensureTeamPlayer(
+              this.healLegacyId(match.nonStrikerId, nextBattingTeam),
+              nextBattingTeam
+            )
+          : null;
+        const presetBowlerId = carrySecondInningsSelections
+          ? this.ensureTeamPlayer(
+              this.healLegacyId(match.currentBowlerId, nextBowlingTeam),
+              nextBowlingTeam
+            )
+          : null;
+        const presetLastBowlerId = carrySecondInningsSelections
+          ? this.ensureTeamPlayer(
+              this.healLegacyId(match.lastBowlerId, nextBowlingTeam),
+              nextBowlingTeam
+            )
+          : null;
+
         const i1EndTime = match.innings1EndTimeMillis || Date.now();
         const i1StartTime = match.startTimeMillis || i1EndTime;
         const i1Duration = Math.max(0, Math.floor((i1EndTime - i1StartTime) / 60000));
@@ -501,20 +610,32 @@ export class ScoringEngine {
           legByeCount: 0,
           wicketHistory: [],
           battingOrder: [],
-          strikerId: null,
-          nonStrikerId: null,
-          currentBowlerId: null,
-          lastBowlerId: null,
+          strikerId: presetStrikerId,
+          nonStrikerId:
+            presetNonStrikerId && presetNonStrikerId !== presetStrikerId
+              ? presetNonStrikerId
+              : null,
+          currentBowlerId: presetBowlerId,
+          lastBowlerId: presetLastBowlerId,
           pendingAction: match.isSecondInningsStarted
             ? 'NONE'
             : 'START_SECOND_INNINGS'
         };
       }
 
-      if (
-        match.pendingAction === 'SELECT_MATCH_SETTINGS' ||
-        match.pendingAction === 'TOSS_REQUIRED'
-      ) {
+      const preservedPendingActions: PendingAction[] = [
+        'SELECT_MATCH_SETTINGS',
+        'TOSS_REQUIRED',
+        'SELECT_FIELDER',
+        'SELECT_RUNS_WICKET',
+        'SELECT_FIELDER_DROPPED_CATCH',
+        'SELECT_RUNS_DROPPED_CATCH',
+        'REPLACE_STRIKER',
+        'REPLACE_NON_STRIKER',
+        'REPLACE_BOWLER'
+      ];
+
+      if (preservedPendingActions.includes(match.pendingAction)) {
         current = { ...current, pendingAction: match.pendingAction };
       } else if (
         current.pendingAction === 'NONE' ||
@@ -561,10 +682,28 @@ export class ScoringEngine {
     }
   }
 
-  public static calculateInningsStats(balls: Ball[]) {
+  public static calculateInningsStats(
+    balls: Ball[],
+    config?: { powerplayOvers?: number | null; oversPerInnings?: number | null }
+  ) {
     let sR = 0, dR = 0, tR = 0, fR = 0, siR = 0, oR = 0, dots = 0, exR = 0, w = 0, wC = 0, nbC = 0;
     let ppR = 0, ppW = 0, midR = 0, midW = 0, finR = 0, finW = 0;
     let pB = 0, lB = 0;
+
+    const rawInningsOvers = Number(config?.oversPerInnings || 0);
+    const inningsBallsCap = rawInningsOvers > 0 ? rawInningsOvers * 6 : null;
+
+    const defaultPowerplayBalls = 36;
+    const requestedPowerplayOvers = Number(config?.powerplayOvers || 0);
+    const requestedPowerplayBalls = requestedPowerplayOvers > 0 ? requestedPowerplayOvers * 6 : defaultPowerplayBalls;
+    const ppBalls = inningsBallsCap != null
+      ? Math.max(0, Math.min(requestedPowerplayBalls, inningsBallsCap))
+      : requestedPowerplayBalls;
+
+    const defaultDeathStartBall = 90;
+    const deathStartBall = inningsBallsCap != null
+      ? Math.max(ppBalls, Math.max(0, inningsBallsCap - 30))
+      : defaultDeathStartBall;
 
     (balls || []).forEach(b => {
       if (b.isAdjustment) return;
@@ -572,8 +711,8 @@ export class ScoringEngine {
       const ballTotal = (b.runs || 0) + (b.extraRuns || 0);
       const isW = b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT';
 
-      if (pB < 36) { ppR += ballTotal; if (isW) ppW++; }
-      else if (pB < 90) { midR += ballTotal; if (isW) midW++; }
+      if (pB < ppBalls) { ppR += ballTotal; if (isW) ppW++; }
+      else if (pB < deathStartBall) { midR += ballTotal; if (isW) midW++; }
       else { finR += ballTotal; if (isW) finW++; }
 
       if (isW) w++;
@@ -619,8 +758,8 @@ export class ScoringEngine {
       boundaryRuns: fR + siR,
       dotPercent: dP,
       totalLegalBalls: lB,
-      hasMid: pB > 36,
-      hasFin: pB > 90
+      hasMid: deathStartBall > ppBalls && pB > ppBalls,
+      hasFin: pB > deathStartBall
     };
   }
 
@@ -869,8 +1008,23 @@ export class ScoringEngine {
       lost: 0,
       tied: 0,
       points: 0,
-      nrr: '0.000'
+      nrr: '0.000',
+      nrrValue: 0,
+      runsFor: 0,
+      ballsFaced: 0,
+      runsAgainst: 0,
+      ballsBowled: 0
     }));
+
+    const addInningsToTeam = (teamId: string | null | undefined, runs: number, balls: number, oppRuns: number, oppBalls: number) => {
+      if (!teamId) return;
+      const row = table.find(x => x.teamId === teamId);
+      if (!row) return;
+      row.runsFor += Math.max(0, runs || 0);
+      row.ballsFaced += Math.max(0, balls || 0);
+      row.runsAgainst += Math.max(0, oppRuns || 0);
+      row.ballsBowled += Math.max(0, oppBalls || 0);
+    };
 
     (matches || []).forEach(m => {
       if (m.status !== 'COMPLETED') return;
@@ -891,9 +1045,39 @@ export class ScoringEngine {
         tA.tied++; tA.points += 1;
         tB.tied++; tB.points += 1;
       }
+
+      // NRR from completed innings snapshots.
+      if (m.currentInnings === 2 && m.innings1Data?.teamId) {
+        const innings1TeamId = m.innings1Data.teamId;
+        const innings1Runs = m.innings1Data.runs || 0;
+        const innings1Balls = m.innings1Data.balls || 0;
+
+        const innings2TeamId = innings1TeamId === m.teamA?.id ? m.teamB?.id : m.teamA?.id;
+        const innings2Runs = m.totalRuns || 0;
+        const innings2Balls = m.totalBalls || 0;
+
+        addInningsToTeam(innings1TeamId, innings1Runs, innings1Balls, innings2Runs, innings2Balls);
+        addInningsToTeam(innings2TeamId, innings2Runs, innings2Balls, innings1Runs, innings1Balls);
+      }
     });
 
-    return table.sort((a, b) => b.points - a.points);
+    table.forEach(row => {
+      const forOvers = row.ballsFaced > 0 ? row.ballsFaced / 6 : 0;
+      const againstOvers = row.ballsBowled > 0 ? row.ballsBowled / 6 : 0;
+      const forRate = forOvers > 0 ? row.runsFor / forOvers : 0;
+      const againstRate = againstOvers > 0 ? row.runsAgainst / againstOvers : 0;
+      row.nrrValue = forRate - againstRate;
+      row.nrr = `${row.nrrValue >= 0 ? '+' : ''}${row.nrrValue.toFixed(3)}`;
+    });
+
+    return table
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.nrrValue !== a.nrrValue) return b.nrrValue - a.nrrValue;
+        if (b.won !== a.won) return b.won - a.won;
+        return a.name.localeCompare(b.name);
+      })
+      .map(({ nrrValue, runsFor, ballsFaced, runsAgainst, ballsBowled, ...rest }) => rest);
   }
 
   public static updateTeamStats(
