@@ -315,4 +315,36 @@ describe('Lambda API Handler & Security Tests', () => {
     assert.equal(mockDb.get(userKey).docType, 'USER');
   });
 
+  test('11. Responses do NOT emit duplicate CORS headers but keep Content-Type', async () => {
+    // 1. GET /matches (Public Route)
+    const getRes = await handler(createEvent('GET', '/matches'));
+    assert.equal(getRes.statusCode, 200);
+    assert.equal(getRes.headers['Content-Type'], 'application/json');
+    assert.equal(getRes.headers['Access-Control-Allow-Origin'], undefined);
+    assert.equal(getRes.headers['Access-Control-Allow-Methods'], undefined);
+    assert.equal(getRes.headers['Access-Control-Allow-Headers'], undefined);
+
+    // 2. POST /matches (Mutating Route Success)
+    const validToken = jwt.sign({ userId: 'user_123' }, TEST_JWT_SECRET, { expiresIn: '1h' });
+    const postRes = await handler(createEvent('POST', '/matches', {
+      id: 'match_cors_test',
+      teamA: { name: 'A', players: [] },
+      teamB: { name: 'B', players: [] }
+    }, validToken));
+
+    assert.equal(postRes.statusCode, 201);
+    assert.equal(postRes.headers['Content-Type'], 'application/json');
+    assert.equal(postRes.headers['Access-Control-Allow-Origin'], undefined);
+    assert.equal(postRes.headers['Access-Control-Allow-Methods'], undefined);
+    assert.equal(postRes.headers['Access-Control-Allow-Headers'], undefined);
+
+    // 3. Error Path Response (401 Unauthorized)
+    const errorRes = await handler(createEvent('POST', '/matches', { id: 'test' }));
+    assert.equal(errorRes.statusCode, 401);
+    assert.equal(errorRes.headers['Content-Type'], 'application/json');
+    assert.equal(errorRes.headers['Access-Control-Allow-Origin'], undefined);
+    assert.equal(errorRes.headers['Access-Control-Allow-Methods'], undefined);
+    assert.equal(errorRes.headers['Access-Control-Allow-Headers'], undefined);
+  });
+
 });

@@ -22,10 +22,7 @@ let cachedJwtSecret = null;
 const response = (statusCode, body) => ({
   statusCode,
   headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Content-Type': 'application/json'
   },
   body: JSON.stringify(body)
 });
@@ -94,7 +91,7 @@ export const handler = async (event) => {
   const path = event.rawPath || event.path;
   const pathParams = event.pathParameters || {};
 
-  // Handle browser CORS preflight
+  // Note: API Gateway's CorsConfiguration normally intercepts and answers preflight OPTIONS requests before reaching Lambda.
   if (method === 'OPTIONS') {
     return response(200, { status: 'OK' });
   }
