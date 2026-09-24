@@ -176,13 +176,31 @@ const CricStorage = {
   },
 
   async deleteMatch(matchId) {
+    let cloudSuccess = true;
+
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
-      fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { method: 'DELETE' }).catch(console.warn);
+      try {
+        const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          cloudSuccess = false;
+          console.warn(`API deleteMatch status ${res.status}`);
+        }
+      } catch (err) {
+        cloudSuccess = false;
+        console.warn('API deleteMatch failed:', err);
+      }
     }
 
     const matches = await this.listMatches();
     const updated = matches.filter(m => m.id !== matchId);
     localStorage.setItem('cric_matches', JSON.stringify(updated));
+
+    if (cloudSuccess) {
+      this.notifyToast('🟢 Match deleted from Cloud', 'success');
+    } else {
+      this.notifyToast('🟡 Match deleted locally (Cloud sync failed or offline)', 'warning');
+    }
+
     return updated;
   },
 
@@ -239,24 +257,44 @@ const CricStorage = {
 
   // ------------------- TOURNAMENTS / SERIES -------------------
   async listTournaments() {
+    let localTourneys = [];
+    const raw = localStorage.getItem('cric_tournaments');
+    if (raw) {
+      try { localTourneys = JSON.parse(raw); } catch (e) { localTourneys = []; }
+    }
+
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/tournaments`);
         if (res.ok) {
           const remoteTourneys = await res.json();
-          if (Array.isArray(remoteTourneys) && remoteTourneys.length > 0) return remoteTourneys;
+          if (Array.isArray(remoteTourneys)) {
+            const tourneyMap = new Map();
+            localTourneys.forEach(t => tourneyMap.set(t.id, t));
+
+            remoteTourneys.forEach(rt => {
+              const lt = tourneyMap.get(rt.id);
+              if (!lt || (rt.updatedAt && new Date(rt.updatedAt) > new Date(lt.updatedAt || 0))) {
+                tourneyMap.set(rt.id, rt);
+              }
+            });
+
+            const merged = Array.from(tourneyMap.values());
+            localStorage.setItem('cric_tournaments', JSON.stringify(merged));
+            return merged;
+          }
         }
       } catch (err) {
-        console.warn('API listTournaments failed, using local storage:', err);
+        console.warn('API listTournaments unreachable, using local storage:', err);
       }
     }
 
-    const raw = localStorage.getItem('cric_tournaments');
-    return raw ? JSON.parse(raw) : [];
+    return localTourneys;
   },
 
   async saveTournament(tournament) {
     if (!tournament.id) tournament.id = 'tourney_' + Date.now();
+    tournament.updatedAt = new Date().toISOString();
 
     if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       fetch(`${window.CRIC_API_BASE}/tournaments`, {

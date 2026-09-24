@@ -12,6 +12,10 @@ let authTab = 'LOGIN'; // LOGIN or REGISTER
 let isReadOnlySpectator = false;
 let spectatorPollInterval = null;
 
+// In-Memory Squads for Match Creation
+let matchSquadA = []; // Array of { id, name, isCaptain, isViceCaptain }
+let matchSquadB = []; // Array of { id, name, isCaptain, isViceCaptain }
+
 // Toast Notification System
 function showToast(msg, type = 'info') {
   const container = document.getElementById('toastContainer');
@@ -270,7 +274,6 @@ async function handleDeleteMatch(matchId, event) {
     if (activeMatch && activeMatch.id === matchId) {
       activeMatch = null;
     }
-    showToast("Match deleted permanently", "info");
     loadMatchListScreen();
   }
 }
@@ -281,7 +284,6 @@ async function handleDeleteActiveMatch() {
     const deletedId = activeMatch.id;
     activeMatch = null;
     await window.CricStorage.deleteMatch(deletedId);
-    showToast("Match deleted permanently", "info");
     loadMatchListScreen();
   }
 }
@@ -299,8 +301,277 @@ async function getAllTeamsList() {
   return Array.from(map.values());
 }
 
+// ------------------- IN-MEMORY SQUAD BUILDER ENGINE -------------------
+
+function renderSquadList(side) {
+  const container = document.getElementById(side === 'A' ? 'teamASquadList' : 'teamBSquadList');
+  const squad = side === 'A' ? matchSquadA : matchSquadB;
+
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!squad || squad.length === 0) {
+    container.innerHTML = `<div class="squad-empty">No players added yet</div>`;
+    return;
+  }
+
+  squad.forEach((p, idx) => {
+    const row = document.createElement('div');
+    row.className = 'squad-row';
+
+    row.innerHTML = `
+      <div class="squad-row-name">
+        <span>${idx + 1}. ${p.name}</span>
+        ${p.isCaptain ? '<span class="badge-c">(C)</span>' : ''}
+        ${p.isViceCaptain ? '<span class="badge-vc">(VC)</span>' : ''}
+      </div>
+      <div class="squad-btn-group">
+        <button class="role-btn ${p.isCaptain ? 'active-c' : ''}" onclick="setSquadRole('${side}', ${idx}, 'C')">C</button>
+        <button class="role-btn ${p.isViceCaptain ? 'active-vc' : ''}" onclick="setSquadRole('${side}', ${idx}, 'VC')">VC</button>
+        <button class="role-btn" style="background:#334155; color:#f8fafc;" title="Move to Team ${side === 'A' ? 'B' : 'A'}" onclick="movePlayerToOtherSquad('${side}', ${idx})">⇄ Move</button>
+        <button class="squad-remove" onclick="removeFromSquad('${side}', ${idx})">✕</button>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function setSquadRole(side, idx, role) {
+  const squad = side === 'A' ? matchSquadA : matchSquadB;
+  const target = squad[idx];
+  if (!target) return;
+
+  if (role === 'C') {
+    const isAlreadyC = target.isCaptain;
+    squad.forEach(p => p.isCaptain = false);
+    target.isCaptain = !isAlreadyC;
+    if (target.isCaptain) target.isViceCaptain = false;
+  } else if (role === 'VC') {
+    const isAlreadyVC = target.isViceCaptain;
+    squad.forEach(p => p.isViceCaptain = false);
+    target.isViceCaptain = !isAlreadyVC;
+    if (target.isViceCaptain) target.isCaptain = false;
+  }
+
+  renderSquadList(side);
+}
+
+function removeFromSquad(side, idx) {
+  if (side === 'A') {
+    matchSquadA.splice(idx, 1);
+  } else {
+    matchSquadB.splice(idx, 1);
+  }
+  renderSquadList(side);
+  refreshPlayerPickOptions();
+}
+
+function movePlayerToOtherSquad(side, idx) {
+  const fromSquad = side === 'A' ? matchSquadA : matchSquadB;
+  const toSquad = side === 'A' ? matchSquadB : matchSquadA;
+
+  const toTeamName = document.getElementById(side === 'A' ? 'teamBName' : 'teamAName').value.trim() || `Team ${side === 'A' ? 'B' : 'A'}`;
+
+  const player = fromSquad[idx];
+  if (!player) return;
+
+  fromSquad.splice(idx, 1);
+
+  toSquad.push({
+    id: player.id,
+    name: player.name,
+    isCaptain: toSquad.length === 0,
+    isViceCaptain: toSquad.length === 1
+  });
+
+  renderSquadList('A');
+  renderSquadList('B');
+  refreshPlayerPickOptions();
+  showToast(`Moved "${player.name}" to ${toTeamName}`, 'info');
+}
+
+function clearSquad(side) {
+  const teamName = document.getElementById(side === 'A' ? 'teamAName' : 'teamBName').value.trim() || `Team ${side}`;
+  if (side === 'A') {
+    matchSquadA = [];
+  } else {
+    matchSquadB = [];
+  }
+  renderSquadList('A');
+  renderSquadList('B');
+  refreshPlayerPickOptions();
+  showToast(`Cleared ${teamName} squad`, 'info');
+}
+
+function addTypedPlayerToSquad(side) {
+  const inputEl = document.getElementById(side === 'A' ? 'newPlayerInputA' : 'newPlayerInputB');
+  if (!inputEl || !inputEl.value) return;
+
+  const rawName = inputEl.value.trim();
+  if (!rawName) return;
+
+  const thisSquad = side === 'A' ? matchSquadA : matchSquadB;
+  const otherSquad = side === 'A' ? matchSquadB : matchSquadA;
+
+  const thisTeamName = document.getElementById(side === 'A' ? 'teamAName' : 'teamBName').value.trim() || `Team ${side}`;
+  const otherTeamName = document.getElementById(side === 'A' ? 'teamBName' : 'teamAName').value.trim() || `Team ${side === 'A' ? 'B' : 'A'}`;
+
+  // 1. Same-Squad Check
+  if (thisSquad.some(p => p.name.toLowerCase() === rawName.toLowerCase())) {
+    showToast(`"${rawName}" is already in this squad`, 'warning');
+    return;
+  }
+
+  // 2. Cross-Squad Check (Move Prompt)
+  const existingInOther = otherSquad.find(p => p.name.toLowerCase() === rawName.toLowerCase());
+  if (existingInOther) {
+    if (confirm(`"${rawName}" is already in ${otherTeamName}. Move to ${thisTeamName}?`)) {
+      if (side === 'A') {
+        matchSquadB = matchSquadB.filter(p => p.id !== existingInOther.id);
+        renderSquadList('B');
+      } else {
+        matchSquadA = matchSquadA.filter(p => p.id !== existingInOther.id);
+        renderSquadList('A');
+      }
+    } else {
+      return; // User cancelled
+    }
+  }
+
+  thisSquad.push({
+    id: existingInOther ? existingInOther.id : `p_${side.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+    name: rawName,
+    isCaptain: thisSquad.length === 0,
+    isViceCaptain: thisSquad.length === 1
+  });
+
+  inputEl.value = '';
+  renderSquadList(side);
+  refreshPlayerPickOptions();
+}
+
+function addPickedPlayerToSquad(side) {
+  const selectEl = document.getElementById(side === 'A' ? 'selectGlobalPlayerA' : 'selectGlobalPlayerB');
+  if (!selectEl || !selectEl.value) return;
+
+  try {
+    const pObj = JSON.parse(selectEl.value);
+    const thisSquad = side === 'A' ? matchSquadA : matchSquadB;
+    const otherSquad = side === 'A' ? matchSquadB : matchSquadA;
+
+    const thisTeamName = document.getElementById(side === 'A' ? 'teamAName' : 'teamBName').value.trim() || `Team ${side}`;
+    const otherTeamName = document.getElementById(side === 'A' ? 'teamBName' : 'teamAName').value.trim() || `Team ${side === 'A' ? 'B' : 'A'}`;
+
+    // 1. Same-Squad Check
+    if (thisSquad.some(p => p.id === pObj.id || p.name.toLowerCase() === pObj.name.toLowerCase())) {
+      showToast(`"${pObj.name}" is already in this squad`, 'warning');
+      return;
+    }
+
+    // 2. Cross-Squad Check (Move Prompt)
+    const existingInOther = otherSquad.find(p => p.id === pObj.id || p.name.toLowerCase() === pObj.name.toLowerCase());
+    if (existingInOther) {
+      if (confirm(`"${pObj.name}" is already in ${otherTeamName}. Move to ${thisTeamName}?`)) {
+        if (side === 'A') {
+          matchSquadB = matchSquadB.filter(p => p.id !== existingInOther.id);
+          renderSquadList('B');
+        } else {
+          matchSquadA = matchSquadA.filter(p => p.id !== existingInOther.id);
+          renderSquadList('A');
+        }
+      } else {
+        return; // User cancelled
+      }
+    }
+
+    thisSquad.push({
+      id: pObj.id || `p_${side.toLowerCase()}_${Date.now()}`,
+      name: pObj.name,
+      isCaptain: thisSquad.length === 0,
+      isViceCaptain: thisSquad.length === 1
+    });
+
+    selectEl.value = '';
+    renderSquadList(side);
+    refreshPlayerPickOptions();
+  } catch (e) {
+    console.warn('Error adding picked player:', e);
+  }
+}
+
+function onAddGlobalPlayer(side) { addPickedPlayerToSquad(side); }
+function onAddNewPlayerInput(side) { addTypedPlayerToSquad(side); }
+
+async function refreshPlayerPickOptions() {
+  const globalPlayers = await window.CricStorage.listGlobalPlayers();
+  const selA = document.getElementById('selectGlobalPlayerA');
+  const selB = document.getElementById('selectGlobalPlayerB');
+
+  if (!selA || !selB) return;
+
+  selA.innerHTML = '<option value="">-- Choose Existing Player --</option>';
+  selB.innerHTML = '<option value="">-- Choose Existing Player --</option>';
+
+  const squadAMap = new Map(matchSquadA.map(p => [p.name.toLowerCase(), p]));
+  const squadBMap = new Map(matchSquadB.map(p => [p.name.toLowerCase(), p]));
+
+  const teamAName = document.getElementById('teamAName').value.trim() || 'Team A';
+  const teamBName = document.getElementById('teamBName').value.trim() || 'Team B';
+
+  globalPlayers.forEach(p => {
+    let statusLabel = 'Unassigned';
+    if (squadAMap.has(p.name.toLowerCase())) {
+      statusLabel = `In ${teamAName}`;
+    } else if (squadBMap.has(p.name.toLowerCase())) {
+      statusLabel = `In ${teamBName}`;
+    }
+
+    const optA = document.createElement('option');
+    optA.value = JSON.stringify(p);
+    optA.innerText = `${p.name} (${p.role || 'Batter'}) • [${statusLabel}]`;
+    selA.appendChild(optA);
+
+    const optB = document.createElement('option');
+    optB.value = JSON.stringify(p);
+    optB.innerText = `${p.name} (${p.role || 'Batter'}) • [${statusLabel}]`;
+    selB.appendChild(optB);
+  });
+}
+
+function loadTeamIntoSquad(side, team) {
+  if (!team) return;
+  if (side === 'A') {
+    document.getElementById('teamAName').value = team.name || '';
+    document.getElementById('teamAColor').value = team.colorHex || '#FF5722';
+    matchSquadA = (team.players || []).map((p, idx) => ({
+      id: p.id || `pa_${Date.now()}_${idx}`,
+      name: typeof p === 'string' ? p : p.name,
+      isCaptain: Boolean(p.isCaptain || idx === 0),
+      isViceCaptain: Boolean(p.isViceCaptain || idx === 1)
+    }));
+    renderSquadList('A');
+  } else {
+    document.getElementById('teamBName').value = team.name || '';
+    document.getElementById('teamBColor').value = team.colorHex || '#2196F3';
+    matchSquadB = (team.players || []).map((p, idx) => ({
+      id: p.id || `pb_${Date.now()}_${idx}`,
+      name: typeof p === 'string' ? p : p.name,
+      isCaptain: Boolean(p.isCaptain || idx === 0),
+      isViceCaptain: Boolean(p.isViceCaptain || idx === 1)
+    }));
+    renderSquadList('B');
+  }
+  refreshPlayerPickOptions();
+}
+
 async function showNewMatchScreen() {
   showScreen('screenNewMatch');
+
+  matchSquadA = [];
+  matchSquadB = [];
+
+  document.getElementById('teamAName').value = '';
+  document.getElementById('teamBName').value = '';
 
   const teams = await getAllTeamsList();
   const selectA = document.getElementById('selectTeamA');
@@ -321,6 +592,10 @@ async function showNewMatchScreen() {
     optB.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
     selectB.appendChild(optB);
   });
+
+  renderSquadList('A');
+  renderSquadList('B');
+  await refreshPlayerPickOptions();
 }
 
 async function onSelectTeamAChange() {
@@ -330,11 +605,7 @@ async function onSelectTeamAChange() {
   const teams = await getAllTeamsList();
   const found = teams.find(t => t.id === teamId);
   if (found) {
-    document.getElementById('teamAName').value = found.name || '';
-    document.getElementById('teamAColor').value = found.colorHex || '#FF5722';
-
-    const playerNames = (found.players || []).map(p => (typeof p === 'string' ? p : (p.name || ''))).filter(Boolean);
-    document.getElementById('teamAPlayers').value = playerNames.join(', ');
+    loadTeamIntoSquad('A', found);
   }
 }
 
@@ -345,114 +616,85 @@ async function onSelectTeamBChange() {
   const teams = await getAllTeamsList();
   const found = teams.find(t => t.id === teamId);
   if (found) {
-    document.getElementById('teamBName').value = found.name || '';
-    document.getElementById('teamBColor').value = found.colorHex || '#2196F3';
-
-    const playerNames = (found.players || []).map(p => (typeof p === 'string' ? p : (p.name || ''))).filter(Boolean);
-    document.getElementById('teamBPlayers').value = playerNames.join(', ');
+    loadTeamIntoSquad('B', found);
   }
 }
 
 async function handleCreateMatch() {
-  const teamAName = document.getElementById('teamAName').value || 'Team A';
+  const teamAName = document.getElementById('teamAName').value.trim() || 'Team A';
   const teamAColor = document.getElementById('teamAColor').value || '#FF5722';
-  const teamAPlayersStr = document.getElementById('teamAPlayers').value || 'Player 1, Player 2, Player 3, Player 4';
 
-  const teamBName = document.getElementById('teamBName').value || 'Team B';
+  const teamBName = document.getElementById('teamBName').value.trim() || 'Team B';
   const teamBColor = document.getElementById('teamBColor').value || '#2196F3';
-  const teamBPlayersStr = document.getElementById('teamBPlayers').value || 'Player 1, Player 2, Player 3, Player 4';
+
+  if (matchSquadA.length < 1) {
+    showToast('Please add at least 1 player to Team A squad', 'warning');
+    return;
+  }
+  if (matchSquadB.length < 1) {
+    showToast('Please add at least 1 player to Team B squad', 'warning');
+    return;
+  }
 
   const overs = parseInt(document.getElementById('matchOvers').value) || 5;
   const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers').value) || 2;
+  const saveForReuse = document.getElementById('saveTeamsForReuse').checked;
 
-  const selectedTeamAId = document.getElementById('selectTeamA').value;
-  const selectedTeamBId = document.getElementById('selectTeamB').value;
-  const allTeams = await getAllTeamsList();
+  const teamACaptain = matchSquadA.find(p => p.isCaptain)?.id || matchSquadA[0]?.id;
+  const teamAViceCaptain = matchSquadA.find(p => p.isViceCaptain)?.id || (matchSquadA[1] ? matchSquadA[1].id : null);
 
-  const foundA = allTeams.find(t => t.id === selectedTeamAId);
-  const foundB = allTeams.find(t => t.id === selectedTeamBId);
-
-  // Build Team A Players
-  let teamAPlayers = [];
-  if (foundA && foundA.players && foundA.players.length > 0) {
-    const inputNames = teamAPlayersStr.split(',').map(s => s.trim()).filter(Boolean);
-    if (inputNames.length > 0) {
-      teamAPlayers = inputNames.map((n, i) => {
-        const existingP = foundA.players[i];
-        return {
-          id: existingP ? existingP.id : `pa_${i}_${Date.now()}`,
-          name: n,
-          battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-          bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-        };
-      });
-    } else {
-      teamAPlayers = foundA.players.map((p, i) => ({
-        id: p.id || `pa_${i}_${Date.now()}`,
-        name: typeof p === 'string' ? p : p.name,
-        battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-      }));
-    }
-  } else {
-    teamAPlayers = teamAPlayersStr.split(',').map((n, i) => ({
-      id: `pa_${i}_${Date.now()}`,
-      name: n.trim(),
-      battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-      bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-    }));
-  }
-
-  // Build Team B Players
-  let teamBPlayers = [];
-  if (foundB && foundB.players && foundB.players.length > 0) {
-    const inputNames = teamBPlayersStr.split(',').map(s => s.trim()).filter(Boolean);
-    if (inputNames.length > 0) {
-      teamBPlayers = inputNames.map((n, i) => {
-        const existingP = foundB.players[i];
-        return {
-          id: existingP ? existingP.id : `pb_${i}_${Date.now()}`,
-          name: n,
-          battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-          bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-        };
-      });
-    } else {
-      teamBPlayers = foundB.players.map((p, i) => ({
-        id: p.id || `pb_${i}_${Date.now()}`,
-        name: typeof p === 'string' ? p : p.name,
-        battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-      }));
-    }
-  } else {
-    teamBPlayers = teamBPlayersStr.split(',').map((n, i) => ({
-      id: `pb_${i}_${Date.now()}`,
-      name: n.trim(),
-      battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-      bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-    }));
-  }
+  const teamBCaptain = matchSquadB.find(p => p.isCaptain)?.id || matchSquadB[0]?.id;
+  const teamBViceCaptain = matchSquadB.find(p => p.isViceCaptain)?.id || (matchSquadB[1] ? matchSquadB[1].id : null);
 
   const teamA = {
-    id: selectedTeamAId || ('team_a_' + Date.now()),
+    id: 'team_a_' + Date.now(),
     name: teamAName,
     colorHex: teamAColor,
-    players: teamAPlayers
+    players: matchSquadA.map(p => ({
+      id: p.id,
+      name: p.name,
+      isCaptain: p.id === teamACaptain,
+      isViceCaptain: p.id === teamAViceCaptain,
+      battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
+      bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+    }))
   };
 
   const teamB = {
-    id: selectedTeamBId || ('team_b_' + Date.now()),
+    id: 'team_b_' + Date.now(),
     name: teamBName,
     colorHex: teamBColor,
-    players: teamBPlayers
+    players: matchSquadB.map(p => ({
+      id: p.id,
+      name: p.name,
+      isCaptain: p.id === teamBCaptain,
+      isViceCaptain: p.id === teamBViceCaptain,
+      battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
+      bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+    }))
   };
+
+  if (saveForReuse) {
+    await window.CricStorage.saveTeam(teamA);
+    await window.CricStorage.saveTeam(teamB);
+
+    for (const p of teamA.players) {
+      await window.CricStorage.addGlobalPlayer({ id: p.id, name: p.name, role: 'Batter' });
+    }
+    for (const p of teamB.players) {
+      await window.CricStorage.addGlobalPlayer({ id: p.id, name: p.name, role: 'Batter' });
+    }
+  }
 
   activeMatch = {
     id: 'match_' + Date.now(),
     tournamentId: activeTournament?.id || null,
     teamA,
     teamB,
+    teamACaptainId: teamACaptain,
+    teamAViceCaptainId: teamAViceCaptain,
+    teamBCaptainId: teamBCaptain,
+    teamBViceCaptainId: teamBViceCaptain,
     status: 'UPCOMING',
     currentInnings: 1,
     battingTeamId: teamA.id,
@@ -629,6 +871,20 @@ async function selectMatch(matchId) {
   showLiveScreen();
 }
 
+function isCaptainPlayer(p, teamId, match) {
+  if (p.isCaptain) return true;
+  if (teamId === match.teamA?.id && p.id === match.teamACaptainId) return true;
+  if (teamId === match.teamB?.id && p.id === match.teamBCaptainId) return true;
+  return false;
+}
+
+function isViceCaptainPlayer(p, teamId, match) {
+  if (p.isViceCaptain) return true;
+  if (teamId === match.teamA?.id && p.id === match.teamAViceCaptainId) return true;
+  if (teamId === match.teamB?.id && p.id === match.teamBViceCaptainId) return true;
+  return false;
+}
+
 function renderLiveScoring() {
   if (!activeMatch) {
     loadMatchListScreen();
@@ -756,8 +1012,16 @@ function renderLiveScoring() {
     const stats = p.battingStats || { runs: 0, balls: 0, fours: 0, sixes: 0 };
     const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
 
+    const isC = isCaptainPlayer(p, battingTeam.id, m);
+    const isVC = isViceCaptainPlayer(p, battingTeam.id, m);
+
     tr.innerHTML = `
-      <td style="font-weight:700; color:#fff;">${p.name} ${isStriker ? '<span class="striker-star">★</span>' : ''}</td>
+      <td style="font-weight:700; color:#fff;">
+        ${p.name}
+        ${isC ? '<span class="badge-c">(C)</span>' : ''}
+        ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
+        ${isStriker ? '<span class="striker-star">★</span>' : ''}
+      </td>
       <td style="text-align:right"><b>${stats.runs}</b></td>
       <td style="text-align:right">${stats.balls}</td>
       <td style="text-align:right">${stats.fours}</td>
@@ -781,8 +1045,15 @@ function renderLiveScoring() {
     const totalOversDec = stats.overs + (stats.balls / 6);
     const eco = totalOversDec > 0 ? (stats.runsConceded / totalOversDec).toFixed(2) : '0.00';
 
+    const isC = isCaptainPlayer(bowler, bowlingTeam.id, m);
+    const isVC = isViceCaptainPlayer(bowler, bowlingTeam.id, m);
+
     tr.innerHTML = `
-      <td style="font-weight:700; color:#fff;">${bowler.name}</td>
+      <td style="font-weight:700; color:#fff;">
+        ${bowler.name}
+        ${isC ? '<span class="badge-c">(C)</span>' : ''}
+        ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
+      </td>
       <td style="text-align:right">${stats.overs}.${stats.balls}</td>
       <td style="text-align:right">${stats.maidens}</td>
       <td style="text-align:right">${stats.runsConceded}</td>
@@ -1066,9 +1337,17 @@ function renderScorecard() {
     const sr = s.balls > 0 ? ((s.runs / s.balls) * 100).toFixed(1) : '0.0';
     const status = s.isOut ? `b/c (${s.wicketType})` : (s.isRetiredHurt ? 'Retired Hurt' : 'not out');
 
+    const isC = isCaptainPlayer(p, battingTeam.id, m);
+    const isVC = isViceCaptainPlayer(p, battingTeam.id, m);
+
     return `
       <tr>
-        <td style="font-weight:600; color:#fff;">${p.name}<br><span style="font-size:10px; color:var(--text-muted);">${status}</span></td>
+        <td style="font-weight:600; color:#fff;">
+          ${p.name}
+          ${isC ? '<span class="badge-c">(C)</span>' : ''}
+          ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
+          <br><span style="font-size:10px; color:var(--text-muted);">${status}</span>
+        </td>
         <td style="text-align:right"><b>${s.runs}</b></td>
         <td style="text-align:right">${s.balls}</td>
         <td style="text-align:right">${s.fours}</td>
@@ -1083,9 +1362,16 @@ function renderScorecard() {
     const totalOversDec = s.overs + (s.balls / 6);
     const eco = totalOversDec > 0 ? (s.runsConceded / totalOversDec).toFixed(2) : '0.00';
 
+    const isC = isCaptainPlayer(p, bowlingTeam.id, m);
+    const isVC = isViceCaptainPlayer(p, bowlingTeam.id, m);
+
     return `
       <tr>
-        <td style="font-weight:600; color:#fff;">${p.name}</td>
+        <td style="font-weight:600; color:#fff;">
+          ${p.name}
+          ${isC ? '<span class="badge-c">(C)</span>' : ''}
+          ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
+        </td>
         <td style="text-align:right">${s.overs}.${s.balls}</td>
         <td style="text-align:right">${s.maidens}</td>
         <td style="text-align:right">${s.runsConceded}</td>
@@ -1309,6 +1595,32 @@ async function renderPlayers() {
   });
 }
 
+async function handleQuickAddPlayer() {
+  const nameInput = document.getElementById('quickPlayerNameInput');
+  const roleInput = document.getElementById('quickPlayerRoleInput');
+  if (!nameInput) return;
+
+  const rawName = nameInput.value.trim();
+  if (!rawName) {
+    showToast('Please enter a player name', 'warning');
+    return;
+  }
+
+  const role = roleInput ? roleInput.value : 'Batter';
+  const newPlayer = {
+    id: 'gp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+    name: rawName,
+    role: role,
+    style: 'RHB'
+  };
+
+  await window.CricStorage.addGlobalPlayer(newPlayer);
+  nameInput.value = '';
+  showToast(`Added "${rawName}" to player directory`, 'success');
+  renderPlayers();
+  await refreshPlayerPickOptions();
+}
+
 function openNewTeamModal() {
   document.getElementById('teamModal').classList.add('active');
 }
@@ -1372,26 +1684,38 @@ function closePlayerModal() {
 
 async function handleSavePlayer() {
   const id = document.getElementById('editPlayerId').value;
-  const name = document.getElementById('newPlayerName').value;
-  const role = document.getElementById('newPlayerRole').value;
-  const style = document.getElementById('newPlayerStyle').value;
-  if (!name) return;
+  const nameInput = document.getElementById('newPlayerName');
+  const roleSelect = document.getElementById('newPlayerRole');
+  const styleSelect = document.getElementById('newPlayerStyle');
+
+  const rawName = nameInput ? nameInput.value.trim() : '';
+  if (!rawName) {
+    showToast('Player name is required', 'warning');
+    return;
+  }
+
+  const role = roleSelect ? roleSelect.value : 'Batter';
+  const style = styleSelect ? styleSelect.value : 'RHB';
 
   await window.CricStorage.addGlobalPlayer({
-    id: id || ('gp_' + Date.now()),
-    name,
+    id: id || ('gp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+    name: rawName,
     role,
     style
   });
 
   closePlayerModal();
+  showToast(`Saved player "${rawName}"`, 'success');
   renderPlayers();
+  await refreshPlayerPickOptions();
 }
 
 async function deletePlayer(id) {
-  if (confirm("Are you sure you want to delete this player?")) {
+  if (confirm("Are you sure you want to delete this player from the global directory?")) {
     await window.CricStorage.deleteGlobalPlayer(id);
+    showToast("Player deleted", "info");
     renderPlayers();
+    await refreshPlayerPickOptions();
   }
 }
 

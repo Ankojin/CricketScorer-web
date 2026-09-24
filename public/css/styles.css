@@ -213,7 +213,179 @@ body {
   font-weight: 600;
 }
 
-/* Landing Home Screen Card */
+/* Captain (C) subtle blue & Vice-Captain (VC) subtle amber badges */
+.badge-c {
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.2);
+  font-weight: 800;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 4px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.badge-vc {
+  color: #fde047;
+  background: rgba(245, 158, 11, 0.2);
+  font-weight: 800;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 4px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ------------------- CREATE MATCH SQUAD BUILDER STYLES ------------------- */
+
+.team-builder-block {
+  background: #0f172a;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  margin-bottom: 16px;
+}
+
+.team-builder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.team-builder-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent-color);
+}
+
+.team-color-input {
+  height: 40px;
+  padding: 2px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.squad-list {
+  margin-bottom: 10px;
+  min-height: 40px;
+}
+
+.squad-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
+  text-align: center;
+}
+
+.squad-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1e293b;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.squad-row-name {
+  font-weight: 700;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.role-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: #0f172a;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.role-btn:active {
+  transform: scale(0.95);
+}
+
+.role-btn.active-c {
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-dark);
+}
+
+.role-btn.active-vc {
+  background: var(--accent-color);
+  color: #000000;
+  border-color: #d97706;
+}
+
+.squad-remove {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 6px;
+  border: 1px solid var(--danger-color);
+  background: #7f1d1d;
+  color: #fca5a5;
+  cursor: pointer;
+}
+
+.squad-add-row {
+  display: flex;
+  gap: 6px;
+}
+
+.squad-add-btn {
+  width: auto;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.checkbox-row input[type="checkbox"] {
+  transform: scale(1.2);
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+.checkbox-row label {
+  font-size: 13px;
+  color: var(--text-color);
+  margin: 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.squad-btn-group {
+  display: flex;
+  gap: 4px;
+}
+
 .landing-card {
   text-align: center;
   padding: 24px 16px;
@@ -241,7 +413,6 @@ body {
   gap: 10px;
 }
 
-/* Coin Flip Animation */
 .coin-flip-box {
   width: 80px;
   height: 80px;
@@ -268,7 +439,6 @@ body {
   100% { transform: rotateY(1800deg) scale(1); }
 }
 
-/* Phase 1 Strong Colored Ball Chips */
 .recent-balls {
   display: flex;
   gap: 6px;
@@ -415,7 +585,6 @@ body {
   border: 1px solid var(--card-border);
 }
 
-/* Improved Bowler Selection Card (Gully Crix style) */
 .bowler-option {
   display: flex;
   justify-content: space-between;

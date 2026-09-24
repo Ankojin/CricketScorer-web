@@ -62,53 +62,100 @@
       <div id="matchListContainer"></div>
     </div>
 
-    <!-- Screen 2: New Match Setup -->
+    <!-- Screen 2: New Match Setup (Squad Builder) -->
     <div id="screenNewMatch" class="screen">
       <div class="card">
         <h3 style="margin-bottom:14px;">Create New Match</h3>
 
-        <!-- Team Reuse Selector -->
-        <div class="form-group">
-          <label for="selectTeamA">Select Team A (or Custom)</label>
-          <select id="selectTeamA" class="form-control" onchange="onSelectTeamAChange()"></select>
+        <!-- TEAM A SQUAD BUILDER -->
+        <div class="team-builder-block">
+          <div class="team-builder-header">
+            <h4 class="team-builder-title">TEAM A BUILDER</h4>
+            <button class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:11px; padding:3px 8px; width:auto;" onclick="clearSquad('A')">🧹 Clear A</button>
+          </div>
+
+          <div class="form-group">
+            <label for="selectTeamA">Load Saved Team (Optional)</label>
+            <select id="selectTeamA" class="form-control" onchange="onSelectTeamAChange()"></select>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <div class="form-group" style="flex:3;">
+              <label for="teamAName">Team A Name</label>
+              <input type="text" id="teamAName" class="form-control" placeholder="e.g. Rockets">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label for="teamAColor">Colour</label>
+              <input type="color" id="teamAColor" class="form-control team-color-input" value="#FF5722">
+            </div>
+          </div>
+
+          <label style="font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:6px; display:block;">Team A Squad List</label>
+          <div id="teamASquadList" class="squad-list"></div>
+
+          <div class="form-group">
+            <label for="selectGlobalPlayerA">Pick from Player Directory</label>
+            <div class="squad-add-row">
+              <select id="selectGlobalPlayerA" class="form-control" style="flex:1;"></select>
+              <button class="squad-add-btn" onclick="onAddGlobalPlayer('A')">Add</button>
+            </div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">Shared roster: Displays current match squad status [In Team A / Team B / Unassigned]</div>
+          </div>
+
+          <div class="form-group">
+            <label for="newPlayerInputA">Or type new player name</label>
+            <div class="squad-add-row">
+              <input type="text" id="newPlayerInputA" class="form-control" placeholder="e.g. Alice" onkeydown="if(event.key==='Enter'){event.preventDefault();onAddNewPlayerInput('A');}">
+              <button class="squad-add-btn" onclick="onAddNewPlayerInput('A')">Add</button>
+            </div>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="teamAName">Team A Name</label>
-          <input type="text" id="teamAName" class="form-control" placeholder="e.g. Rockets">
-        </div>
-        <div class="form-group">
-          <label for="teamAColor">Team A Color</label>
-          <input type="color" id="teamAColor" class="form-control" value="#FF5722">
-        </div>
-        <div class="form-group">
-          <label for="teamAPlayers">Team A Players (comma separated)</label>
-          <input type="text" id="teamAPlayers" class="form-control" placeholder="e.g. Alice, Bob, Charlie, David">
+        <!-- TEAM B SQUAD BUILDER -->
+        <div class="team-builder-block">
+          <div class="team-builder-header">
+            <h4 class="team-builder-title" style="color:var(--primary-color);">TEAM B BUILDER</h4>
+            <button class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:11px; padding:3px 8px; width:auto;" onclick="clearSquad('B')">🧹 Clear B</button>
+          </div>
+
+          <div class="form-group">
+            <label for="selectTeamB">Load Saved Team (Optional)</label>
+            <select id="selectTeamB" class="form-control" onchange="onSelectTeamBChange()"></select>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <div class="form-group" style="flex:3;">
+              <label for="teamBName">Team B Name</label>
+              <input type="text" id="teamBName" class="form-control" placeholder="e.g. Thunder">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label for="teamBColor">Colour</label>
+              <input type="color" id="teamBColor" class="form-control team-color-input" value="#2196F3">
+            </div>
+          </div>
+
+          <label style="font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:6px; display:block;">Team B Squad List</label>
+          <div id="teamBSquadList" class="squad-list"></div>
+
+          <div class="form-group">
+            <label for="selectGlobalPlayerB">Pick from Player Directory</label>
+            <div class="squad-add-row">
+              <select id="selectGlobalPlayerB" class="form-control" style="flex:1;"></select>
+              <button class="squad-add-btn" onclick="onAddGlobalPlayer('B')">Add</button>
+            </div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">Shared roster: Displays current match squad status [In Team A / Team B / Unassigned]</div>
+          </div>
+
+          <div class="form-group">
+            <label for="newPlayerInputB">Or type new player name</label>
+            <div class="squad-add-row">
+              <input type="text" id="newPlayerInputB" class="form-control" placeholder="e.g. Eve" onkeydown="if(event.key==='Enter'){event.preventDefault();onAddNewPlayerInput('B');}">
+              <button class="squad-add-btn" onclick="onAddNewPlayerInput('B')">Add</button>
+            </div>
+          </div>
         </div>
 
-        <hr style="border-color:var(--card-border); margin:16px 0;">
-
-        <!-- Team B Reuse Selector -->
-        <div class="form-group">
-          <label for="selectTeamB">Select Team B (or Custom)</label>
-          <select id="selectTeamB" class="form-control" onchange="onSelectTeamBChange()"></select>
-        </div>
-
-        <div class="form-group">
-          <label for="teamBName">Team B Name</label>
-          <input type="text" id="teamBName" class="form-control" placeholder="e.g. Thunder">
-        </div>
-        <div class="form-group">
-          <label for="teamBColor">Team B Color</label>
-          <input type="color" id="teamBColor" class="form-control" value="#2196F3">
-        </div>
-        <div class="form-group">
-          <label for="teamBPlayers">Team B Players (comma separated)</label>
-          <input type="text" id="teamBPlayers" class="form-control" placeholder="e.g. Eve, Frank, Grace, Henry">
-        </div>
-
-        <hr style="border-color:var(--card-border); margin:16px 0;">
-
+        <!-- MATCH CONFIGURATION -->
         <div style="display:flex; gap:8px;">
           <div class="form-group" style="flex:1;">
             <label for="matchOvers">Overs Per Innings</label>
@@ -118,6 +165,11 @@
             <label for="maxBowlerOvers">Max Overs Per Bowler</label>
             <input type="number" id="maxBowlerOvers" class="form-control" value="2">
           </div>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="saveTeamsForReuse" checked>
+          <label for="saveTeamsForReuse">Save these teams for reuse</label>
         </div>
 
         <div style="display:flex; gap:8px; margin-top:20px;">
@@ -268,6 +320,22 @@
             <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; background:#10b981;" onclick="openNewPlayerModal()">+ Add Player</button>
           </div>
         </div>
+
+        <!-- Prominent Quick Add Player Box -->
+        <div style="background:#0f172a; padding:12px; border-radius:10px; border:1px solid var(--card-border); margin-bottom:16px;">
+          <label for="quickPlayerNameInput" style="font-size:12px; color:var(--text-muted); font-weight:700; display:block; margin-bottom:6px;">👤 Quick Add Player to Directory</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="quickPlayerNameInput" aria-label="Quick Add Player Name" class="form-control" placeholder="e.g. Rahul Sharma" onkeydown="if(event.key==='Enter'){event.preventDefault();handleQuickAddPlayer();}">
+            <select id="quickPlayerRoleInput" aria-label="Quick Add Player Role" class="form-control" style="width:120px;">
+              <option value="Batter">Batter</option>
+              <option value="Bowler">Bowler</option>
+              <option value="All-Rounder">All-Rounder</option>
+              <option value="Wicket-Keeper">WK</option>
+            </select>
+            <button class="btn-primary" style="width:auto; padding:8px 14px; font-size:13px; background:#10b981; flex-shrink:0;" onclick="handleQuickAddPlayer()">+ Add</button>
+          </div>
+        </div>
+
         <div id="playersContainer"></div>
       </div>
     </div>

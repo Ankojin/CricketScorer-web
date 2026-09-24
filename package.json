@@ -5,9 +5,10 @@
   "main": "dist/src/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/build-engine.js",
+    "build:engine": "node scripts/build-engine.js",
     "start": "npx http-server public -p 8080",
-    "test": "npm run build && node --test dist/test/ScoringEngine.test.js"
+    "test": "node --test dist/test/ScoringEngine.test.js"
   },
   "keywords": [
     "cricket",
