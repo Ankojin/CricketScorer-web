@@ -299,10 +299,11 @@
         <button class="btn btn-extra" onclick="addExtra('LEG_BYE')">L-BYE</button>
         <button class="btn btn-extra" onclick="addGrantedRun()">1G</button>
 
+        <button class="btn btn-extra" style="background:#0f766e; color:#a7f3d0;" onclick="openOtherRunsModal()">🔄 OT</button>
         <button class="btn btn-wicket" onclick="openWicketModal()">☝️ WICKET</button>
-        <button class="btn btn-extra" style="background:#4338ca; color:#fff;" onclick="recordDroppedCatch()">🖐️ DROP</button>
+        <button class="btn btn-extra" style="background:#4338ca; color:#fff;" onclick="openDroppedCatchModal()">🖐️ DROP</button>
         <button class="btn btn-extra" style="background:#7c2d12; color:#ffedd5;" onclick="handleRetireBatter()">🏃 RETIRE</button>
-        <button class="btn btn-undo" style="grid-column: span 2;" onclick="undoLastBall()">↩️ UNDO BALL</button>
+        <button class="btn btn-undo" style="grid-column: span 1;" onclick="undoLastBall()">↩️ UNDO</button>
       </div>
 
     </div>
@@ -454,6 +455,16 @@
         <label for="editMaxBowlerOvers">Max Overs Per Bowler</label>
         <input type="number" id="editMaxBowlerOvers" class="form-control" value="2">
       </div>
+      <div style="display:flex; gap:8px;">
+        <div class="form-group" style="flex:1;">
+          <label for="editTeamAWK">Team A Wicket-Keeper</label>
+          <select id="editTeamAWK" class="form-control"></select>
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label for="editTeamBWK">Team B Wicket-Keeper</label>
+          <select id="editTeamBWK" class="form-control"></select>
+        </div>
+      </div>
       <hr style="border-color:var(--card-border); margin:12px 0;">
       <h4 style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Gully Rules Settings</h4>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
@@ -489,12 +500,130 @@
           <option value="LBW">LBW</option>
           <option value="RUN_OUT">Run Out</option>
           <option value="STUMPED">Stumped</option>
+          <option value="HIT_WICKET">Hit Wicket</option>
           <option value="RETIRED_HURT">Retired Hurt (No Wicket Count)</option>
         </select>
       </div>
       <div style="display:flex; gap:8px; margin-top:16px;">
-        <button class="btn-primary" onclick="submitWicket()">Confirm</button>
+        <button class="btn-primary" onclick="submitWicket()">Proceed</button>
         <button class="btn" style="background:#334155;" onclick="closeWicketModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fielder Modal (for Catch / Stumping) -->
+  <div id="fielderModal" class="modal-overlay">
+    <div class="modal">
+      <h3 id="fielderModalTitle" style="margin-bottom:12px;">Select Fielder</h3>
+      <div class="form-group">
+        <label for="fielderSelect">Fielder (Bowling Team)</label>
+        <select id="fielderSelect" class="form-control"></select>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn-primary" onclick="confirmFielderWicket()">Confirm Wicket</button>
+        <button class="btn" style="background:#334155;" onclick="closeFielderModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Run Out Modal -->
+  <div id="runOutModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom:12px;">Run Out Details</h3>
+      <div class="form-group">
+        <label for="runOutBatterSelect">Batter Out</label>
+        <select id="runOutBatterSelect" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label for="runOutRunsSelect">Runs Completed Before Run Out</label>
+        <select id="runOutRunsSelect" class="form-control">
+          <option value="0">0 runs</option>
+          <option value="1">1 run</option>
+          <option value="2">2 runs</option>
+          <option value="3">3 runs</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="runOutFielderSelect">Fielder Who Effected Run Out</label>
+        <select id="runOutFielderSelect" class="form-control"></select>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn-primary" onclick="confirmRunOutWicket()">Confirm Run Out</button>
+        <button class="btn" style="background:#334155;" onclick="closeRunOutModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dropped Catch Fielder Modal (Step 1) -->
+  <div id="droppedCatchFielderModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom:12px;">DROPPED CATCH BY?</h3>
+      <div class="form-group">
+        <label for="dropFielderSelect">Fielder (Bowling Team)</label>
+        <select id="dropFielderSelect" class="form-control"></select>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn-primary" onclick="proceedToDroppedCatchRuns()">Next: Runs Scored</button>
+        <button class="btn" style="background:#334155;" onclick="closeDroppedCatchFielderModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dropped Catch Runs Modal (Step 2) -->
+  <div id="droppedCatchRunsModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom:6px;">Runs on Dropped Catch</h3>
+      <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">Select runs completed off the dropped ball:</p>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+        <button class="btn btn-run" style="font-size:13px; padding:12px 6px;" onclick="submitDroppedCatchWithRuns(0)">0 Runs</button>
+        <button class="btn btn-run" style="font-size:13px; padding:12px 6px;" onclick="submitDroppedCatchWithRuns(1)">1 Run</button>
+        <button class="btn btn-run" style="font-size:13px; padding:12px 6px;" onclick="submitDroppedCatchWithRuns(2)">2 Runs</button>
+        <button class="btn btn-run" style="font-size:13px; padding:12px 6px;" onclick="submitDroppedCatchWithRuns(3)">3 Runs</button>
+        <button class="btn btn-boundary" style="font-size:13px; padding:12px 6px;" onclick="submitDroppedCatchWithRuns(4)">4 Runs</button>
+        <button class="btn btn-boundary" style="font-size:13px; padding:12px 6px;" onclick="submitDroppedCatchWithRuns(6)">6 Runs</button>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn" style="background:#334155; width:100%;" onclick="closeDroppedCatchRunsModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overthrow / Special Runs Modal -->
+  <div id="otherRunsModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom:6px;">Special Runs / Overthrow</h3>
+      <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">Select or enter total legal runs completed:</p>
+
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+        <button class="btn btn-run" style="font-size:13px; padding:12px 6px;" onclick="submitOtherRuns(1)">1 Run</button>
+        <button class="btn btn-run" style="font-size:13px; padding:12px 6px;" onclick="submitOtherRuns(2)">2 Runs</button>
+        <button class="btn btn-run" style="font-size:13px; padding:12px 6px;" onclick="submitOtherRuns(3)">3 Runs</button>
+        <button class="btn btn-boundary" style="font-size:13px; padding:12px 6px;" onclick="submitOtherRuns(5)">5 Runs</button>
+        <button class="btn btn-boundary" style="font-size:13px; padding:12px 6px;" onclick="submitOtherRuns(7)">7 Runs</button>
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label for="customOtherRunsInput">Or enter custom runs</label>
+        <div style="display:flex; gap:8px;">
+          <input type="number" id="customOtherRunsInput" class="form-control" placeholder="e.g. 8" min="0" max="20">
+          <button class="btn-primary" style="width:auto; padding:8px 16px; font-size:13px;" onclick="submitCustomOtherRuns()">Submit</button>
+        </div>
+      </div>
+
+      <div>
+        <button class="btn" style="background:#334155; width:100%;" onclick="closeOtherRunsModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Extra Runs Modal (No-Ball / Byes / Leg-Byes) -->
+  <div id="extraRunsModal" class="modal-overlay">
+    <div class="modal">
+      <h3 id="extraRunsTitle" style="margin-bottom:6px;">Extra Runs</h3>
+      <p id="extraRunsSubtitle" style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">Select runs scored:</p>
+      <div id="extraRunsOptionsContainer" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;"></div>
+      <div style="margin-top:16px;">
+        <button class="btn" style="background:#334155; width:100%;" onclick="closeExtraRunsModal()">Cancel</button>
       </div>
     </div>
   </div>

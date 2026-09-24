@@ -21,7 +21,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.500.0",

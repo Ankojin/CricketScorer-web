@@ -1,4 +1,4 @@
-import {
+import type {
   Match,
   Team,
   Player,
@@ -9,9 +9,9 @@ import {
   WicketRecord,
   InningsSummary,
   MatchStatus,
-  PendingAction,
-  isPhysicalBall
-} from '../models/types.js';
+  PendingAction
+} from '../models/types.ts';
+import { isPhysicalBall } from '../models/types.ts';
 
 export class ScoringEngine {
 
@@ -156,7 +156,8 @@ export class ScoringEngine {
         strikerId: this.healLegacyId(ball.strikerId, battingTeam),
         nonStrikerId: this.healLegacyId(ball.nonStrikerId, battingTeam),
         bowlerId: this.healLegacyId(ball.bowlerId, bowlingTeam),
-        outPlayerId: this.healLegacyId(ball.outPlayerId, battingTeam)
+        outPlayerId: this.healLegacyId(ball.outPlayerId, battingTeam),
+        fielderId: this.healLegacyId(ball.fielderId, bowlingTeam)
       };
 
       const newBattingOrder = [...(current.battingOrder || [])];
@@ -515,14 +516,25 @@ export class ScoringEngine {
         match.pendingAction === 'TOSS_REQUIRED'
       ) {
         current = { ...current, pendingAction: match.pendingAction };
-      } else if (current.pendingAction === 'NONE') {
-        if (!inningsEnded || current.currentInnings === 2) {
+      } else if (
+        current.pendingAction === 'NONE' ||
+        current.pendingAction === 'START_SECOND_INNINGS'
+      ) {
+        if (
+          current.currentInnings === 2 &&
+          !match.isSecondInningsStarted &&
+          current.pendingAction === 'START_SECOND_INNINGS'
+        ) {
+          current = { ...current, pendingAction: 'START_SECOND_INNINGS' };
+        } else if (!inningsEnded || current.currentInnings === 2) {
           if (!current.strikerId) {
             current = { ...current, pendingAction: 'SELECT_STRIKER' };
           } else if (needsNonStriker && !current.nonStrikerId) {
             current = { ...current, pendingAction: 'SELECT_NON_STRIKER' };
           } else if (!current.currentBowlerId) {
             current = { ...current, pendingAction: 'SELECT_BOWLER' };
+          } else {
+            current = { ...current, pendingAction: 'NONE' };
           }
         }
       }
@@ -999,22 +1011,16 @@ export class ScoringEngine {
           };
         }
 
-        if (!isBat && p.id === ball.fielderId) {
+        if (!isBat && ball.fielderId && p.id === ball.fielderId) {
+          const fStats = np.fieldingStats || this.createDefaultFieldingStats();
           np = {
             ...np,
             fieldingStats: {
-              ...np.fieldingStats,
-              catches:
-                np.fieldingStats.catches +
-                (ball.wicketType === 'CAUGHT' ? 1 : 0),
-              runOuts:
-                np.fieldingStats.runOuts +
-                (ball.wicketType === 'RUN_OUT' ? 1 : 0),
-              stumpings:
-                np.fieldingStats.stumpings +
-                (ball.wicketType === 'STUMPED' ? 1 : 0),
-              droppedCatches:
-                np.fieldingStats.droppedCatches + (ball.isDroppedCatch ? 1 : 0)
+              ...fStats,
+              catches: (fStats.catches || 0) + (ball.wicketType === 'CAUGHT' ? 1 : 0),
+              runOuts: (fStats.runOuts || 0) + (ball.wicketType === 'RUN_OUT' ? 1 : 0),
+              stumpings: (fStats.stumpings || 0) + (ball.wicketType === 'STUMPED' ? 1 : 0),
+              droppedCatches: (fStats.droppedCatches || 0) + (ball.isDroppedCatch || ball.wasDroppedCatch ? 1 : 0)
             }
           };
         }

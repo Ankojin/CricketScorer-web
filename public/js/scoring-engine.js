@@ -111,7 +111,9 @@
                 sixes: (np.battingStats?.sixes || 0) + (actualRuns === 6 ? 1 : 0),
                 isOut: (np.battingStats?.isOut || false) || (isOut && ball.wicketType !== 'RETIRED_HURT'),
                 isRetiredHurt: ball.wicketType === 'RETIRED_HURT',
-                wicketType: isOut ? ball.wicketType || 'NONE' : (np.battingStats?.wicketType || 'NONE')
+                wicketType: isOut ? ball.wicketType || 'NONE' : (np.battingStats?.wicketType || 'NONE'),
+                dismissalBowlerId: isOut && ball.wicketType !== 'RUN_OUT' && ball.wicketType !== 'RETIRED_HURT' ? ball.bowlerId : (np.battingStats?.dismissalBowlerId || null),
+                dismissalFielderId: isOut ? ball.fielderId || (np.battingStats?.dismissalFielderId || null) : (np.battingStats?.dismissalFielderId || null)
               }
             };
           } else if (p.id === ball.nonStrikerId) {
@@ -122,7 +124,16 @@
                   ...np.battingStats,
                   isOut: ball.wicketType !== 'RETIRED_HURT',
                   isRetiredHurt: ball.wicketType === 'RETIRED_HURT',
-                  wicketType: ball.wicketType || 'NONE'
+                  wicketType: ball.wicketType || 'NONE',
+                  dismissalFielderId: ball.fielderId || (np.battingStats?.dismissalFielderId || null)
+                }
+              };
+            } else {
+              np = {
+                ...np,
+                battingStats: {
+                  ...np.battingStats,
+                  isRetiredHurt: false
                 }
               };
             }
@@ -159,6 +170,21 @@
             }
           };
         }
+
+        if (!isBat && ball.fielderId && p.id === ball.fielderId) {
+          const fStats = np.fieldingStats || createDefaultFieldingStats();
+          np = {
+            ...np,
+            fieldingStats: {
+              ...fStats,
+              catches: (fStats.catches || 0) + (ball.wicketType === 'CAUGHT' ? 1 : 0),
+              runOuts: (fStats.runOuts || 0) + (ball.wicketType === 'RUN_OUT' ? 1 : 0),
+              stumpings: (fStats.stumpings || 0) + (ball.wicketType === 'STUMPED' ? 1 : 0),
+              droppedCatches: (fStats.droppedCatches || 0) + (ball.isDroppedCatch || ball.wasDroppedCatch ? 1 : 0)
+            }
+          };
+        }
+
         return np;
       })
     };
@@ -208,20 +234,29 @@
       const battingTeam = isBattingA ? current.teamA : current.teamB;
       const bowlingTeam = isBattingA ? current.teamB : current.teamA;
 
-      const isPhysical = isPhysicalBall(ball);
-      const isRealWicket = ball.wicketType && ball.wicketType !== 'NONE' && ball.wicketType !== 'RETIRED_HURT';
+      const healedBall = {
+        ...ball,
+        strikerId: healLegacyId(ball.strikerId, battingTeam),
+        nonStrikerId: healLegacyId(ball.nonStrikerId, battingTeam),
+        bowlerId: healLegacyId(ball.bowlerId, bowlingTeam),
+        outPlayerId: healLegacyId(ball.outPlayerId, battingTeam),
+        fielderId: healLegacyId(ball.fielderId, bowlingTeam)
+      };
+
+      const isPhysical = isPhysicalBall(healedBall);
+      const isRealWicket = healedBall.wicketType && healedBall.wicketType !== 'NONE' && healedBall.wicketType !== 'RETIRED_HURT';
 
       current = {
         ...current,
-        totalRuns: current.totalRuns + ball.runs + (ball.extraRuns || 0),
+        totalRuns: current.totalRuns + healedBall.runs + (healedBall.extraRuns || 0),
         totalWickets: current.totalWickets + (isRealWicket ? 1 : 0),
         totalBalls: current.totalBalls + (isPhysical ? 1 : 0),
-        wideCount: current.wideCount + (ball.extrasType === 'WIDE' ? ball.extraRuns || 0 : 0),
-        noBallCount: current.noBallCount + (ball.extrasType === 'NO_BALL' ? ball.extraRuns || 0 : 0),
-        byeCount: current.byeCount + (ball.extrasType === 'BYE' ? ball.extraRuns || 0 : 0),
-        legByeCount: current.legByeCount + (ball.extrasType === 'LEG_BYE' ? ball.extraRuns || 0 : 0),
-        teamA: updateTeamStats(current.teamA, ball, isBattingA, !isBattingA),
-        teamB: updateTeamStats(current.teamB, ball, !isBattingA, isBattingA),
+        wideCount: current.wideCount + (healedBall.extrasType === 'WIDE' ? healedBall.extraRuns || 0 : 0),
+        noBallCount: current.noBallCount + (healedBall.extrasType === 'NO_BALL' ? healedBall.extraRuns || 0 : 0),
+        byeCount: current.byeCount + (healedBall.extrasType === 'BYE' ? healedBall.extraRuns || 0 : 0),
+        legByeCount: current.legByeCount + (healedBall.extrasType === 'LEG_BYE' ? healedBall.extraRuns || 0 : 0),
+        teamA: updateTeamStats(current.teamA, healedBall, isBattingA, !isBattingA),
+        teamB: updateTeamStats(current.teamB, healedBall, !isBattingA, isBattingA),
         ballHistory: history.slice(0, i + 1)
       };
 
@@ -384,9 +419,17 @@
         : Math.max(1, Math.min((current.teamA.players || []).length, (current.teamB.players || []).length));
       const needsNonStriker = current.gullyRules?.lastManStanding ? current.totalWickets < squadSize - 1 : true;
 
-      if (!current.strikerId) current.pendingAction = 'SELECT_STRIKER';
-      else if (needsNonStriker && !current.nonStrikerId) current.pendingAction = 'SELECT_NON_STRIKER';
-      else if (!current.currentBowlerId) current.pendingAction = 'SELECT_BOWLER';
+      if (current.currentInnings === 2 && !match.isSecondInningsStarted && current.pendingAction === 'START_SECOND_INNINGS') {
+        current.pendingAction = 'START_SECOND_INNINGS';
+      } else if (!current.strikerId) {
+        current.pendingAction = 'SELECT_STRIKER';
+      } else if (needsNonStriker && !current.nonStrikerId) {
+        current.pendingAction = 'SELECT_NON_STRIKER';
+      } else if (!current.currentBowlerId) {
+        current.pendingAction = 'SELECT_BOWLER';
+      } else {
+        current.pendingAction = 'NONE';
+      }
     }
 
     return current;
