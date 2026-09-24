@@ -202,6 +202,7 @@ export class ScoringEngine {
             let nsId = current.nonStrikerId;
             let activeBId = current.currentBowlerId;
             let lbId = current.lastBowlerId;
+            const isSingleSideBatting = Boolean(current.gullyRules?.singleSideBatting);
             if (!healedBall.isAdjustment) {
                 const victimId = healedBall.outPlayerId ||
                     (healedBall.wicketType && healedBall.wicketType !== 'NONE'
@@ -269,7 +270,8 @@ export class ScoringEngine {
             }
             const shouldRotate = physicalRuns % 2 !== 0 !== Boolean(healedBall.hadCrossed) &&
                 healedBall.rotateStrike !== false &&
-                healedBall.extrasType !== 'GRANTED';
+                healedBall.extrasType !== 'GRANTED' &&
+                !isSingleSideBatting;
             if (shouldRotate) {
                 const temp = sId;
                 sId = nsId;
@@ -289,9 +291,11 @@ export class ScoringEngine {
             }
             let overJustFinished = false;
             if (ballsInOver === 6) {
-                const temp = sId;
-                sId = nsId;
-                nsId = temp;
+                if (!isSingleSideBatting) {
+                    const temp = sId;
+                    sId = nsId;
+                    nsId = temp;
+                }
                 lbId = activeBId;
                 activeBId = null;
                 ballsInOver = 0;
@@ -303,9 +307,11 @@ export class ScoringEngine {
             const maxWickets = current.gullyRules?.lastManStanding
                 ? squadSize
                 : Math.max(1, squadSize - 1);
-            const needsNonStriker = current.gullyRules?.lastManStanding
-                ? current.totalWickets < squadSize - 1
-                : true;
+            const needsNonStriker = isSingleSideBatting
+                ? false
+                : current.gullyRules?.lastManStanding
+                    ? current.totalWickets < squadSize - 1
+                    : true;
             if (!sId && nsId && !needsNonStriker) {
                 sId = nsId;
                 nsId = null;
@@ -313,7 +319,7 @@ export class ScoringEngine {
             current = {
                 ...current,
                 strikerId: sId,
-                nonStrikerId: nsId,
+                nonStrikerId: isSingleSideBatting ? null : nsId,
                 currentBowlerId: overJustFinished ? null : activeBId,
                 lastBowlerId: lbId
             };
@@ -373,7 +379,7 @@ export class ScoringEngine {
                     wicketHistory: [],
                     battingOrder: [],
                     strikerId: presetStrikerId,
-                    nonStrikerId: presetNonStrikerId && presetNonStrikerId !== presetStrikerId
+                    nonStrikerId: !isSingleSideBatting && presetNonStrikerId && presetNonStrikerId !== presetStrikerId
                         ? presetNonStrikerId
                         : null,
                     currentBowlerId: presetBowlerId,
@@ -415,7 +421,7 @@ export class ScoringEngine {
                 : current.teamB;
             const safeStrikerId = this.ensureTeamPlayer(current.strikerId, currentBattingTeam);
             const safeNonStrikerRaw = this.ensureTeamPlayer(current.nonStrikerId, currentBattingTeam);
-            const safeNonStrikerId = safeNonStrikerRaw && safeNonStrikerRaw !== safeStrikerId ? safeNonStrikerRaw : null;
+            const safeNonStrikerId = !Boolean(current.gullyRules?.singleSideBatting) && safeNonStrikerRaw && safeNonStrikerRaw !== safeStrikerId ? safeNonStrikerRaw : null;
             current = {
                 ...current,
                 strikerId: safeStrikerId,
@@ -432,9 +438,11 @@ export class ScoringEngine {
             const maxWickets = current.gullyRules?.lastManStanding
                 ? squadSize
                 : Math.max(1, squadSize - 1);
-            const needsNonStriker = current.gullyRules?.lastManStanding
-                ? current.totalWickets < squadSize - 1
-                : true;
+            const needsNonStriker = Boolean(current.gullyRules?.singleSideBatting)
+                ? false
+                : current.gullyRules?.lastManStanding
+                    ? current.totalWickets < squadSize - 1
+                    : true;
             const inningsEnded = current.totalWickets >= maxWickets ||
                 current.totalBalls >= current.oversPerInnings * 6;
             if (current.currentInnings === 1 && inningsEnded) {
@@ -490,7 +498,7 @@ export class ScoringEngine {
                     wicketHistory: [],
                     battingOrder: [],
                     strikerId: presetStrikerId,
-                    nonStrikerId: presetNonStrikerId && presetNonStrikerId !== presetStrikerId
+                    nonStrikerId: !Boolean(current.gullyRules?.singleSideBatting) && presetNonStrikerId && presetNonStrikerId !== presetStrikerId
                         ? presetNonStrikerId
                         : null,
                     currentBowlerId: presetBowlerId,

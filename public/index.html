@@ -115,9 +115,14 @@
 
           <div class="form-group">
             <label for="selectGlobalPlayerA">Pick from Player Directory</label>
+            <input type="text" id="globalPlayerSearchA" class="form-control" placeholder="Search player by name" style="margin-bottom:6px;" oninput="filterGlobalPlayerOptions('A')">
             <div class="squad-add-row">
               <select id="selectGlobalPlayerA" class="form-control" style="flex:1;"></select>
               <button class="squad-add-btn" onclick="onAddGlobalPlayer('A')">Add</button>
+            </div>
+            <div id="globalPlayerChecklistA" style="margin-top:8px; max-height:120px; overflow-y:auto; border:1px solid var(--card-border); border-radius:8px; padding:6px;"></div>
+            <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+              <button class="btn" style="background:#1e40af; color:#dbeafe; width:auto; padding:5px 10px; font-size:11px;" onclick="addSelectedDirectoryPlayers('A')">Add Selected</button>
             </div>
             <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">Shared roster: Displays current match squad status [In Team A / Team B / Unassigned]</div>
           </div>
@@ -159,9 +164,14 @@
 
           <div class="form-group">
             <label for="selectGlobalPlayerB">Pick from Player Directory</label>
+            <input type="text" id="globalPlayerSearchB" class="form-control" placeholder="Search player by name" style="margin-bottom:6px;" oninput="filterGlobalPlayerOptions('B')">
             <div class="squad-add-row">
               <select id="selectGlobalPlayerB" class="form-control" style="flex:1;"></select>
               <button class="squad-add-btn" onclick="onAddGlobalPlayer('B')">Add</button>
+            </div>
+            <div id="globalPlayerChecklistB" style="margin-top:8px; max-height:120px; overflow-y:auto; border:1px solid var(--card-border); border-radius:8px; padding:6px;"></div>
+            <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+              <button class="btn" style="background:#1e40af; color:#dbeafe; width:auto; padding:5px 10px; font-size:11px;" onclick="addSelectedDirectoryPlayers('B')">Add Selected</button>
             </div>
             <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">Shared roster: Displays current match squad status [In Team A / Team B / Unassigned]</div>
           </div>
@@ -488,12 +498,28 @@
       <hr style="border-color:var(--card-border); margin:12px 0;">
       <h4 style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Gully Rules Settings</h4>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="ruleCommonPlayer" style="margin:0;">Common Player</label>
+        <input type="checkbox" id="ruleCommonPlayer" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="ruleJoinMidMatch" style="margin:0;">Players Join Mid-Match</label>
+        <input type="checkbox" id="ruleJoinMidMatch" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="ruleSwitchMidMatch" style="margin:0;">Players Switch Mid-Match</label>
+        <input type="checkbox" id="ruleSwitchMidMatch" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
         <label for="ruleNoExtras" style="margin:0;">No Extra Runs for Wides/NB</label>
         <input type="checkbox" id="ruleNoExtras" style="transform:scale(1.2);">
       </div>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
         <label for="ruleLMS" style="margin:0;">Last Man Standing (LMS)</label>
         <input type="checkbox" id="ruleLMS" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="ruleSingleSide" style="margin:0;">Single-Side Batting</label>
+        <input type="checkbox" id="ruleSingleSide" style="transform:scale(1.2);">
       </div>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
         <label for="ruleUnequal" style="margin:0;">Unequal Teams</label>
@@ -772,12 +798,28 @@
 
       <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Default Gully Rules</h4>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="tourneyRuleCommonPlayer" style="margin:0;">Common Player</label>
+        <input type="checkbox" id="tourneyRuleCommonPlayer" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="tourneyRuleJoinMidMatch" style="margin:0;">Players Join Mid-Match</label>
+        <input type="checkbox" id="tourneyRuleJoinMidMatch" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="tourneyRuleSwitchMidMatch" style="margin:0;">Players Switch Mid-Match</label>
+        <input type="checkbox" id="tourneyRuleSwitchMidMatch" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
         <label for="tourneyRuleNoExtras" style="margin:0;">No Extra Runs for Wides/NB</label>
         <input type="checkbox" id="tourneyRuleNoExtras" style="transform:scale(1.2);">
       </div>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
         <label for="tourneyRuleLMS" style="margin:0;">Last Man Standing (LMS)</label>
         <input type="checkbox" id="tourneyRuleLMS" style="transform:scale(1.2);">
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
+        <label for="tourneyRuleSingleSide" style="margin:0;">Single-Side Batting</label>
+        <input type="checkbox" id="tourneyRuleSingleSide" style="transform:scale(1.2);">
       </div>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
         <label for="tourneyRuleUnequal" style="margin:0;">Unequal Teams</label>
@@ -795,6 +837,7 @@
   <div id="teamModal" class="modal-overlay">
     <div class="modal">
       <h3 style="margin-bottom:12px;">Create New Team</h3>
+      <div id="teamModalContext" style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Live/New Match = team for current match (optionally reusable).</div>
       <div class="form-group">
         <label for="newTeamName">Team Name</label>
         <input type="text" id="newTeamName" class="form-control" placeholder="e.g. Super Kings">
@@ -804,7 +847,19 @@
         <input type="color" id="newTeamColor" class="form-control" value="#2196F3">
       </div>
       <div class="form-group">
-        <label for="newTeamPlayers">Players List (comma separated)</label>
+        <label for="seriesTeamPlayerSearch">Search Player</label>
+        <input type="text" id="seriesTeamPlayerSearch" class="form-control" placeholder="Type to filter players" oninput="filterSeriesTeamPlayerPicker()">
+      </div>
+      <div class="form-group">
+        <label for="seriesTeamPlayerPick">Pick Players from Player Directory</label>
+        <div style="display:flex; gap:8px;">
+          <select id="seriesTeamPlayerPick" class="form-control" style="flex:1;"></select>
+          <button class="btn-primary" style="width:auto; padding:8px 10px; font-size:12px;" onclick="addSeriesTeamPlayerFromPicker()">Add</button>
+        </div>
+      </div>
+      <div id="seriesTeamSelectedPlayers" style="margin-bottom:10px;"></div>
+      <div class="form-group">
+        <label for="newTeamPlayers">Additional Players (comma separated, optional)</label>
         <input type="text" id="newTeamPlayers" class="form-control" placeholder="e.g. Alice, Bob, Charlie">
       </div>
       <div style="display:flex; gap:8px; margin-top:16px;">

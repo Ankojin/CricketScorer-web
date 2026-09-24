@@ -83,10 +83,10 @@
     return p?.battingStats?.isOut === true;
   }
 
-          strikerId: null,
-          nonStrikerId: null,
-          currentBowlerId: null,
-          lastBowlerId: null,
+  function isPlayerUnavailable(pId, m) {
+    if (!pId || !m) return false;
+    const p = (m.teamA?.players || []).find(x => x.id === pId) || (m.teamB?.players || []).find(x => x.id === pId);
+    return p?.battingStats?.isOut === true || p?.battingStats?.isRetiredHurt === true;
   }
 
   function isPlayerInTeam(id, team) {
@@ -293,6 +293,7 @@
       let nsId = current.nonStrikerId;
       let activeBId = current.currentBowlerId;
       let lbId = current.lastBowlerId;
+      const isSingleSideBatting = Boolean(current.gullyRules?.singleSideBatting);
 
       if (!ball.isAdjustment) {
         const victimId = ball.outPlayerId || (ball.wicketType && ball.wicketType !== 'NONE' ? ball.strikerId : null);
@@ -337,7 +338,7 @@
         physicalRuns = ball.runs + (ball.extrasType === 'GRANTED' ? ball.extraRuns || 0 : 0);
       }
 
-      const shouldRotate = physicalRuns % 2 !== 0 !== Boolean(ball.hadCrossed) && ball.rotateStrike !== false && ball.extrasType !== 'GRANTED';
+      const shouldRotate = physicalRuns % 2 !== 0 !== Boolean(ball.hadCrossed) && ball.rotateStrike !== false && ball.extrasType !== 'GRANTED' && !isSingleSideBatting;
       if (shouldRotate) {
         const temp = sId; sId = nsId; nsId = temp;
       }
@@ -354,7 +355,9 @@
 
       let overJustFinished = false;
       if (ballsInOver === 6) {
-        const temp = sId; sId = nsId; nsId = temp;
+        if (!isSingleSideBatting) {
+          const temp = sId; sId = nsId; nsId = temp;
+        }
         lbId = activeBId;
         activeBId = null;
         ballsInOver = 0;
@@ -365,7 +368,7 @@
         ? battingTeam.players.length
         : Math.max(1, Math.min((current.teamA.players || []).length, (current.teamB.players || []).length));
       const maxWickets = current.gullyRules?.lastManStanding ? squadSize : Math.max(1, squadSize - 1);
-      const needsNonStriker = current.gullyRules?.lastManStanding ? current.totalWickets < squadSize - 1 : true;
+      const needsNonStriker = isSingleSideBatting ? false : (current.gullyRules?.lastManStanding ? current.totalWickets < squadSize - 1 : true);
 
       if (!sId && nsId && !needsNonStriker) {
         sId = nsId;
@@ -375,7 +378,7 @@
       current = {
         ...current,
         strikerId: sId,
-        nonStrikerId: nsId,
+        nonStrikerId: isSingleSideBatting ? null : nsId,
         currentBowlerId: overJustFinished ? null : activeBId,
         lastBowlerId: lbId
       };
@@ -427,7 +430,7 @@
           legByeCount: 0,
           wicketHistory: [],
           strikerId: presetStrikerId,
-          nonStrikerId: presetNonStrikerId && presetNonStrikerId !== presetStrikerId ? presetNonStrikerId : null,
+          nonStrikerId: !isSingleSideBatting && presetNonStrikerId && presetNonStrikerId !== presetStrikerId ? presetNonStrikerId : null,
           currentBowlerId: presetBowlerId,
           lastBowlerId: presetLastBowlerId,
           pendingAction: 'START_SECOND_INNINGS'
@@ -448,7 +451,7 @@
 
       const safeStrikerId = ensureTeamPlayer(current.strikerId, currentBattingTeam);
       const safeNonStrikerRaw = ensureTeamPlayer(current.nonStrikerId, currentBattingTeam);
-      const safeNonStrikerId = safeNonStrikerRaw && safeNonStrikerRaw !== safeStrikerId ? safeNonStrikerRaw : null;
+      const safeNonStrikerId = !Boolean(current.gullyRules?.singleSideBatting) && safeNonStrikerRaw && safeNonStrikerRaw !== safeStrikerId ? safeNonStrikerRaw : null;
 
       current = {
         ...current,
@@ -462,7 +465,7 @@
       const squadSize = current.gullyRules?.unequalTeams
         ? (batTeam.players || []).length
         : Math.max(1, Math.min((current.teamA.players || []).length, (current.teamB.players || []).length));
-      const needsNonStriker = current.gullyRules?.lastManStanding ? current.totalWickets < squadSize - 1 : true;
+      const needsNonStriker = Boolean(current.gullyRules?.singleSideBatting) ? false : (current.gullyRules?.lastManStanding ? current.totalWickets < squadSize - 1 : true);
 
       const preservedPendingActions = [
         'SELECT_MATCH_SETTINGS',
@@ -845,7 +848,7 @@
     return table.sort((a, b) => b.points - a.points);
   }
 
-  exports.ScoringEngine = {
+  const engineApi = {
     isPhysicalBall,
     recalculateMatch,
     recalculateMatchFromHistory: recalculateMatch,
@@ -857,5 +860,10 @@
     calculateMotm,
     calculateForecaster
   };
+
+  exports.ScoringEngine = engineApi;
+  if (typeof window !== 'undefined') {
+    window.ScoringEngine = engineApi;
+  }
 
 })(typeof exports === 'object' ? exports : window);
