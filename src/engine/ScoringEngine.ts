@@ -514,13 +514,23 @@ export class ScoringEngine {
         ? current.teamA
         : current.teamB;
 
-      const safeStrikerId = this.ensureTeamPlayer(current.strikerId, currentBattingTeam);
-      const safeNonStrikerRaw = this.ensureTeamPlayer(
-        current.nonStrikerId,
-        currentBattingTeam
-      );
-      const safeNonStrikerId =
-        !Boolean(current.gullyRules?.singleSideBatting) && safeNonStrikerRaw && safeNonStrikerRaw !== safeStrikerId ? safeNonStrikerRaw : null;
+      // Preserve explicitly selected strikerId / nonStrikerId when replaying ballHistory ends on a dismissal or retired hurt
+      const explicitStrikerId = this.ensureTeamPlayer(match.strikerId, currentBattingTeam);
+      const activeStrikerId =
+        current.strikerId ||
+        (explicitStrikerId && !this.isPlayerUnavailable(explicitStrikerId, current) ? explicitStrikerId : null);
+
+      const explicitNonStrikerId = this.ensureTeamPlayer(match.nonStrikerId, currentBattingTeam);
+      const activeNonStrikerRaw =
+        current.nonStrikerId ||
+        (explicitNonStrikerId && !this.isPlayerUnavailable(explicitNonStrikerId, current) ? explicitNonStrikerId : null);
+
+      const activeNonStrikerId =
+        !Boolean(current.gullyRules?.singleSideBatting) &&
+        activeNonStrikerRaw &&
+        activeNonStrikerRaw !== activeStrikerId
+          ? activeNonStrikerRaw
+          : null;
 
       // Preserve explicitly selected currentBowlerId when replaying ballHistory ends on an over boundary
       const explicitBowlerId = this.ensureTeamPlayer(match.currentBowlerId, currentBowlingTeam);
@@ -528,8 +538,8 @@ export class ScoringEngine {
 
       current = {
         ...current,
-        strikerId: safeStrikerId,
-        nonStrikerId: safeNonStrikerId,
+        strikerId: activeStrikerId,
+        nonStrikerId: activeNonStrikerId,
         currentBowlerId: activeBowlerId,
         lastBowlerId: this.ensureTeamPlayer(current.lastBowlerId, currentBowlingTeam)
       };

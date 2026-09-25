@@ -863,4 +863,28 @@ describe('ScoringEngine Core Rules & Transition Tests', () => {
     assert.equal(stats.hasMid, true);
     assert.equal(stats.hasFin, true);
   });
+
+  test('Explicitly selected replacement striker after dismissal is preserved during recalculation', () => {
+    const wicketBall: Ball = {
+      runs: 0,
+      extrasType: 'NONE',
+      isLegalBall: true,
+      wicketType: 'BOWLED',
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+    const match: Match = { ...baseMatch, strikerId: 'p1', nonStrikerId: 'p2', currentBowlerId: 'b1', ballHistory: [wicketBall] };
+    const recalculated = ScoringEngine.recalculateMatch(match);
+    assert.equal(recalculated.strikerId, null);
+    assert.equal(recalculated.nonStrikerId, 'p2');
+    assert.equal(recalculated.pendingAction, 'SELECT_STRIKER');
+
+    // Simulate user selecting replacement striker 'p3'
+    const matchWithSelectedStriker: Match = { ...recalculated, strikerId: 'p3' };
+    const afterSelection = ScoringEngine.recalculateMatch(matchWithSelectedStriker);
+    assert.equal(afterSelection.strikerId, 'p3');
+    assert.equal(afterSelection.nonStrikerId, 'p2');
+    assert.equal(afterSelection.pendingAction, 'NONE');
+  });
 });
