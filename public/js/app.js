@@ -5,6 +5,7 @@ let activeTournament = null;
 let activeTourneySubTab = 'TEAMS'; // TEAMS, MATCHES, TABLE, STATS
 let activeScorecardTab = 'INNINGS1'; // INNINGS1, INNINGS2
 let activeOversInningsTab = 'INNINGS1'; // INNINGS1, INNINGS2
+let overEndDismissTimer = null;
 let tournamentModalMode = 'CREATE'; // CREATE | EDIT
 let editingTournamentId = null;
 
@@ -2720,17 +2721,8 @@ function checkAndShowOverEndModal() {
 
   const matchScoresEl = document.getElementById('overEndMatchScores');
   if (matchScoresEl) {
-    const innings1 = activeMatch.innings1Data;
-    const teamScore = team => {
-      if (innings1?.teamId === team?.id) {
-        return `${innings1.runs || 0}/${innings1.wickets || 0}`;
-      }
-      if (activeMatch.battingTeamId === team?.id) {
-        return `${activeMatch.totalRuns || 0}/${activeMatch.totalWickets || 0}`;
-      }
-      return 'Yet to bat';
-    };
-    matchScoresEl.innerText = `${activeMatch.teamA?.name || 'Team A'} ${teamScore(activeMatch.teamA)}  •  ${activeMatch.teamB?.name || 'Team B'} ${teamScore(activeMatch.teamB)}`;
+    const battingTeam = [activeMatch.teamA, activeMatch.teamB].find(team => team?.id === activeMatch.battingTeamId);
+    matchScoresEl.innerText = `${battingTeam?.name || 'Batting team'}  ${activeMatch.totalRuns || 0}/${activeMatch.totalWickets || 0}`;
   }
 
   if (lastBowler) {
@@ -2754,10 +2746,19 @@ function checkAndShowOverEndModal() {
     }
   }
 
+  if (overEndDismissTimer) clearTimeout(overEndDismissTimer);
   openPrimaryActionModal('overEndModal');
+  overEndDismissTimer = setTimeout(() => {
+    overEndDismissTimer = null;
+    closeOverEndModal();
+  }, 5000);
 }
 
 function closeOverEndModal() {
+  if (overEndDismissTimer) {
+    clearTimeout(overEndDismissTimer);
+    overEndDismissTimer = null;
+  }
   const modal = document.getElementById('overEndModal');
   if (modal) {
     modal.classList.remove('active');
