@@ -511,6 +511,47 @@
     </div>
   </div>
 
+  <!-- End of Over Summary -->
+  <div id="overEndModal" class="modal-overlay">
+    <div class="modal">
+      <h3 id="overEndTitle" style="margin-bottom:8px;">End of Over</h3>
+      <div id="overEndBody" style="font-size:15px; font-weight:700; margin-bottom:8px;">Runs in Over: 0 | Wickets: 0</div>
+      <div id="overEndBowlerStats" style="font-size:13px; color:var(--text-muted); margin-bottom:16px;"></div>
+      <button id="overEndContinueBtn" class="btn-primary" onclick="closeOverEndModal()">Continue</button>
+    </div>
+  </div>
+
+  <!-- Run Out -->
+  <div id="runOutModal" class="modal-overlay">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin:0;">Run Out</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;" onclick="closeRunOutModal()">✕</button>
+      </div>
+      <div class="form-group">
+        <label for="runOutBatterSelect">1. Who is out</label>
+        <select id="runOutBatterSelect" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label for="runOutRunsSelect">2. Runs completed</label>
+        <select id="runOutRunsSelect" class="form-control">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="runOutFielderSelect">3. Fielder</label>
+        <select id="runOutFielderSelect" class="form-control"></select>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn-primary" onclick="confirmRunOutWicket()">Confirm Run Out</button>
+        <button class="btn" style="background:#334155;" onclick="closeRunOutModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Player Selection Modal -->
   <div id="selectionModal" class="modal-overlay">
     <div class="modal">
