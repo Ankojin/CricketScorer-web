@@ -4,23 +4,99 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CricScore Pro Web</title>
+  <link rel="icon" href="img/app-icon.png" type="image/png">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#f7f8fa">
+  <meta name="theme-color" content="#0b2213">
 </head>
 <body>
 
   <!-- Top App Header -->
   <header class="app-header">
     <div class="app-title" role="button" tabindex="0" aria-label="CricScore Pro home" onclick="showLandingScreen()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showLandingScreen();}">
-      🏏 CricScore Pro
+      <img src="img/app-icon.png" alt="CricScore Pro Logo" class="app-header-logo">
+      <span>CricScore Pro</span>
     </div>
     <div class="app-header-actions" style="display:flex; align-items:center; gap:8px;">
+      <button class="nav-btn features-trigger-btn" style="background:#15803d; border:1px solid #22c55e;" onclick="toggleFeaturesMenu(event)">✨ Features ▾</button>
       <button id="authBtn" class="nav-btn" style="background:var(--color-primary);" onclick="openAuthModal()">🔑 Sign In</button>
-      <button class="nav-btn" style="background:#334155;" onclick="openMatchSettingsModal()">⚙️ Settings</button>
+      <button class="nav-btn" style="background:#1f482b;" onclick="openMatchSettingsModal()">⚙️ Settings</button>
       <span id="syncBadge" class="status-badge online">🟢 Sync Active</span>
     </div>
   </header>
+
+  <!-- Features Options Dropdown Menu (Gully Crix style dark green card) -->
+  <div id="featuresMenuDropdown" class="features-dropdown" hidden>
+    <div class="features-dropdown-header">
+      <span>CRICSCORE PRO FEATURES</span>
+      <button class="features-close-btn" type="button" onclick="closeFeaturesMenu()">&times;</button>
+    </div>
+    <div class="features-dropdown-grid">
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); loadMatchListScreen();">
+        <span class="feature-icon bg-green">⚡</span>
+        <div class="feature-info">
+          <strong>Web Scorer</strong>
+          <small>Score free in your browser</small>
+        </div>
+      </button>
+
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showNewMatchScreen();">
+        <span class="feature-icon bg-emerald">🏏</span>
+        <div class="feature-info">
+          <strong>Quick Match</strong>
+          <small>Score a game in seconds</small>
+        </div>
+      </button>
+
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showNewMatchScreen();">
+        <span class="feature-icon bg-teal">📋</span>
+        <div class="feature-info">
+          <strong>Full Match</strong>
+          <small>Squads, player stats & scorecards</small>
+        </div>
+      </button>
+
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); openQuickTossModal();">
+        <span class="feature-icon bg-amber">🪙</span>
+        <div class="feature-info">
+          <strong>Coin Toss</strong>
+          <small>Flip a virtual coin anytime</small>
+        </div>
+      </button>
+
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); promptSpectatorStream();">
+        <span class="feature-icon bg-blue">📺</span>
+        <div class="feature-info">
+          <strong>Watch Live Stream</strong>
+          <small>Follow a live match by ID / link</small>
+        </div>
+      </button>
+
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showTournamentsScreen();">
+        <span class="feature-icon bg-purple">🏆</span>
+        <div class="feature-info">
+          <strong>Tournaments</strong>
+          <small>Series, standings & points table</small>
+        </div>
+      </button>
+
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showPlayersScreen();">
+        <span class="feature-icon bg-indigo">👥</span>
+        <div class="feature-info">
+          <strong>Teams & Players</strong>
+          <small>Manage squad directory</small>
+        </div>
+      </button>
+
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); openMatchSettingsModal();">
+        <span class="feature-icon bg-slate">⚙️</span>
+        <div class="feature-info">
+          <strong>Gully Rules & Settings</strong>
+          <small>Custom overs, powerplays & rules</small>
+        </div>
+      </button>
+    </div>
+  </div>
 
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container"></div>
@@ -30,7 +106,7 @@
     <!-- Screen 0: Home and Auth Entry -->
     <div id="screenLanding" class="screen active">
       <div id="landingAuthEntry" class="card landing-card">
-        <div style="font-size:48px; margin-bottom:12px;">🏏</div>
+        <img src="img/app-icon.png" alt="CricScore Pro App Icon" style="width:68px; height:68px; border-radius:18px; margin-bottom:12px; box-shadow:0 4px 14px rgba(0,0,0,0.18); object-fit:cover;">
         <h2 class="landing-title">CricScore Pro</h2>
         <p class="landing-subtitle">
           Professional Cricket Scorer & Live Scoreboard
@@ -41,7 +117,7 @@
             📝 Register / Sign In
           </button>
 
-          <button class="btn" style="background:#334155; padding:14px; font-size:14px; color:#f8fafc;" onclick="continueAsGuest()">
+          <button class="btn" style="background:#1f482b; padding:14px; font-size:14px; color:#f8fafc; border-color:#2e633d;" onclick="continueAsGuest()">
             👤 Continue as Guest
           </button>
         </div>
@@ -53,25 +129,35 @@
       </div>
 
       <section id="homeDashboard" class="home-dashboard" hidden aria-labelledby="homeHeading">
-        <div class="home-welcome">
-          <div>
-            <p class="home-eyebrow">CRICSCORE PRO</p>
-            <h1 id="homeHeading">Your cricket, your scorebook</h1>
-            <p>Start a match or pick up where you left off.</p>
-          </div>
-        </div>
+        <!-- Gully Crix Inspired Hero Banner -->
+        <div class="gully-hero">
+          <div class="gully-hero-content">
+            <div class="gully-hero-badge">
+              <span class="badge-dot"></span> NEW · Version 2.33 on Web & PWA
+            </div>
 
-        <div class="home-actions" aria-label="Scoring actions">
-          <button class="home-action home-action-primary" type="button" onclick="showNewMatchScreen()">
-            <span class="home-action-icon" aria-hidden="true">🏏</span>
-            <span><strong>Quick Match</strong><small>Set up teams and start scoring</small></span>
-            <span class="home-action-arrow" aria-hidden="true">›</span>
-          </button>
-          <button class="home-action" type="button" onclick="loadMatchListScreen()">
-            <span class="home-action-icon" aria-hidden="true">🌐</span>
-            <span><strong>Web Score</strong><small>Open Match Center and score online</small></span>
-            <span class="home-action-arrow" aria-hidden="true">›</span>
-          </button>
+            <h1 id="homeHeading" class="gully-hero-title">
+              YOUR GULLY.<br>
+              <span class="highlight-green">YOUR MATCH.</span><br>
+              YOUR SCORE.
+            </h1>
+
+            <p class="gully-hero-summary">
+              The best cricket scoring app for your matches. Score every ball, track your gully cricket score, relive every moment, and share the glory.
+            </p>
+
+            <div class="gully-hero-actions">
+              <button class="gully-btn gully-btn-primary" type="button" onclick="loadMatchListScreen()">
+                ⚡ Web Scorer
+              </button>
+              <button class="gully-btn gully-btn-secondary" type="button" onclick="showNewMatchScreen()">
+                🏏 Quick Match
+              </button>
+              <button class="gully-btn gully-btn-outline" type="button" onclick="toggleFeaturesMenu(event)">
+                ✨ Features ▾
+              </button>
+            </div>
+          </div>
         </div>
 
         <section class="home-recent-section" aria-labelledby="recentMatchesHeading">

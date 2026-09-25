@@ -1,27 +1,31 @@
 :root {
   color-scheme: light;
 
-  /* CricScore Pro UI v2 design tokens */
-  --color-background: #f7f8fa;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f3f5f8;
-  --color-surface-raised: #ffffff;
-  --color-primary: #1664d9;
-  --color-primary-dark: #0f4faf;
-  --color-primary-soft: #eff6ff;
-  --color-text: #172033;
-  --color-text-secondary: #667085;
-  --color-border: #e5e7eb;
+  /* Gully Crix inspired CricScore Pro UI v2 design tokens */
+  --color-background: #f4f1ea;       /* Soft warm cream background */
+  --color-surface: #ffffff;          /* Clean white card surface */
+  --color-surface-muted: #efece4;    /* Light muted surface */
+  --color-surface-dark: #0b2213;     /* Dark forest green header/hero */
+  --color-surface-dark-card: #0f2e1b;/* Dark forest green dropdown/cards */
+  --color-primary: #16a34a;          /* Emerald Green primary */
+  --color-primary-dark: #15803d;     /* Deep green primary dark */
+  --color-primary-light: #22c55e;    /* Vibrant green accent */
+  --color-primary-soft: #dcfce7;     /* Soft green tint */
+  --color-text: #0b2213;             /* Dark green slate primary text */
+  --color-text-secondary: #526053;   /* Muted secondary text */
+  --color-text-light: #ffffff;       /* Light text on dark surfaces */
+  --color-border: #e2ddd0;           /* Soft border color */
+  --color-border-dark: #1f482b;      /* Dark green surface border */
   --color-success: #16a34a;
-  --color-success-soft: #f0fdf4;
+  --color-success-soft: #dcfce7;
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
-  --color-warning: #b45309;
-  --color-warning-soft: #fffbeb;
-  --color-focus: #2563eb;
-  --shadow-card: 0 2px 8px rgba(23, 32, 51, 0.06), 0 1px 2px rgba(23, 32, 51, 0.04);
-  --shadow-raised: 0 8px 24px rgba(23, 32, 51, 0.14);
-  --radius-card: 12px;
+  --color-warning: #d97706;
+  --color-warning-soft: #fef3c7;
+  --color-focus: #16a34a;
+  --shadow-card: 0 2px 8px rgba(11, 34, 19, 0.06), 0 1px 2px rgba(11, 34, 19, 0.04);
+  --shadow-raised: 0 12px 32px rgba(11, 34, 19, 0.2);
+  --radius-card: 14px;
   --radius-control: 10px;
   --touch-target: 44px;
 
@@ -31,15 +35,15 @@
   --card-border: var(--color-border);
   --primary-color: var(--color-primary);
   --primary-dark: var(--color-primary-dark);
-  --accent-color: var(--color-warning);
+  --accent-color: var(--color-primary-light);
   --text-color: var(--color-text);
   --text-muted: var(--color-text-secondary);
   --danger-color: var(--color-danger);
   --success-color: var(--color-success);
-  --chip-4: #22c55e;
-  --chip-6: #38bdf8;
-  --chip-w: #f87171;
-  --chip-extra: #fbbf24;
+  --chip-4: #16a34a;
+  --chip-6: #0284c7;
+  --chip-w: #dc2626;
+  --chip-extra: #d97706;
 }
 
 * {
@@ -58,28 +62,38 @@ body {
   line-height: 1.45;
 }
 
-/* App Header */
+/* App Header - Gully Crix Dark Forest Green Header */
 .app-header {
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--color-surface-dark);
+  color: var(--color-text-light);
   padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--color-border-dark);
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 4px rgba(23, 32, 51, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .app-title {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
-  color: var(--color-text);
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.app-header-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
 .status-badge {
@@ -438,8 +452,8 @@ html.session-restoring #screenLanding { display: none !important; }
 .landing-card {
   text-align: center;
   padding: 24px 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border-color: #bfdbfe;
+  background: var(--color-surface);
+  border-color: var(--color-border);
 }
 
 .landing-title {
@@ -460,6 +474,237 @@ html.session-restoring #screenLanding { display: none !important; }
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Gully Crix-inspired Hero Section */
+.gully-hero {
+  background: var(--color-surface-dark);
+  color: #ffffff;
+  padding: 28px 20px 32px;
+  border-radius: 20px;
+  box-shadow: 0 12px 32px rgba(11, 34, 19, 0.25);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border-dark);
+}
+
+.gully-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.1) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.gully-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  letter-spacing: 0.04em;
+}
+
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.gully-hero-title {
+  font-size: clamp(28px, 7.5vw, 44px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin-bottom: 14px;
+}
+
+.gully-hero-title .highlight-green {
+  color: #22c55e;
+}
+
+.gully-hero-summary {
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 24px;
+  max-width: 580px;
+}
+
+.gully-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.gully-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  min-height: 46px;
+}
+
+.gully-btn-primary {
+  background: #22c55e;
+  color: #0b2213;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+}
+
+.gully-btn-primary:hover {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.gully-btn-secondary {
+  background: #ffffff;
+  color: #0b2213;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.gully-btn-secondary:hover {
+  background: #e2e8f0;
+}
+
+.gully-btn-outline {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.gully-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Features Options Menu Dropdown (Gully Crix style dark green card) */
+.features-dropdown {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  z-index: 250;
+  width: min(380px, calc(100vw - 32px));
+  background: #0f2e1b;
+  border: 1px solid #1f482b;
+  border-radius: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  padding: 16px;
+  color: #ffffff;
+  animation: slideDownFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDownFade {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.features-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1f482b;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #4ade80;
+}
+
+.features-close-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.features-close-btn:hover { color: #ffffff; }
+
+.features-dropdown-grid {
+  display: grid;
+  gap: 6px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.feature-item:hover {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.feature-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.feature-icon.bg-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+.feature-icon.bg-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.feature-icon.bg-teal { background: rgba(20, 184, 166, 0.2); color: #2dd4bf; }
+.feature-icon.bg-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.feature-icon.bg-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.feature-icon.bg-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+.feature-icon.bg-indigo { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.feature-icon.bg-slate { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+
+.feature-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.feature-info strong {
+  font-size: 13px;
+  font-weight: 750;
+  color: #ffffff;
+}
+
+.feature-info small {
+  font-size: 11px;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .home-dashboard {

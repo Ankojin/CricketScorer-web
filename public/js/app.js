@@ -4748,7 +4748,64 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// Window Exports for QA Automation
+// Features Menu Dropdown & Quick Options Handlers
+function toggleFeaturesMenu(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  const menu = document.getElementById('featuresMenuDropdown');
+  if (menu) {
+    menu.hidden = !menu.hidden;
+  }
+}
+
+function closeFeaturesMenu() {
+  const menu = document.getElementById('featuresMenuDropdown');
+  if (menu) {
+    menu.hidden = true;
+  }
+}
+
+// Close features dropdown on click outside
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('featuresMenuDropdown');
+  const trigger = e.target.closest('.features-trigger-btn') || e.target.closest('.gully-btn-outline');
+  if (menu && !menu.hidden && !menu.contains(e.target) && !trigger) {
+    menu.hidden = true;
+  }
+});
+
+// Quick Coin Toss Standalone Modal
+function openQuickTossModal() {
+  closeFeaturesMenu();
+  if (activeMatch) {
+    openTossModal();
+  } else {
+    // Populate default team names for standalone toss
+    const btnA = document.getElementById('tossBtnTeamA');
+    const btnB = document.getElementById('tossBtnTeamB');
+    if (btnA) btnA.innerText = 'Team A';
+    if (btnB) btnB.innerText = 'Team B';
+    const resultText = document.getElementById('tossResultText');
+    if (resultText) resultText.innerText = '';
+    const coinImg = document.getElementById('coinImg');
+    if (coinImg) coinImg.src = 'img/coin_heads.png';
+    openPrimaryActionModal('tossModal');
+  }
+}
+
+// Prompt for Live Stream Spectator View
+function promptSpectatorStream() {
+  closeFeaturesMenu();
+  const matchId = prompt('Enter Live Match ID to view stream (e.g. match_123):');
+  if (matchId && matchId.trim()) {
+    window.location.href = `index.html?matchId=${encodeURIComponent(matchId.trim())}`;
+  }
+}
+
+// Window Exports for QA Automation & UI Actions
+window.toggleFeaturesMenu = toggleFeaturesMenu;
+window.closeFeaturesMenu = closeFeaturesMenu;
+window.openQuickTossModal = openQuickTossModal;
+window.promptSpectatorStream = promptSpectatorStream;
 window.addPlayerObjectToSquad = addPlayerObjectToSquad;
 window.renderSquadList = renderSquadList;
 window.onAddNewPlayerInput = onAddNewPlayerInput;
