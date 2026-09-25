@@ -683,12 +683,33 @@ function addTypedPlayerToSquad(side) {
     }
   }
 
+  const newPlayerId = existingInOther ? existingInOther.id : `p_${side.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+
   thisSquad.push({
-    id: existingInOther ? existingInOther.id : `p_${side.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+    id: newPlayerId,
     name: rawName,
     isCaptain: thisSquad.length === 0,
     isViceCaptain: thisSquad.length === 1
   });
+
+  // Master List & Series Linking: Automatically register new player in Global Master List & Series Roster
+  window.CricStorage.addGlobalPlayer({
+    id: newPlayerId,
+    name: rawName,
+    role: 'Batter',
+    style: 'RHB'
+  });
+
+  if (activeTournament && Array.isArray(activeTournament.teams)) {
+    const tourneyTeam = activeTournament.teams.find(t => t.name === thisTeamName);
+    if (tourneyTeam) {
+      tourneyTeam.players = tourneyTeam.players || [];
+      if (!tourneyTeam.players.some(p => p.id === newPlayerId || p.name.toLowerCase() === rawName.toLowerCase())) {
+        tourneyTeam.players.push({ id: newPlayerId, name: rawName, role: 'Batter', style: 'RHB' });
+        window.CricStorage.saveTournament(activeTournament);
+      }
+    }
+  }
 
   inputEl.value = '';
   renderSquadList(side);
@@ -1954,7 +1975,7 @@ function openPlayerSelection(type) {
           <div style="font-weight:700; color:#fff; display:flex; align-items:center;">${p.name} ${tag}</div>
           <div style="font-size:11px; color:var(--text-muted);">${stats.overs}.${stats.balls} Ov | ${stats.runsConceded} Runs | ${stats.wickets} Wkts</div>
         </div>
-        <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" ${isDisabled ? 'disabled' : ''}>Select</button>
+        <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" ${isDisabled ? 'disabled' : ''} onclick="event.stopPropagation(); selectBowlerDirect('${p.id}')">Select</button>
       `;
       bowlerContainer.appendChild(item);
     });
