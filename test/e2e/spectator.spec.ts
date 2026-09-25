@@ -182,7 +182,7 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
     const tossModal = scorerPage.locator('#tossModal');
     await expect(tossModal).toBeVisible();
 
-    await scorerPage.click('#tossModal button:has-text("Start Match Live")');
+    await scorerPage.click('#tossModal button:has-text("Start match")');
 
     // Handle initial player prompts
     for (let i = 0; i < 3; i++) {
@@ -276,7 +276,7 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
     }
 
     // Create a Guest match
-    await page.click('button:has-text("+ Create Match")');
+    await page.click('button:has-text("Quick Match")');
 
     await page.evaluate(async () => {
       const win = window as any;
@@ -304,7 +304,7 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
     const tossModal = page.locator('#tossModal');
     await expect(tossModal).toBeVisible();
 
-    await page.click('#tossModal button:has-text("Start Match Live")');
+    await page.click('#tossModal button:has-text("Start match")');
 
     // Handle initial player selection prompts
     for (let i = 0; i < 3; i++) {
@@ -330,6 +330,7 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
     });
 
     // Attempt to click Share Live Score button in Guest Mode
+    await page.locator('#liveMoreMenu > summary').click();
     await page.click('#shareWhatsAppBtn');
 
     // Assert NO new popup/tab was opened

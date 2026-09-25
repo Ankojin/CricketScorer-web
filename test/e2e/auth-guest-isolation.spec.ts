@@ -177,7 +177,7 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
     const tossModal = page.locator('#tossModal');
     await expect(tossModal).toBeVisible();
 
-    await page.click('#tossModal button:has-text("Start Match Live")');
+    await page.click('#tossModal button:has-text("Start match")');
 
     // Confirm initial selection prompts
     for (let i = 0; i < 3; i++) {
@@ -249,7 +249,7 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
     }
 
     // Create a local Guest match
-    await page.click('button:has-text("+ Create Match")');
+    await page.click('button:has-text("Quick Match")');
 
     await page.evaluate(async () => {
       const win = window as any;
@@ -277,7 +277,7 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
     const tossModal = page.locator('#tossModal');
     await expect(tossModal).toBeVisible();
 
-    await page.click('#tossModal button:has-text("Start Match Live")');
+    await page.click('#tossModal button:has-text("Start match")');
 
     // Confirm initial selection prompts
     for (let i = 0; i < 3; i++) {
@@ -307,8 +307,9 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
       }
     });
 
-    // Tap "Continue as Guest" again mid-session
-    await page.click('button:has-text("Continue as Guest")');
+    // Returning home in Guest mode must keep the saved match visible.
+    await expect(page.locator('#homeDashboard')).toBeVisible();
+    await expect(page.locator('#homeRecentMatches')).toContainText('Pure Guest A vs Pure Guest B');
 
     // Assert Guest match data is NOT wiped
     const guestMatches = await page.evaluate(() => {

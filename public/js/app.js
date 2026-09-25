@@ -24,6 +24,7 @@ let matchSquadA = []; // Array of { id, name, isCaptain, isViceCaptain }
 let matchSquadB = []; // Array of { id, name, isCaptain, isViceCaptain }
 let matchGlobalPlayerCache = []; // Cached global players for Create Match directory filtering
 let activeMatchFilter = 'ALL';
+let activeQuickMatchStep = 0;
 
 // Toast Notification System
 function showToast(msg, type = 'info') {
@@ -47,10 +48,55 @@ window.CricStorage.onToast = showToast;
 function updateBottomNavVisibility(screenId) {
   const bottomNav = document.getElementById('bottomNav');
   if (!bottomNav) return;
-  if (screenId === 'screenLanding') {
-    bottomNav.style.display = 'none';
-  } else {
-    bottomNav.style.display = 'flex';
+  const userMode = localStorage.getItem('cric_user_mode');
+  const hasAppSession = Boolean(window.CricStorage.getCurrentUser()) || userMode === 'GUEST' || userMode === 'REGISTERED';
+  bottomNav.style.display = screenId === 'screenLanding' && !hasAppSession ? 'none' : 'grid';
+}
+
+function updateBottomNavContext(screenId) {
+  const bottomNav = document.getElementById('bottomNav');
+  if (!bottomNav) return;
+
+  const isMatchContext = ['screenLiveScoring', 'screenScorecard', 'screenOvers'].includes(screenId);
+  bottomNav.dataset.context = isMatchContext ? 'match' : 'general';
+  bottomNav.querySelectorAll('[data-nav-context]').forEach(item => {
+    item.hidden = item.dataset.navContext !== bottomNav.dataset.context;
+  });
+
+  const screenNavIds = {
+    screenLanding: 'navHome',
+    screenNewMatch: 'navHome',
+    screenMatchList: 'navMatches',
+    screenPlayers: 'navPlayers',
+    screenStats: 'navStats',
+    screenLiveScoring: 'navLive',
+    screenScorecard: 'navScorecard',
+    screenOvers: 'navOvers',
+    screenTournaments: 'navMore'
+  };
+  const currentNavId = screenNavIds[screenId];
+  if (currentNavId) updateNavState(currentNavId);
+  const tourneyLink = document.getElementById('navTournaments');
+  if (tourneyLink) tourneyLink.classList.toggle('active', screenId === 'screenTournaments');
+}
+
+function toggleBottomNavMoreMenu() {
+  const menu = document.getElementById('bottomNavMoreMenu');
+  const button = document.getElementById('navMore');
+  if (!menu || !button) return;
+  const opening = menu.hidden;
+  menu.hidden = !opening;
+  button.setAttribute('aria-expanded', `${opening}`);
+  button.classList.toggle('active', opening || button.getAttribute('aria-current') === 'page');
+}
+
+function closeBottomNavMoreMenu() {
+  const menu = document.getElementById('bottomNavMoreMenu');
+  const button = document.getElementById('navMore');
+  if (menu) menu.hidden = true;
+  if (button) {
+    button.setAttribute('aria-expanded', 'false');
+    button.classList.toggle('active', button.getAttribute('aria-current') === 'page');
   }
 }
 
@@ -60,6 +106,8 @@ function showScreen(screenId) {
   const screen = document.getElementById(screenId);
   if (screen) screen.classList.add('active');
   updateBottomNavVisibility(screenId);
+  closeBottomNavMoreMenu();
+  updateBottomNavContext(screenId);
 }
 
 const PRIMARY_ACTION_MODAL_IDS = [
@@ -92,9 +140,121 @@ function openPrimaryActionModal(modalId) {
   if (el) el.classList.add('active');
 }
 
+function initializeDialogAccessibility() {
+  document.querySelectorAll('.modal-overlay').forEach((overlay, index) => {
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    const heading = overlay.querySelector('.modal h1, .modal h2, .modal h3');
+    if (heading) {
+      if (!heading.id) heading.id = `${overlay.id || 'dialog'}Title${index}`;
+      overlay.setAttribute('aria-labelledby', heading.id);
+      const closeButton = [...overlay.querySelectorAll('button')].find(button => /^(×|✕|x)$/i.test(button.textContent.trim()));
+      if (closeButton && !closeButton.hasAttribute('aria-label')) {
+        closeButton.setAttribute('aria-label', `Close ${heading.textContent.trim() || 'dialog'}`);
+      }
+    }
+  });
+}
+
 // Landing & Guest Mode Handlers
 function showLandingScreen() {
   showScreen('screenLanding');
+  renderHomeDashboard();
+}
+
+function updateQuickMatchProgress(currentStep) {
+  document.querySelectorAll('[data-quick-match-progress]').forEach(stepEl => {
+    const step = Number(stepEl.dataset.quickMatchProgress);
+    const isCurrent = step === currentStep;
+    stepEl.classList.toggle('is-current', isCurrent);
+    stepEl.classList.toggle('is-complete', step < currentStep);
+    if (isCurrent) stepEl.setAttribute('aria-current', 'step');
+    else stepEl.removeAttribute('aria-current');
+  });
+}
+
+function setQuickMatchStep(step) {
+  const nextStep = Number(step);
+  if (!Number.isInteger(nextStep) || nextStep < 0 || nextStep > 2) return;
+  activeQuickMatchStep = nextStep;
+  document.querySelectorAll('[data-quick-match-step]').forEach(panel => {
+    panel.hidden = Number(panel.dataset.quickMatchStep) !== activeQuickMatchStep;
+  });
+
+  const back = document.getElementById('quickMatchBack');
+  const next = document.getElementById('quickMatchContinue');
+  const start = document.getElementById('quickMatchStart');
+  if (back) back.hidden = activeQuickMatchStep === 0;
+  if (next) next.hidden = activeQuickMatchStep === 2;
+  if (start) start.hidden = activeQuickMatchStep !== 2;
+  updateQuickMatchProgress(activeQuickMatchStep);
+}
+
+function nextQuickMatchStep() {
+  if (activeQuickMatchStep === 1) {
+    if (matchSquadA.length < 1) {
+      showToast('Please add at least 1 player to Team A squad', 'warning');
+      return;
+    }
+    if (matchSquadB.length < 1) {
+      showToast('Please add at least 1 player to Team B squad', 'warning');
+      return;
+    }
+  }
+  setQuickMatchStep(activeQuickMatchStep + 1);
+}
+
+function previousQuickMatchStep() {
+  setQuickMatchStep(activeQuickMatchStep - 1);
+}
+
+async function renderHomeDashboard() {
+  const entry = document.getElementById('landingAuthEntry');
+  const dashboard = document.getElementById('homeDashboard');
+  const recentList = document.getElementById('homeRecentMatches');
+  if (!entry || !dashboard || !recentList) return;
+
+  const userMode = localStorage.getItem('cric_user_mode');
+  const hasAppSession = Boolean(window.CricStorage.getCurrentUser()) || userMode === 'GUEST' || userMode === 'REGISTERED';
+  entry.hidden = hasAppSession;
+  dashboard.hidden = !hasAppSession;
+  if (!hasAppSession) return;
+
+  recentList.replaceChildren();
+  try {
+    const matches = await window.CricStorage.listMatches();
+    const recentMatches = Array.isArray(matches)
+      ? matches.slice().sort((a, b) => (Date.parse(b.updatedAt || 0) || 0) - (Date.parse(a.updatedAt || 0) || 0)).slice(0, 3)
+      : [];
+    if (!recentMatches.length) {
+      const empty = document.createElement('div');
+      empty.className = 'home-recent-empty';
+      empty.textContent = 'No saved matches yet. Start a Quick Match to see it here.';
+      recentList.appendChild(empty);
+      return;
+    }
+
+    recentMatches.forEach(match => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'home-recent-match';
+      button.setAttribute('aria-label', `Open ${match.teamA?.name || 'Team A'} versus ${match.teamB?.name || 'Team B'}`);
+
+      const teams = document.createElement('span');
+      teams.className = 'home-recent-teams';
+      teams.textContent = `${match.teamA?.name || 'Team A'} vs ${match.teamB?.name || 'Team B'}`;
+
+      const score = document.createElement('span');
+      score.className = 'home-recent-meta';
+      score.textContent = `${match.totalRuns || 0}/${match.totalWickets || 0} · ${match.status || 'LIVE'}`;
+
+      button.append(teams, score);
+      button.addEventListener('click', () => selectMatch(match.id));
+      recentList.appendChild(button);
+    });
+  } catch (err) {
+    recentList.textContent = 'Unable to load recent matches. Open Match Center to try again.';
+  }
 }
 
 function continueAsGuest() {
@@ -110,7 +270,7 @@ function continueAsGuest() {
   localStorage.setItem('cric_user_mode', 'GUEST');
   updateAuthUI();
   showToast('Entered Guest Mode (Temporary Local Scoring)', 'info');
-  loadMatchListScreen();
+  showLandingScreen();
 }
 
 // Auth UI Controller
@@ -164,7 +324,7 @@ async function handleAuthSubmit() {
     }
     closeAuthModal();
     updateAuthUI();
-    loadMatchListScreen();
+    showLandingScreen();
   } catch (err) {
     showToast(`Auth error: ${err.message}`, 'danger');
   }
@@ -259,20 +419,53 @@ window.addEventListener('storage', (e) => {
 });
 
 function updateNavState(activeNavId) {
-  document.querySelectorAll('.bottom-nav-item').forEach(nav => nav.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item, .more-menu-action').forEach(nav => {
+    nav.classList.remove('active');
+    nav.removeAttribute('aria-current');
+  });
   const activeNav = document.getElementById(activeNavId);
-  if (activeNav) activeNav.classList.add('active');
+  if (activeNav) {
+    activeNav.classList.add('active');
+    activeNav.setAttribute('aria-current', 'page');
+  }
+}
+
+function updateMatchHubHeaders(activeView) {
+  const headers = document.querySelectorAll('[data-match-hub]');
+  const match = activeMatch;
+  headers.forEach(header => {
+    header.hidden = !match;
+    if (!match) return;
+
+    const teamA = match.teamA?.name || 'Team A';
+    const teamB = match.teamB?.name || 'Team B';
+    const innings = match.currentInnings || 1;
+    const overText = `${Math.floor((match.totalBalls || 0) / 6)}.${(match.totalBalls || 0) % 6} overs`;
+    const scoreText = `${match.totalRuns || 0}/${match.totalWickets || 0}`;
+    const inningsText = match.target ? `Innings ${innings} · Target ${match.target}` : `Innings ${innings}`;
+
+    header.querySelector('[data-match-hub-teams]').textContent = `${teamA} vs ${teamB}`;
+    header.querySelector('[data-match-hub-score]').textContent = scoreText;
+    header.querySelector('[data-match-hub-overs]').textContent = `${overText} · ${inningsText}`;
+    header.querySelectorAll('[data-match-view]').forEach(tab => {
+      const selected = tab.dataset.matchView === activeView;
+      tab.classList.toggle('active', selected);
+      tab.setAttribute('aria-current', selected ? 'page' : 'false');
+    });
+  });
 }
 
 function showLiveScreen() {
   updateNavState('navLive');
   showScreen('screenLiveScoring');
+  updateMatchHubHeaders('summary');
   renderLiveScoring();
 }
 
 function showScorecardScreen() {
   updateNavState('navScorecard');
   showScreen('screenScorecard');
+  updateMatchHubHeaders('scorecard');
   updateScorecardTabUI();
   renderScorecard();
 }
@@ -280,6 +473,7 @@ function showScorecardScreen() {
 function showOversScreen() {
   updateNavState('navOvers');
   showScreen('screenOvers');
+  updateMatchHubHeaders('overs');
   renderOvers();
 }
 
@@ -298,6 +492,7 @@ async function showPlayersScreen() {
 function showStatsScreen() {
   updateNavState('navStats');
   showScreen('screenStats');
+  updateMatchHubHeaders('stats');
   renderStats();
 }
 
@@ -1009,6 +1204,7 @@ function normalizePowerplayOvers(powerplayOvers, oversPerInnings) {
 
 async function showNewMatchScreen() {
   showScreen('screenNewMatch');
+  setQuickMatchStep(0);
 
   matchSquadA = [];
   matchSquadB = [];
@@ -1183,6 +1379,7 @@ async function handleCreateMatch() {
 
 function openTossModal() {
   if (!activeMatch) return;
+  updateQuickMatchProgress(3);
   const btnA = document.getElementById('tossBtnTeamA');
   const btnB = document.getElementById('tossBtnTeamB');
 
@@ -1254,11 +1451,16 @@ function updateTossButtonsUI() {
   const btnBat = document.getElementById('tossBtnBat');
   const btnBowl = document.getElementById('tossBtnBowl');
 
-  btnA.style.background = selectedTossWinnerId === activeMatch.teamA.id ? 'var(--primary-color)' : '#1e293b';
-  btnB.style.background = selectedTossWinnerId === activeMatch.teamB.id ? 'var(--primary-color)' : '#1e293b';
-
-  btnBat.style.background = selectedTossDecision === 'BAT' ? 'var(--accent-color)' : '#1e293b';
-  btnBowl.style.background = selectedTossDecision === 'BOWL' ? 'var(--accent-color)' : '#1e293b';
+  const choices = [
+    [btnA, selectedTossWinnerId === activeMatch.teamA.id],
+    [btnB, selectedTossWinnerId === activeMatch.teamB.id],
+    [btnBat, selectedTossDecision === 'BAT'],
+    [btnBowl, selectedTossDecision === 'BOWL']
+  ];
+  choices.forEach(([button, selected]) => {
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', `${selected}`);
+  });
 }
 
 async function confirmTossAndStart() {
@@ -1288,6 +1490,7 @@ async function confirmTossAndStart() {
   activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
   await window.CricStorage.createMatch(activeMatch);
 
+  updateQuickMatchProgress(4);
   showLiveScreen();
 }
 
@@ -1532,10 +1735,69 @@ function getLiveTickerMessage(match) {
   return formatBallForTicker(lastBall);
 }
 
+function getLiveThisOverData(match) {
+  const history = match.ballHistory || [];
+  const inningsStart = match.currentInnings === 2
+    ? Math.min(match.innings1Data?.recordedBallsCount || 0, history.length)
+    : 0;
+  const inningsHistory = history.slice(inningsStart);
+  const totalBalls = match.totalBalls || 0;
+  const ballsIntoOver = totalBalls % 6;
+  const isPhysicalBall = ball => window.ScoringEngine?.isPhysicalBall
+    ? window.ScoringEngine.isPhysicalBall(ball)
+    : !ball.isAdjustment && ball.extrasType !== 'WIDE' && ball.extrasType !== 'NO_BALL' && ball.wicketType !== 'RETIRED_HURT';
+
+  let startIndex = 0;
+  let overNumber = Math.floor(totalBalls / 6) + 1;
+
+  if (totalBalls > 0 && ballsIntoOver === 0) {
+    let lastPhysicalIndex = -1;
+    for (let i = inningsHistory.length - 1; i >= 0; i--) {
+      if (isPhysicalBall(inningsHistory[i])) {
+        lastPhysicalIndex = i;
+        break;
+      }
+    }
+
+    if (lastPhysicalIndex >= 0 && lastPhysicalIndex < inningsHistory.length - 1) {
+      startIndex = lastPhysicalIndex + 1;
+    } else {
+      overNumber = Math.max(1, totalBalls / 6);
+      let seenPhysicalBalls = 0;
+      for (let i = inningsHistory.length - 1; i >= 0; i--) {
+        if (isPhysicalBall(inningsHistory[i]) && ++seenPhysicalBalls > 6) {
+          startIndex = i + 1;
+          break;
+        }
+      }
+    }
+  } else if (ballsIntoOver > 0) {
+    let seenPhysicalBalls = 0;
+    for (let i = inningsHistory.length - 1; i >= 0; i--) {
+      if (isPhysicalBall(inningsHistory[i]) && ++seenPhysicalBalls > ballsIntoOver) {
+        startIndex = i + 1;
+        break;
+      }
+    }
+  }
+
+  return { balls: inningsHistory.slice(startIndex), overNumber };
+}
+
+function closeLiveMoreMenu() {
+  const menu = document.getElementById('liveMoreMenu');
+  if (menu) menu.open = false;
+}
+
 function renderLiveScoring() {
   window.activeMatch = activeMatch;
   const activeContainer = document.getElementById('liveScoringActiveContainer');
   const emptyContainer = document.getElementById('liveScoringEmptyContainer');
+  const activeScreen = document.querySelector('.screen.active')?.id;
+  const activeView = activeScreen === 'screenScorecard' ? 'scorecard'
+    : activeScreen === 'screenOvers' ? 'overs'
+      : activeScreen === 'screenStats' ? 'stats' : 'summary';
+  updateMatchHubHeaders(activeView);
 
   if (!activeMatch) {
     if (activeContainer) activeContainer.style.display = 'none';
@@ -1543,7 +1805,7 @@ function renderLiveScoring() {
     return;
   }
 
-  if (activeContainer) activeContainer.style.display = 'block';
+  if (activeContainer) activeContainer.style.display = '';
   if (emptyContainer) emptyContainer.style.display = 'none';
 
   const m = activeMatch;
@@ -1567,17 +1829,23 @@ function renderLiveScoring() {
   const scoringKeypad = document.getElementById('scoringKeypad');
   const goLiveBtn = document.getElementById('goLiveBtn');
   const btnSwapBatsmen = document.getElementById('btnSwapBatsmen');
+  const liveMoreMenu = document.getElementById('liveMoreMenu');
   const isScoringLockedByStatus = m.status === 'COMPLETED' || m.status === 'ABANDONED';
   const isSingleSideBatting = Boolean(m.gullyRules?.singleSideBatting);
+  document.querySelectorAll('[data-live-more-scoring]').forEach(button => {
+    button.style.display = isScoringLockedByStatus ? 'none' : '';
+  });
 
   if (isReadOnlySpectator) {
     if (spectatorBanner) spectatorBanner.style.display = 'block';
     if (scoringKeypad) scoringKeypad.style.display = 'none';
+    if (liveMoreMenu) liveMoreMenu.style.display = 'none';
     if (goLiveBtn) goLiveBtn.style.display = 'none';
     if (btnSwapBatsmen) btnSwapBatsmen.style.display = 'none';
   } else {
     if (spectatorBanner) spectatorBanner.style.display = 'none';
     if (scoringKeypad) scoringKeypad.style.display = isScoringLockedByStatus ? 'none' : 'grid';
+    if (liveMoreMenu) liveMoreMenu.style.display = 'block';
     if (goLiveBtn) goLiveBtn.style.display = 'block';
     if (btnSwapBatsmen) btnSwapBatsmen.style.display = (isScoringLockedByStatus || isSingleSideBatting) ? 'none' : 'flex';
   }
@@ -1679,13 +1947,14 @@ function renderLiveScoring() {
     document.getElementById('rrrText').innerText = `RRR: -`;
   }
 
-  // Recent Balls Chips
+  // This-over ball chips
   const recentContainer = document.getElementById('recentBalls');
   recentContainer.innerHTML = '';
-  const history = m.ballHistory || [];
-  const recent = history.slice(-8);
+  const thisOver = getLiveThisOverData(m);
+  const thisOverLabel = document.getElementById('thisOverLabel');
+  if (thisOverLabel) thisOverLabel.innerText = `Over ${thisOver.overNumber}`;
 
-  recent.forEach(b => {
+  thisOver.balls.forEach(b => {
     const div = document.createElement('div');
     div.className = 'ball-chip';
 
@@ -1698,15 +1967,7 @@ function renderLiveScoring() {
     } else if (b.isDroppedCatch || b.wasDroppedCatch) {
       div.classList.add('extra');
       div.innerText = `🤲${b.runs || 0}`;
-    } else if (b.runs === 4) {
-      div.classList.add('four');
-      div.innerText = '4';
-    } else if (b.runs === 6) {
-      div.classList.add('six');
-      div.innerText = '6';
-    } else if (b.runs === 1 && b.rotateStrike === false) {
-      div.innerText = '1G';
-    } else if (b.extrasType === 'GRANTED') {
+    } else if (b.extrasType === 'GRANTED' || (b.runs === 1 && b.rotateStrike === false)) {
       div.classList.add('extra');
       div.innerText = '1G';
     } else if (b.extrasType === 'WIDE') {
@@ -1722,6 +1983,12 @@ function renderLiveScoring() {
     } else if (b.extrasType === 'LEG_BYE') {
       div.classList.add('extra');
       div.innerText = `${b.extraRuns ?? 0}LB`;
+    } else if (b.runs === 4) {
+      div.classList.add('four');
+      div.innerText = '4';
+    } else if (b.runs === 6) {
+      div.classList.add('six');
+      div.innerText = '6';
     } else {
       div.innerText = b.runs || 0;
     }
@@ -1776,12 +2043,12 @@ function renderLiveScoring() {
       `;
 
       tr.innerHTML = `
-        <td style="font-weight:700; color:#fff;">
+        <td class="live-player-name-cell" style="font-weight:700;">
           <div style="display:flex; align-items:center; gap:2px;">
             <span>${p.name}</span>
             ${isC ? '<span class="badge-c">(C)</span>' : ''}
             ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
-            ${isStriker ? '<span class="striker-star">★</span>' : ''}
+            ${isStriker ? '<span class="striker-star">*</span>' : ''}
             ${editBtn}
           </div>
         </td>
@@ -1831,7 +2098,7 @@ function renderLiveScoring() {
     `;
 
     tr.innerHTML = `
-      <td style="font-weight:700; color:#fff;">
+      <td class="live-player-name-cell" style="font-weight:700;">
         <div style="display:flex; align-items:center; gap:2px;">
           <span>${bowler.name}</span>
           ${isC ? '<span class="badge-c">(C)</span>' : ''}
@@ -3322,20 +3589,20 @@ function renderScorecardInnings(tab) {
     </div>
 
     <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-top:12px;">Batting (${battingTeam?.name})</h4>
-    <table class="stats-table">
+    <div class="responsive-table-scroll"><table class="stats-table scorecard-responsive-table">
       <thead>
         <tr><th>Batter</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th style="text-align:right">SR</th></tr>
       </thead>
       <tbody>${batHtml}</tbody>
-    </table>
+    </table></div>
 
     <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-top:16px;">Bowling (${bowlingTeam?.name})</h4>
-    <table class="stats-table">
+    <div class="responsive-table-scroll"><table class="stats-table scorecard-responsive-table">
       <thead>
         <tr><th>Bowler</th><th style="text-align:right">O</th><th style="text-align:right">M</th><th style="text-align:right">R</th><th style="text-align:right">W</th><th style="text-align:right">ECO</th></tr>
       </thead>
       <tbody>${bowlHtml}</tbody>
-    </table>
+    </table></div>
 
     <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-top:16px;">Ball History ${(isReadOnlySpectator || isInningsView) ? '' : '(Tap to Edit)'}</h4>
     <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:10px;">${scorecardHistoryHtml}</div>
@@ -4433,6 +4700,7 @@ function drawOverByOverCanvasChart(match, i1Balls, i2Balls, color1, color2) {
 
 // Global initialization
 window.addEventListener('DOMContentLoaded', async () => {
+  initializeDialogAccessibility();
   updateAuthUI();
   updateScorecardTabUI();
   updateDeviceSyncStatus();
@@ -4474,12 +4742,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const user = window.CricStorage.getCurrentUser();
 
   if (user || userMode === 'GUEST' || userMode === 'REGISTERED') {
-    const matches = await window.CricStorage.listMatches();
-    if (matches && matches.length > 0) {
-      selectMatch(matches[0].id);
-    } else {
-      loadMatchListScreen();
-    }
+    showLandingScreen();
   } else {
     showLandingScreen();
   }

@@ -1,0 +1,163 @@
+You are modifying the existing CricScore Pro Web application.
+
+Repository: https://github.com/Ankojin/CricketScorer-web
+Version context: package.json 2.33.28 — public/ is the deployed SPA.
+
+This is UI/UX modernization "CricScore Pro UI v2".
+Attached: the full CricScore Pro UI v2 specification (repo-reviewed).
+
+═══════════════════════════════════════════════════════════════
+UNIVERSAL DIRECTIVE — APPLY TO EVERY PHASE
+═══════════════════════════════════════════════════════════════
+
+PRESERVE FUNCTIONALITY FIRST.
+
+Do NOT:
+- Rewrite the application or migrate frameworks
+- Change cricket scoring rules
+- Modify src/engine/ScoringEngine.ts for UI work
+- Hand-edit public/js/scoring-engine.js (rebuild only via npm run build)
+- Change public/js/storage.js data keys or API contracts
+- Change aws/ Lambda or DynamoDB schema
+- Remove existing features
+
+DO preserve:
+- Auth + Guest mode
+- Match creation, teams, players, overs, bowler limits, toss
+- Live scoring: 0–6, WD, NB, BYE, LEG_BYE, 1G, SWAP, WICKET, RETIRE, UNDO,
+  dropped-catch, other-runs, edit-ball
+- pendingAction modals (fielder, run-out, selection, extras, etc.)
+- Scorecard, Overs, Stats, Tournaments, Share, Spectator
+- Settings / Gully Rules
+- localStorage keys, cloud sync, offline behaviour
+
+UI MAY change:
+- Layout, CSS design system, navigation presentation
+- Progressive disclosure, modal chrome, responsive behaviour, accessibility
+
+Target nav:
+- General: Home · Matches · Teams · Stats · More
+- Active match: Live · Scorecard · Overs · More
+
+Quick Match flow: Teams → Players → Match Settings → Toss → Live Scoring
+
+Before any code change:
+1. Inspect existing handlers and element IDs
+2. Prefer keeping IDs that app.js binds to
+3. Make the smallest safe change
+
+After each phase:
+1. Check browser console
+2. Test the affected workflow
+3. Test mobile layout
+4. Verify scoring + persistence still work
+5. Report: files changed, tests performed, remaining risks
+6. STOP and wait for my approval before the next phase
+
+═══════════════════════════════════════════════════════════════
+EXECUTION RULE — CRITICAL
+═══════════════════════════════════════════════════════════════
+
+Implement ONE phase at a time.
+Do NOT implement multiple phases in a single response.
+After finishing a phase, stop and wait for me to say "proceed to Phase N".
+Start with Phase 2 (Phase 1 analysis is already complete in the attached doc).
+
+═══════════════════════════════════════════════════════════════
+PHASE PLAN (do in this order, one at a time)
+═══════════════════════════════════════════════════════════════
+
+PHASE 2 — Design system
+- File: public/css/styles.css (primary)
+- Add light-theme design tokens (see spec §17)
+- Component styles: buttons, cards, inputs, modals, nav, keypad, badges, tables
+- Keep existing class names where app.js/HTML depend on them
+- Do not restructure HTML yet
+
+PHASE 3 — Home / Match Center
+- Clear home: Quick Match, Web Score, Recent Matches
+- Keep guest/registered auth behaviour
+- Do not remove match list data or filters
+
+PHASE 4 — Quick Match wizard
+- Split dense screenNewMatch into steps:
+  Teams → Players → Match Settings → Toss → Live
+- Progress indicator
+- Progressive disclosure for player directory
+- Preserve all validation and persistence
+
+PHASE 5 — Toss
+- Minimal focused toss UI
+- Keep coin animation, winner, bat/bowl, start handlers
+
+PHASE 6 — Live Scoring (HIGHEST PRIORITY)
+
+Inspiration: Gully Crix web scorer layout (clean hierarchy, large score,
+this-over chips, calm keypad). Do NOT clone their compose-then-Next-ball
+model in this phase.
+
+Layout targets:
+- Dominant score (team, runs/wickets, overs)
+- CRR; RRR + target when chasing
+- This-over ball chips (colour for 4 / 6 / W / extras)
+- Batters (striker marked *) and current bowler
+- Keypad emphasis:
+    0  1  2  3
+    4  6  WD NB
+         WICKET
+          UNDO
+- Move secondary actions into a More menu:
+    1G, SWAP, BYE, LEG_BYE, OT, DROP, RETIRE,
+    Share live score, Scorecard, Overs, Settings, Delete match
+
+Preserve ALL existing handlers and flows:
+- addBall, addExtra, addGrantedRun, swapBatsmen
+- openWicketModal, handleRetireBatter, undoLastBall
+- openExtraRunsModal / submitNoBallWithRuns (NB + bat runs)
+- BYE / LEG_BYE / dropped-catch / other-runs / edit-ball
+- pendingAction modals — do not remove or bypass
+- spectator read-only (hide keypad)
+
+Do NOT:
+- Change ScoringEngine or ball data shape
+- Change storage keys or addBall API
+- Implement Gully-style "THIS BALL: nb + 2 → Next ball" commit flow
+  (existing extra-runs modal is enough for Phase 6)
+- Remove any scoring capability
+
+Mobile-first, large touch targets (~44px+), WICKET visually prominent,
+UNDO clearly separated from run buttons.
+
+When done: list files changed, confirm each scoring action still works,
+stop and wait for approval before Phase 7.
+
+PHASE 7 — Wicket / extras modal chrome
+- Cleaner wicket / fielder / run-out / dropped-catch / extra-runs presentation
+- Same handlers and state machine
+
+PHASE 8 — Scorecard / Overs / Stats
+- Match header + tabs: Summary | Scorecard | Overs | Stats
+- Preserve all calculated data; stacked cards on mobile if needed
+
+PHASE 9 — Bottom navigation
+- General: Home · Matches · Teams · Stats · More
+- Active match: Live · Scorecard · Overs · More
+- Map existing showScreen / nav* handlers; do not delete screens
+
+PHASE 10 — Responsive + accessibility
+- Mobile / tablet / desktop
+- Focus states, labels, aria, contrast, touch targets
+- No horizontal scroll; keypad always usable
+
+PHASE 11 — Full regression
+- Run through the matrix in the spec (§23)
+- npm test and Playwright e2e where possible
+- List passed / failed / remaining issues
+
+═══════════════════════════════════════════════════════════════
+START NOW
+═══════════════════════════════════════════════════════════════
+
+Begin with PHASE 2 only.
+When Phase 2 is done, stop and report files changed + what I should test.
+Do not continue to Phase 3 until I say so.
