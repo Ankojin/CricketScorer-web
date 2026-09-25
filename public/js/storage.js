@@ -12,10 +12,18 @@ const CricStorage = {
     }
   },
 
+  isGuestUser() {
+    const userMode = localStorage.getItem('cric_user_mode');
+    const token = localStorage.getItem('cric_auth_token');
+    return userMode === 'GUEST' || !token || token.startsWith('token_local');
+  },
+
   getAuthHeaders() {
     const token = localStorage.getItem('cric_auth_token');
     const headers = { 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    if (token && !token.startsWith('token_local')) {
+      headers.Authorization = `Bearer ${token}`;
+    }
     return headers;
   },
 
@@ -96,7 +104,7 @@ const CricStorage = {
       try { localMatches = JSON.parse(raw); } catch (e) { localMatches = []; }
     }
 
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/matches`, { headers: this.getAuthHeaders() });
         if (res.ok) {
@@ -126,7 +134,7 @@ const CricStorage = {
   },
 
   async getMatch(matchId) {
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { headers: this.getAuthHeaders() });
         if (res.ok) return await res.json();
@@ -145,7 +153,7 @@ const CricStorage = {
 
     this.saveLocalMatchBackup(match);
 
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       fetch(`${window.CRIC_API_BASE}/matches`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
@@ -154,10 +162,10 @@ const CricStorage = {
         if (res.ok) {
           this.notifyToast('🟢 Match saved & synced to AWS Cloud', 'success');
         } else {
-          this.notifyToast('🟡 Saved locally (API error)', 'warning');
+          this.notifyToast('💾 Saved locally', 'info');
         }
       }).catch(err => {
-        this.notifyToast('🟡 Saved locally (Offline mode)', 'warning');
+        this.notifyToast('💾 Saved locally (Offline mode)', 'info');
       });
     } else {
       this.notifyToast('💾 Saved locally', 'info');
@@ -171,7 +179,7 @@ const CricStorage = {
 
     this.saveLocalMatchBackup(match);
 
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       fetch(`${window.CRIC_API_BASE}/matches/${match.id}`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
@@ -180,10 +188,10 @@ const CricStorage = {
         if (res.ok) {
           this.notifyToast('🟢 Match updated on AWS Cloud', 'success');
         } else {
-          this.notifyToast('🟡 Saved locally (API error)', 'warning');
+          this.notifyToast('💾 Saved locally', 'info');
         }
       }).catch(err => {
-        this.notifyToast('🟡 Saved locally (Offline mode)', 'warning');
+        this.notifyToast('💾 Saved locally (Offline mode)', 'info');
       });
     }
 
@@ -193,7 +201,7 @@ const CricStorage = {
   async deleteMatch(matchId) {
     let cloudSuccess = true;
 
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { method: 'DELETE', headers: this.getAuthHeaders() });
         if (!res.ok) {
@@ -210,10 +218,10 @@ const CricStorage = {
     const updated = matches.filter(m => m.id !== matchId);
     localStorage.setItem('cric_matches', JSON.stringify(updated));
 
-    if (cloudSuccess) {
+    if (cloudSuccess && !this.isGuestUser()) {
       this.notifyToast('🟢 Match deleted from Cloud', 'success');
     } else {
-      this.notifyToast('🟡 Match deleted locally (Cloud sync failed or offline)', 'warning');
+      this.notifyToast('💾 Match deleted locally', 'info');
     }
 
     return updated;
@@ -248,8 +256,7 @@ const CricStorage = {
 
   async updateBall(matchId, index, updatedBall) {
     const match = await this.getMatch(matchId);
-    if (!match || !Array.isArray(match.ballHistory)) return match;
-    if (index < 0 || index >= match.ballHistory.length) return match;
+    if (!match || !Array.isArray(match.ballHistory) || index < 0 || index >= match.ballHistory.length) return match;
 
     const newHistory = [...match.ballHistory];
     newHistory[index] = updatedBall;
@@ -291,7 +298,7 @@ const CricStorage = {
       try { localTourneys = JSON.parse(raw); } catch (e) { localTourneys = []; }
     }
 
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/tournaments`, { headers: this.getAuthHeaders() });
         if (res.ok) {
@@ -324,7 +331,7 @@ const CricStorage = {
     if (!tournament.id) tournament.id = 'tourney_' + Date.now();
     tournament.updatedAt = new Date().toISOString();
 
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       fetch(`${window.CRIC_API_BASE}/tournaments`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
@@ -342,7 +349,7 @@ const CricStorage = {
   async deleteTournament(tournamentId) {
     let cloudSuccess = true;
 
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/tournaments/${tournamentId}`, { method: 'DELETE', headers: this.getAuthHeaders() });
         if (!res.ok) {
@@ -367,10 +374,10 @@ const CricStorage = {
       localStorage.setItem('cric_matches', JSON.stringify(updatedMatches));
     }
 
-    if (cloudSuccess) {
+    if (cloudSuccess && !this.isGuestUser()) {
       this.notifyToast('🟢 Series and associated matches deleted from Cloud', 'success');
     } else {
-      this.notifyToast('🟡 Series deleted locally (Cloud sync failed or offline)', 'warning');
+      this.notifyToast('💾 Series deleted locally', 'info');
     }
 
     return updatedTourneys;
@@ -378,7 +385,7 @@ const CricStorage = {
 
   // ------------------- GLOBAL PLAYERS -------------------
   async listGlobalPlayers() {
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/players`, { headers: this.getAuthHeaders() });
         if (res.ok) {
@@ -397,7 +404,7 @@ const CricStorage = {
   async addGlobalPlayer(player) {
     player.id = player.id || 'gp_' + Date.now();
 
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       fetch(`${window.CRIC_API_BASE}/players`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
@@ -413,7 +420,7 @@ const CricStorage = {
   },
 
   async deleteGlobalPlayer(playerId) {
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       fetch(`${window.CRIC_API_BASE}/players/${playerId}`, { method: 'DELETE', headers: this.getAuthHeaders() }).catch(console.warn);
     }
 

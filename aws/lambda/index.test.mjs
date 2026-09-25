@@ -347,4 +347,53 @@ describe('Lambda API Handler & Security Tests', () => {
     assert.equal(errorRes.headers['Access-Control-Allow-Headers'], undefined);
   });
 
+  test('12. GET /matches/{id} for a valid match record succeeds without Authorization header (Spectator Read Path)', async () => {
+    const matchId = 'match_spectator_123';
+    mockDb.set(matchId, {
+      matchId,
+      docType: 'MATCH',
+      payload: {
+        id: matchId,
+        status: 'LIVE',
+        totalRuns: 14,
+        totalWickets: 1,
+        teamA: { name: 'Rockets', players: [] },
+        teamB: { name: 'Thunder', players: [] }
+      }
+    });
+
+    const event = createEvent('GET', `/matches/${matchId}`, null, null, { id: matchId });
+    const res = await handler(event);
+
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.id, matchId);
+    assert.equal(body.totalRuns, 14);
+    assert.equal(body.teamA.name, 'Rockets');
+  });
+
+  test('13. Unauthenticated request CANNOT mutate match via PUT or DELETE (Spectator Mutation Protection)', async () => {
+    const matchId = 'match_spectator_protected';
+    mockDb.set(matchId, {
+      matchId,
+      docType: 'MATCH',
+      payload: { id: matchId, status: 'LIVE', totalRuns: 10 }
+    });
+
+    // Attempt unauthenticated PUT
+    const putEvent = createEvent('PUT', `/matches/${matchId}`, { status: 'COMPLETED', totalRuns: 999 }, null, { id: matchId });
+    const putRes = await handler(putEvent);
+    assert.equal(putRes.statusCode, 401);
+
+    // Attempt unauthenticated DELETE
+    const delEvent = createEvent('DELETE', `/matches/${matchId}`, null, null, { id: matchId });
+    const delRes = await handler(delEvent);
+    assert.equal(delRes.statusCode, 401);
+
+    // Verify match in DB was NOT mutated or deleted
+    const stored = mockDb.get(matchId);
+    assert.ok(stored);
+    assert.equal(stored.payload.totalRuns, 10);
+  });
+
 });

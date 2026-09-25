@@ -522,11 +522,15 @@ export class ScoringEngine {
       const safeNonStrikerId =
         !Boolean(current.gullyRules?.singleSideBatting) && safeNonStrikerRaw && safeNonStrikerRaw !== safeStrikerId ? safeNonStrikerRaw : null;
 
+      // Preserve explicitly selected currentBowlerId when replaying ballHistory ends on an over boundary
+      const explicitBowlerId = this.ensureTeamPlayer(match.currentBowlerId, currentBowlingTeam);
+      const activeBowlerId = current.currentBowlerId || explicitBowlerId;
+
       current = {
         ...current,
         strikerId: safeStrikerId,
         nonStrikerId: safeNonStrikerId,
-        currentBowlerId: this.ensureTeamPlayer(current.currentBowlerId, currentBowlingTeam),
+        currentBowlerId: activeBowlerId,
         lastBowlerId: this.ensureTeamPlayer(current.lastBowlerId, currentBowlingTeam)
       };
 

@@ -1003,9 +1003,10 @@ async function handleCreateMatch() {
     return;
   }
 
-  const overs = parseInt(document.getElementById('matchOvers').value) || 5;
-  const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers').value) || 2;
-  const powerplayOversRaw = parseInt(document.getElementById('matchPowerplayOvers').value, 10);
+  const overs = parseInt(document.getElementById('matchOvers')?.value) || 5;
+  const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers')?.value) || 2;
+  const powerplayEl = document.getElementById('matchPowerplayOvers');
+  const powerplayOversRaw = powerplayEl ? parseInt(powerplayEl.value, 10) : NaN;
   const tourneyDefaults = getTournamentDefaults(activeTournament);
   const saveForReuse = document.getElementById('saveTeamsForReuse').checked;
   const effectivePowerplay = normalizePowerplayOvers(
@@ -1442,10 +1443,17 @@ function getLiveTickerMessage(match) {
 }
 
 function renderLiveScoring() {
+  const activeContainer = document.getElementById('liveScoringActiveContainer');
+  const emptyContainer = document.getElementById('liveScoringEmptyContainer');
+
   if (!activeMatch) {
-    loadMatchListScreen();
+    if (activeContainer) activeContainer.style.display = 'none';
+    if (emptyContainer) emptyContainer.style.display = 'block';
     return;
   }
+
+  if (activeContainer) activeContainer.style.display = 'block';
+  if (emptyContainer) emptyContainer.style.display = 'none';
 
   const m = activeMatch;
   const isBattingA = m.battingTeamId === m.teamA?.id;
@@ -1913,15 +1921,14 @@ function openPlayerSelection(type) {
 
     const allBowlers = (bowlingTeam?.players || []);
     const strictEligible = allBowlers.filter(p => getBowlerSelectionBlockers(m, p).length === 0);
-    const allowLastBowlerFallback = strictEligible.length === 0;
+    const allowFallback = strictEligible.length === 0;
 
     allBowlers.forEach(p => {
       const isLastBowler = p.id === m.lastBowlerId;
       const isCurrent = p.id === m.currentBowlerId;
       const stats = p.bowlingStats || { overs: 0, balls: 0, runsConceded: 0, wickets: 0 };
       const blockers = getBowlerSelectionBlockers(m, p);
-      const onlyLastBowlerBlocked = blockers.length === 1 && blockers[0] === 'last-bowler';
-      const isDisabled = blockers.length > 0 && !(allowLastBowlerFallback && onlyLastBowlerBlocked);
+      const isDisabled = blockers.length > 0 && !allowFallback;
 
       const item = document.createElement('div');
       item.className = `bowler-option ${isDisabled ? 'disabled' : ''}`;
@@ -1937,10 +1944,10 @@ function openPlayerSelection(type) {
 
       let tag = '';
       if (isCurrent) tag = '<span style="font-size:10px; color:#60a5fa; margin-left:4px;">(Current)</span>';
+      else if (allowFallback && blockers.length > 0) tag = '<span style="font-size:10px; color:#f59e0b; margin-left:4px;">(Fallback Allowed)</span>';
       else if (isLastBowler && isDisabled) tag = '<span style="font-size:10px; color:#fca5a5; margin-left:4px;">(Last Bowler)</span>';
       else if (blockers.includes('quota-complete')) tag = '<span style="font-size:10px; color:#fca5a5; margin-left:4px;">(Quota Completed)</span>';
       else if (blockers.includes('quota-bowlers-count')) tag = '<span style="font-size:10px; color:#fca5a5; margin-left:4px;">(Quota Bowlers Limit)</span>';
-      else if (isLastBowler && !isDisabled) tag = '<span style="font-size:10px; color:#f59e0b; margin-left:4px;">(Fallback Allowed)</span>';
 
       item.innerHTML = `
         <div>
@@ -3546,70 +3553,116 @@ function renderSeriesTeamSelectedPlayers() {
 
 async function populateSeriesTeamPlayerPicker() {
   const pickEl = document.getElementById('seriesTeamPlayerPick');
+  const checklistEl = document.getElementById('seriesTeamPlayerChecklist');
   const searchEl = document.getElementById('seriesTeamPlayerSearch');
-  if (!pickEl) return;
 
   const players = await window.CricStorage.listGlobalPlayers();
   seriesTeamGlobalPlayerCache = (Array.isArray(players) ? players : [])
     .slice()
     .sort((a, b) => (a.name || '').localeCompare((b.name || ''), undefined, { sensitivity: 'base' }));
-  const searchQuery = (searchEl?.value || '').trim().toLowerCase();
 
-  if (!seriesTeamGlobalPlayerCache.length) {
-    pickEl.innerHTML = '<option value="">No players in directory</option>';
-    pickEl.disabled = true;
-    return;
+  filterSeriesTeamPlayerPicker();
+}
+
+function getPlayerSeriesTeamStatus(player, currentModalTeamName = '') {
+  if (seriesTeamSelectedPlayers.some(sp => sp.id === player.id || sp.name.toLowerCase() === player.name.toLowerCase())) {
+    const labelName = currentModalTeamName ? `In ${currentModalTeamName}` : 'Already Added';
+    return { label: labelName, color: '#34d399' };
   }
 
-  const filteredPlayers = searchQuery
-    ? seriesTeamGlobalPlayerCache.filter(p => (p.name || '').toLowerCase().includes(searchQuery))
-    : seriesTeamGlobalPlayerCache;
-
-  if (!filteredPlayers.length) {
-    pickEl.innerHTML = '<option value="">No matching players</option>';
-    pickEl.disabled = true;
-    return;
+  if (activeTournament && Array.isArray(activeTournament.teams)) {
+    for (const team of activeTournament.teams) {
+      if ((team.players || []).some(p => p.id === player.id || p.name.toLowerCase() === player.name.toLowerCase())) {
+        return { label: `In ${team.name}`, color: '#38bdf8' };
+      }
+    }
   }
 
-  pickEl.disabled = false;
-  pickEl.innerHTML = '<option value="">Select player from directory</option>' +
-    filteredPlayers
-      .map(p => `<option value="${p.id}">${p.name}</option>`)
-      .join('');
+  return { label: 'Unassigned', color: '#94a3b8' };
 }
 
 function filterSeriesTeamPlayerPicker() {
   const pickEl = document.getElementById('seriesTeamPlayerPick');
-  if (pickEl) {
-    pickEl.value = '';
-  }
-
+  const checklistEl = document.getElementById('seriesTeamPlayerChecklist');
   const searchEl = document.getElementById('seriesTeamPlayerSearch');
+  if (!pickEl || !checklistEl) return;
+
   const searchQuery = (searchEl?.value || '').trim().toLowerCase();
-
-  if (!seriesTeamGlobalPlayerCache.length) {
-    return;
-  }
-
   const filteredPlayers = searchQuery
     ? seriesTeamGlobalPlayerCache.filter(p => (p.name || '').toLowerCase().includes(searchQuery))
     : seriesTeamGlobalPlayerCache;
 
-  if (!pickEl) return;
   if (!filteredPlayers.length) {
     pickEl.innerHTML = '<option value="">No matching players</option>';
     pickEl.disabled = true;
+    checklistEl.innerHTML = '<div style="font-size:11px; color:var(--text-muted);">No matching players</div>';
     return;
   }
 
+  const currentModalTeamName = document.getElementById('newTeamName')?.value.trim() || 'This Team';
+
   pickEl.disabled = false;
   pickEl.innerHTML = '<option value="">Select player from directory</option>' +
-    filteredPlayers.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    filteredPlayers.map(p => {
+      const status = getPlayerSeriesTeamStatus(p, currentModalTeamName);
+      return `<option value="${p.id}">${p.name} (${p.role || 'Batter'}) • [${status.label}]</option>`;
+    }).join('');
+
+  checklistEl.innerHTML = filteredPlayers.map((p, idx) => {
+    const isAlreadySelected = seriesTeamSelectedPlayers.some(sp => sp.id === p.id || sp.name.toLowerCase() === p.name.toLowerCase());
+    const status = getPlayerSeriesTeamStatus(p, currentModalTeamName);
+    const inputId = `chk_series_${idx}`;
+
+    return `
+      <label for="${inputId}" style="display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12px; color:#e2e8f0; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.03);">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <input id="${inputId}" type="checkbox" value="${p.id}" ${isAlreadySelected ? 'checked disabled' : ''} style="accent-color:var(--primary-color);">
+          <span style="font-weight:600;">${p.name}</span>
+          <span style="font-size:10px; color:var(--text-muted);">(${p.role || 'Batter'})</span>
+        </div>
+        <span style="font-size:10px; font-weight:800; color:${status.color}; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">${status.label}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+function addCheckedSeriesTeamPlayers() {
+  const checklistEl = document.getElementById('seriesTeamPlayerChecklist');
+  if (!checklistEl) return;
+
+  const checkedInputs = Array.from(checklistEl.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)'));
+  if (!checkedInputs.length) {
+    showToast('Select at least one player to add', 'warning');
+    return;
+  }
+
+  let addedCount = 0;
+  checkedInputs.forEach(input => {
+    const pId = input.value;
+    const selected = seriesTeamGlobalPlayerCache.find(p => p.id === pId);
+    if (selected && !seriesTeamSelectedPlayers.some(sp => sp.id === selected.id)) {
+      seriesTeamSelectedPlayers.push({
+        id: selected.id,
+        name: selected.name,
+        role: selected.role || 'Batter',
+        style: selected.style || 'RHB'
+      });
+      addedCount++;
+    }
+  });
+
+  renderSeriesTeamSelectedPlayers();
+  filterSeriesTeamPlayerPicker();
+
+  if (addedCount > 0) {
+    showToast(`Added ${addedCount} player${addedCount > 1 ? 's' : ''} to squad`, 'success');
+  }
 }
 
 function removeSeriesTeamPlayer(playerId) {
   seriesTeamSelectedPlayers = seriesTeamSelectedPlayers.filter(p => p.id !== playerId);
   renderSeriesTeamSelectedPlayers();
+  filterSeriesTeamPlayerPicker();
 }
 
 async function addSeriesTeamPlayerFromPicker() {
@@ -3634,6 +3687,7 @@ async function addSeriesTeamPlayerFromPicker() {
 
   pickEl.value = '';
   renderSeriesTeamSelectedPlayers();
+  filterSeriesTeamPlayerPicker();
 }
 
 async function openNewTeamModal(tournamentId = null) {
