@@ -3,7 +3,8 @@
 let activeMatch = null;
 let activeTournament = null;
 let activeTourneySubTab = 'TEAMS'; // TEAMS, MATCHES, TABLE, STATS
-let activeScorecardTab = 'FULL'; // FULL, INNINGS1, INNINGS2
+let activeScorecardTab = 'INNINGS1'; // INNINGS1, INNINGS2
+let activeOversInningsTab = 'INNINGS1'; // INNINGS1, INNINGS2
 let tournamentModalMode = 'CREATE'; // CREATE | EDIT
 let editingTournamentId = null;
 
@@ -21,6 +22,7 @@ let seriesTeamGlobalPlayerCache = []; // Cached global player directory for moda
 let matchSquadA = []; // Array of { id, name, isCaptain, isViceCaptain }
 let matchSquadB = []; // Array of { id, name, isCaptain, isViceCaptain }
 let matchGlobalPlayerCache = []; // Cached global players for Create Match directory filtering
+let activeMatchFilter = 'ALL';
 
 // Toast Notification System
 function showToast(msg, type = 'info') {
@@ -65,6 +67,7 @@ const PRIMARY_ACTION_MODAL_IDS = [
   'selectionModal',
   'extraRunsModal',
   'otherRunsModal',
+  'firstInningsModal',
   'droppedCatchFielderModal',
   'droppedCatchRunsModal',
   'wicketModal',
@@ -460,6 +463,7 @@ async function exportTournamentSnapshot(tournamentId) {
 }
 
 function setScorecardTab(tab) {
+  if (!['INNINGS1', 'INNINGS2'].includes(tab)) return;
   activeScorecardTab = tab;
   updateScorecardTabUI();
   renderScorecard();
@@ -467,7 +471,6 @@ function setScorecardTab(tab) {
 
 function updateScorecardTabUI() {
   const map = [
-    ['scorecardTabFull', 'FULL'],
     ['scorecardTabI1', 'INNINGS1'],
     ['scorecardTabI2', 'INNINGS2']
   ];
@@ -495,7 +498,18 @@ async function loadMatchListScreen() {
     return;
   }
 
-  matches.forEach(m => {
+  const filteredMatches = matches.filter(m => {
+    if (activeMatchFilter === 'LIVE') return !['COMPLETED', 'ABANDONED'].includes(m.status);
+    if (activeMatchFilter === 'COMPLETED') return m.status === 'COMPLETED';
+    return true;
+  });
+  if (!filteredMatches.length) {
+    const label = activeMatchFilter === 'LIVE' ? 'live' : 'completed';
+    listEl.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">No ${label} matches found.</div>`;
+    return;
+  }
+
+  filteredMatches.forEach(m => {
     const item = document.createElement('div');
     item.className = 'match-card-item';
 
@@ -525,6 +539,45 @@ async function loadMatchListScreen() {
     `;
     listEl.appendChild(item);
   });
+}
+
+function setOversInningsTab(tab) {
+  if (!['INNINGS1', 'INNINGS2'].includes(tab)) return;
+  activeOversInningsTab = tab;
+  renderOvers();
+}
+
+function updateOversTabUI(hasSecondInnings) {
+  const firstButton = document.getElementById('oversTabI1');
+  const secondButton = document.getElementById('oversTabI2');
+  if (secondButton) secondButton.style.display = hasSecondInnings ? '' : 'none';
+  if (!hasSecondInnings) activeOversInningsTab = 'INNINGS1';
+  [[firstButton, 'INNINGS1'], [secondButton, 'INNINGS2']].forEach(([button, tab]) => {
+    if (!button) return;
+    const active = activeOversInningsTab === tab;
+    button.style.background = active ? 'var(--primary-color)' : 'transparent';
+    button.style.color = active ? '#fff' : 'var(--text-muted)';
+    button.setAttribute('aria-pressed', `${active}`);
+  });
+}
+
+function setMatchFilter(filter) {
+  if (!['ALL', 'LIVE', 'COMPLETED'].includes(filter)) return;
+  activeMatchFilter = filter;
+  const styles = {
+    ALL: 'matchFilterAll',
+    LIVE: 'matchFilterLive',
+    COMPLETED: 'matchFilterCompleted'
+  };
+  Object.entries(styles).forEach(([value, id]) => {
+    const button = document.getElementById(id);
+    if (!button) return;
+    const active = value === filter;
+    button.style.background = active ? 'var(--primary-color)' : 'transparent';
+    button.style.color = active ? '#fff' : 'var(--text-muted)';
+    button.setAttribute('aria-pressed', `${active}`);
+  });
+  loadMatchListScreen();
 }
 
 async function handleDeleteMatch(matchId, event) {
@@ -1842,19 +1895,14 @@ function formatRemainingOvers(stats, maxOvers) {
 
 async function startSecondInnings() {
   if (!activeMatch || isReadOnlySpectator) return;
-  const previousBattingTeamId = activeMatch.battingTeamId;
-
+  const modal = document.getElementById('firstInningsModal');
+  if (modal) modal.classList.remove('active');
+  if (activeMatch.currentInnings !== 2 || !activeMatch.innings1Data) return;
   activeMatch.isSecondInningsStarted = true;
   activeMatch.pendingAction = 'SELECT_STRIKER';
-  activeMatch.battingTeamId = activeMatch.bowlingTeamId;
-  activeMatch.bowlingTeamId = previousBattingTeamId;
-  activeMatch.strikerId = null;
-  activeMatch.nonStrikerId = null;
-  activeMatch.currentBowlerId = null;
-  activeMatch.lastBowlerId = null;
 
   activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
-  await window.CricStorage.saveMatch(activeMatch);
+  activeMatch = await window.CricStorage.saveMatch(activeMatch);
   showToast('Innings 2 Started! Please select 2nd Innings Striker', 'info');
   renderLiveScoring();
 }
@@ -1863,7 +1911,7 @@ function promptPendingAction(action) {
   if (action === 'START_SECOND_INNINGS') {
     const overEndModal = document.getElementById('overEndModal');
     if (overEndModal && overEndModal.classList.contains('active')) return;
-    startSecondInnings();
+    showFirstInningsCompleteModal();
   } else if (action === 'SELECT_STRIKER' || action === 'REPLACE_STRIKER') {
     openPlayerSelection('STRIKER');
   } else if (action === 'SELECT_NON_STRIKER' || action === 'REPLACE_NON_STRIKER') {
@@ -1895,6 +1943,24 @@ function promptPendingAction(action) {
     const modal = document.getElementById('tossModal');
     if (!modal || !modal.classList.contains('active')) openTossModal();
   }
+}
+
+function showFirstInningsCompleteModal() {
+  if (!activeMatch?.innings1Data) return;
+  const first = activeMatch.innings1Data;
+  const battingTeam = [activeMatch.teamA, activeMatch.teamB].find(team => team?.id === first.teamId);
+  const bowlingTeam = [activeMatch.teamA, activeMatch.teamB].find(team => team?.id !== first.teamId);
+  const score = `${first.runs || 0}/${first.wickets || 0}`;
+  const overs = `${Math.floor((first.balls || 0) / 6)}.${(first.balls || 0) % 6}`;
+  const summary = document.getElementById('firstInningsSummary');
+  if (summary) {
+    summary.innerHTML = `
+      <div style="font-size:16px; font-weight:800; margin-bottom:8px;">${battingTeam?.name || 'Batting team'}: ${score} (${overs} overs)</div>
+      <div style="font-size:14px; color:var(--text-muted);">${bowlingTeam?.name || 'Chasing team'} need <strong style="color:#fff;">${activeMatch.target || (Number(first.runs || 0) + 1)}</strong> runs to win.</div>
+      <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Target: ${activeMatch.target || (Number(first.runs || 0) + 1)}</div>
+    `;
+  }
+  openPrimaryActionModal('firstInningsModal');
 }
 
 function setPendingAction(action) {
@@ -2632,6 +2698,10 @@ async function swapBatsmen() {
 
 function checkAndShowOverEndModal() {
   if (!activeMatch) return;
+  if (activeMatch.pendingAction === 'START_SECOND_INNINGS') {
+    showFirstInningsCompleteModal();
+    return;
+  }
   const titleEl = document.getElementById('overEndTitle');
   const bodyEl = document.getElementById('overEndBody');
   const statsEl = document.getElementById('overEndBowlerStats');
@@ -2648,6 +2718,21 @@ function checkAndShowOverEndModal() {
   titleEl.innerText = `End of Over ${lastOver.overNumber}`;
   bodyEl.innerText = `Runs in Over: ${lastOver.runs} | Wickets: ${lastOver.wickets}`;
 
+  const matchScoresEl = document.getElementById('overEndMatchScores');
+  if (matchScoresEl) {
+    const innings1 = activeMatch.innings1Data;
+    const teamScore = team => {
+      if (innings1?.teamId === team?.id) {
+        return `${innings1.runs || 0}/${innings1.wickets || 0}`;
+      }
+      if (activeMatch.battingTeamId === team?.id) {
+        return `${activeMatch.totalRuns || 0}/${activeMatch.totalWickets || 0}`;
+      }
+      return 'Yet to bat';
+    };
+    matchScoresEl.innerText = `${activeMatch.teamA?.name || 'Team A'} ${teamScore(activeMatch.teamA)}  •  ${activeMatch.teamB?.name || 'Team B'} ${teamScore(activeMatch.teamB)}`;
+  }
+
   if (lastBowler) {
     const stats = lastBowler.bowlingStats || { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
     statsEl.innerText = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts`;
@@ -2663,7 +2748,7 @@ function checkAndShowOverEndModal() {
     } else if (action === 'SELECT_STRIKER' || action === 'REPLACE_STRIKER' || action === 'SELECT_NON_STRIKER' || action === 'REPLACE_NON_STRIKER') {
       continueBtn.innerText = 'Select Next Batter';
     } else if (action === 'START_SECOND_INNINGS') {
-      continueBtn.innerText = 'Start Next Innings';
+      continueBtn.innerText = 'Continue';
     } else {
       continueBtn.innerText = 'Continue';
     }
@@ -2684,7 +2769,7 @@ function closeOverEndModal() {
 
 let pendingEditBallIndex = -1;
 
-function getOverGroupsWithIndices(match) {
+function getOverGroupsWithIndices(match, indexOffset = 0) {
   const groups = [];
   if (!match || !Array.isArray(match.ballHistory)) return groups;
 
@@ -2693,7 +2778,7 @@ function getOverGroupsWithIndices(match) {
   let physical = 0;
 
   match.ballHistory.forEach((ball, index) => {
-    currentBalls.push({ ball, index });
+    currentBalls.push({ ball, index: index + indexOffset });
     if (window.ScoringEngine.isPhysicalBall(ball)) {
       physical++;
       if (physical === 6) {
@@ -2824,7 +2909,9 @@ async function submitWicket() {
   };
 
   closeWicketModal();
+  const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  if ((activeMatch.totalBalls || 0) > prevBalls && activeMatch.totalBalls % 6 === 0) checkAndShowOverEndModal();
   renderLiveScoring();
 }
 
@@ -2929,7 +3016,10 @@ async function confirmFielderWicket() {
   pendingRunOutContext = null;
   pendingFielderWicketType = null;
   closeFielderModal();
+  await window.CricStorage.saveMatch(activeMatch);
+  const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  if ((activeMatch.totalBalls || 0) > prevBalls && activeMatch.totalBalls % 6 === 0) checkAndShowOverEndModal();
   renderLiveScoring();
 }
 
@@ -3015,6 +3105,7 @@ async function confirmRunOutWicket() {
   clearPendingAction('SELECT_RUNS_WICKET');
 
   const prevBalls = activeMatch.totalBalls || 0;
+  await window.CricStorage.saveMatch(activeMatch);
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
 
   const newBalls = activeMatch.totalBalls || 0;
@@ -3064,6 +3155,11 @@ function formatDismissalText(s, bowlingTeam) {
 
 function renderScorecard() {
   if (!activeMatch) return;
+  renderScorecardInnings(activeScorecardTab);
+}
+
+function renderScorecardInnings(tab) {
+  if (!activeMatch) return;
   const content = document.getElementById('scorecardContent');
   const baseMatch = activeMatch;
   const allHistory = baseMatch.ballHistory || [];
@@ -3072,10 +3168,10 @@ function renderScorecard() {
   let inningsLabel = 'Full Match';
   let isInningsView = false;
 
-  if (activeScorecardTab === 'INNINGS1' || activeScorecardTab === 'INNINGS2') {
+  if (tab === 'INNINGS1' || tab === 'INNINGS2') {
     isInningsView = true;
-    const isI1 = activeScorecardTab === 'INNINGS1';
-    const inningsBalls = isI1 ? allHistory.slice(0, splitIdx) : allHistory.slice(splitIdx);
+    const isI1 = tab === 'INNINGS1';
+    const inningsBalls = isI1 ? allHistory.slice(0, splitIdx) : allHistory;
     const battingTeamId = isI1
       ? (baseMatch.initialBattingTeamId || baseMatch.teamA?.id)
       : (baseMatch.initialBowlingTeamId || baseMatch.teamB?.id);
@@ -3083,14 +3179,23 @@ function renderScorecard() {
       ? (baseMatch.initialBowlingTeamId || baseMatch.teamB?.id)
       : (baseMatch.initialBattingTeamId || baseMatch.teamA?.id);
 
+    const firstInningsPhysicalBalls = isI1
+      ? inningsBalls.filter(ball => window.ScoringEngine.isPhysicalBall(ball)).length
+      : 0;
     const shadowMatch = {
       ...baseMatch,
       status: 'LIVE',
       winnerId: null,
       target: null,
-      currentInnings: isI1 ? 1 : 2,
-      battingTeamId,
-      bowlingTeamId,
+      currentInnings: 1,
+      battingTeamId: isI1 ? battingTeamId : (baseMatch.initialBattingTeamId || battingTeamId),
+      bowlingTeamId: isI1 ? bowlingTeamId : (baseMatch.initialBowlingTeamId || bowlingTeamId),
+      oversPerInnings: isI1
+        ? Math.max(baseMatch.oversPerInnings || 5, Math.ceil(firstInningsPhysicalBalls / 6) + 1)
+        : baseMatch.oversPerInnings,
+      gullyRules: isI1
+        ? { ...(baseMatch.gullyRules || {}), lastManStanding: true }
+        : baseMatch.gullyRules,
       strikerId: null,
       nonStrikerId: null,
       currentBowlerId: null,
@@ -3110,6 +3215,11 @@ function renderScorecard() {
     };
 
     m = window.ScoringEngine.recalculateMatchFromHistory(shadowMatch);
+    if (!isI1) {
+      // The second-innings replay needs first-innings balls to reproduce the
+      // transition and target. Show only second-innings deliveries afterward.
+      m.ballHistory = allHistory.slice(splitIdx);
+    }
     inningsLabel = isI1 ? 'Innings 1' : 'Innings 2';
   }
 
@@ -3240,57 +3350,99 @@ function renderScorecard() {
 function renderOvers() {
   if (!activeMatch) return;
   const container = document.getElementById('oversContainer');
-  const summaries = window.ScoringEngine.getOverSummaries(activeMatch);
-  const indexedOvers = getOverGroupsWithIndices(activeMatch).slice().reverse();
-  container.innerHTML = '';
+  const allHistory = activeMatch.ballHistory || [];
+  const splitIdx = activeMatch.innings1Data?.recordedBallsCount ?? allHistory.length;
+  const innings1TeamId = activeMatch.initialBattingTeamId || activeMatch.teamA?.id;
+  const innings2TeamId = activeMatch.initialBowlingTeamId || (innings1TeamId === activeMatch.teamA?.id ? activeMatch.teamB?.id : activeMatch.teamA?.id);
+  const innings = [
+    {
+      label: '1st Innings',
+      battingTeam: [activeMatch.teamA, activeMatch.teamB].find(team => team?.id === innings1TeamId),
+      bowlingTeam: [activeMatch.teamA, activeMatch.teamB].find(team => team?.id !== innings1TeamId),
+      balls: allHistory.slice(0, splitIdx),
+      indexOffset: 0
+    }
+  ];
+  const hasSecondInnings = activeMatch.currentInnings === 2
+    || activeMatch.isSecondInningsStarted === true
+    || allHistory.length > splitIdx;
+  if (hasSecondInnings) {
+    innings.push({
+      label: '2nd Innings',
+      battingTeam: [activeMatch.teamA, activeMatch.teamB].find(team => team?.id === innings2TeamId),
+      bowlingTeam: [activeMatch.teamA, activeMatch.teamB].find(team => team?.id !== innings2TeamId),
+      balls: allHistory.slice(splitIdx),
+      indexOffset: splitIdx
+    });
+  }
 
-  if (summaries.length === 0) {
+  const inningsHtml = innings.map(inningsView => {
+    const inningsMatch = { ...activeMatch, ballHistory: inningsView.balls };
+    const summaries = window.ScoringEngine.getOverSummaries(inningsMatch);
+    const indexedOvers = getOverGroupsWithIndices(inningsMatch, inningsView.indexOffset).slice().reverse();
+    if (summaries.length === 0) {
+      return `<section style="margin-bottom:18px;"><h4 style="font-size:14px; margin-bottom:8px;">${inningsView.label} — ${inningsView.battingTeam?.name || 'Team'}</h4><div style="font-size:12px; color:var(--text-muted);">No balls recorded in this innings yet.</div></section>`;
+    }
+
+    const rows = summaries.slice().reverse().map((over, idx) => {
+      const indexedOver = indexedOvers[idx] || { balls: [] };
+      const bowlerBall = indexedOver.balls.find(({ ball }) => !ball.isAdjustment && ball.bowlerId)?.ball;
+      const bowlerId = bowlerBall?.bowlerId;
+      const bowler = (inningsView.bowlingTeam?.players || []).find(player => player.id === bowlerId)
+        || (inningsView.bowlingTeam?.players || []).find(player => player.name?.toLowerCase() === `${bowlerId || ''}`.toLowerCase());
+      const bowlerLabel = bowler?.name || bowlerBall?.bowlerName || (bowlerId ? `${bowlerId}` : 'Not recorded');
+
+      const chipsHtml = (over.balls || []).map((ball, ballIdx) => {
+        const histIndex = indexedOver.balls[ballIdx]?.index;
+        let label = ball.runs;
+        let cls = 'ball-chip';
+        if (ball.isAdjustment && ball.adjustmentSlot === 'SWAP') { label = '🔀'; cls += ' extra'; }
+        else if (ball.wicketType && ball.wicketType !== 'NONE') { label = ball.wicketType === 'RETIRED_HURT' ? 'RET' : 'W'; cls += ' wicket'; }
+        else if (ball.isDroppedCatch || ball.wasDroppedCatch) { label = `🤲${ball.runs || 0}`; cls += ' extra'; }
+        else if (ball.runs === 4) cls += ' four';
+        else if (ball.runs === 6) cls += ' six';
+        else if (ball.runs === 1 && ball.rotateStrike === false) { label = '1G'; }
+        else if (ball.extrasType === 'GRANTED') { label = '1G'; cls += ' extra'; }
+        else if (ball.extrasType === 'WIDE') { label = `${ball.extraRuns ?? 1}WD`; cls += ' extra'; }
+        else if (ball.extrasType === 'NO_BALL') {
+          const total = (ball.runs || 0) + (ball.extraRuns || 1);
+          label = total > 1 ? `${total}NB` : 'NB';
+          cls += ' extra';
+        }
+        else if (ball.extrasType === 'BYE') { label = `${ball.extraRuns ?? 0}B`; cls += ' extra'; }
+        else if (ball.extrasType === 'LEG_BYE') { label = `${ball.extraRuns ?? 0}LB`; cls += ' extra'; }
+        const editAttr = (!isReadOnlySpectator && Number.isInteger(histIndex))
+          ? ` onclick="openEditBallModal(${histIndex})" title="Edit ball" style="cursor:pointer;"`
+          : '';
+        return `<div class="${cls}"${editAttr}>${label}</div>`;
+      }).join('');
+
+      return `
+        <div class="over-card-row">
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13px; font-weight:700; color:#fff;">Over ${over.overNumber} ${over.isPartial ? '(In Progress)' : ''}</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Bowler: <span style="color:#e2e8f0; font-weight:600;">${bowlerLabel}</span></div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">${chipsHtml}</div>
+          </div>
+          <div style="text-align:right; flex-shrink:0;">
+            <div style="font-size:16px; font-weight:800; color:var(--accent-color);">${over.runs} Runs</div>
+            <div style="font-size:11px; color:var(--text-muted);">Innings: ${over.teamTotalRuns}/${over.teamTotalWickets}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `<section style="margin-bottom:20px;"><h4 style="font-size:14px; margin-bottom:8px;">${inningsView.label} — ${inningsView.battingTeam?.name || 'Team'} batting</h4>${rows}</section>`;
+  });
+
+  container.innerHTML = '';
+  updateOversTabUI(hasSecondInnings);
+  const selectedIndex = activeOversInningsTab === 'INNINGS2' ? 1 : 0;
+  if (!innings[selectedIndex] || innings[selectedIndex].balls.length === 0) {
     container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No overs completed yet.</div>';
     return;
   }
-
-  summaries.slice().reverse().forEach((o, idx) => {
-    const indexedOver = indexedOvers[idx] || { balls: [] };
-    const row = document.createElement('div');
-    row.className = 'over-card-row';
-
-    const chipsHtml = (o.balls || []).map((b, ballIdx) => {
-      const histIndex = indexedOver.balls[ballIdx]?.index;
-      let label = b.runs;
-      let cls = 'ball-chip';
-      if (b.isAdjustment && b.adjustmentSlot === 'SWAP') { label = '🔀'; cls += ' extra'; }
-      else if (b.wicketType && b.wicketType !== 'NONE') { label = b.wicketType === 'RETIRED_HURT' ? 'RET' : 'W'; cls += ' wicket'; }
-      else if (b.isDroppedCatch || b.wasDroppedCatch) { label = `🤲${b.runs || 0}`; cls += ' extra'; }
-      else if (b.runs === 4) cls += ' four';
-      else if (b.runs === 6) cls += ' six';
-      else if (b.runs === 1 && b.rotateStrike === false) { label = '1G'; }
-      else if (b.extrasType === 'GRANTED') { label = '1G'; cls += ' extra'; }
-      else if (b.extrasType === 'WIDE') { label = `${b.extraRuns ?? 1}WD`; cls += ' extra'; }
-      else if (b.extrasType === 'NO_BALL') {
-        const total = (b.runs || 0) + (b.extraRuns || 1);
-        label = total > 1 ? `${total}NB` : 'NB';
-        cls += ' extra';
-      }
-      else if (b.extrasType === 'BYE') { label = `${b.extraRuns ?? 0}B`; cls += ' extra'; }
-      else if (b.extrasType === 'LEG_BYE') { label = `${b.extraRuns ?? 0}LB`; cls += ' extra'; }
-      const editAttr = (!isReadOnlySpectator && Number.isInteger(histIndex))
-        ? ` onclick="openEditBallModal(${histIndex})" title="Edit ball" style="cursor:pointer;"`
-        : '';
-      return `<div class="${cls}"${editAttr}>${label}</div>`;
-    }).join('');
-
-    row.innerHTML = `
-      <div>
-        <div style="font-size:13px; font-weight:700; color:#fff;">Over ${o.overNumber} ${o.isPartial ? '(In Progress)' : ''}</div>
-        <div style="display:flex; gap:4px; margin-top:6px;">${chipsHtml}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:16px; font-weight:800; color:var(--accent-color);">${o.runs} Runs</div>
-        <div style="font-size:11px; color:var(--text-muted);">Total: ${o.teamTotalRuns}/${o.teamTotalWickets}</div>
-      </div>
-    `;
-    container.appendChild(row);
-  });
+  container.innerHTML = inningsHtml[selectedIndex];
 }
 
 // Tournaments & Series Standings
