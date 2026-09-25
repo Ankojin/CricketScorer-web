@@ -48,6 +48,7 @@ const CricStorage = {
           const data = await res.json();
           localStorage.setItem('cric_auth_token', data.token);
           localStorage.setItem('cric_auth_user', JSON.stringify(data.user));
+          localStorage.setItem('cric_user_mode', 'REGISTERED');
           return data.user;
         }
       } catch (err) {
@@ -58,6 +59,7 @@ const CricStorage = {
     const user = { userId: 'user_' + Date.now(), email, name: name || email.split('@')[0] };
     localStorage.setItem('cric_auth_token', 'token_local_' + Date.now());
     localStorage.setItem('cric_auth_user', JSON.stringify(user));
+    localStorage.setItem('cric_user_mode', 'REGISTERED');
     return user;
   },
 
@@ -73,6 +75,7 @@ const CricStorage = {
           const data = await res.json();
           localStorage.setItem('cric_auth_token', data.token);
           localStorage.setItem('cric_auth_user', JSON.stringify(data.user));
+          localStorage.setItem('cric_user_mode', 'REGISTERED');
           return data.user;
         }
       } catch (err) {
@@ -89,6 +92,11 @@ const CricStorage = {
   logout() {
     localStorage.removeItem('cric_auth_token');
     localStorage.removeItem('cric_auth_user');
+    localStorage.removeItem('cric_matches');
+    localStorage.removeItem('cric_teams');
+    localStorage.removeItem('cric_tournaments');
+    localStorage.removeItem('cric_global_players');
+    localStorage.removeItem('cric_active_match_id');
   },
 
   getCurrentUser() {
@@ -134,7 +142,8 @@ const CricStorage = {
   },
 
   async getMatch(matchId) {
-    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    const isSpectator = typeof isReadOnlySpectator !== 'undefined' && isReadOnlySpectator;
+    if ((!this.isGuestUser() || isSpectator) && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { headers: this.getAuthHeaders() });
         if (res.ok) return await res.json();

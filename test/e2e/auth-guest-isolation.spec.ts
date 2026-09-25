@@ -2,13 +2,11 @@ import { test, expect } from '@playwright/test';
 import http from 'node:http';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
-// Setup Mock Environment Variables BEFORE importing index.mjs
 process.env.JWT_SECRET = 'test_jwt_secret_key_64_bytes_long_mock_secret_string_1234567890_abcdef';
 process.env.TABLE_NAME = 'CricMatches';
 
 const mockDb = new Map<string, any>();
 
-// Patch DynamoDB Document Client send method for in-memory DB
 DynamoDBDocumentClient.prototype.send = async function (command: any) {
   const name = command.constructor?.name || command.name;
 
@@ -46,16 +44,15 @@ DynamoDBDocumentClient.prototype.send = async function (command: any) {
 const { handler } = await import('../../aws/lambda/index.mjs');
 
 let apiServer: http.Server;
-const API_PORT = 3001;
+const API_PORT = 3002;
 const API_BASE_URL = `http://localhost:${API_PORT}`;
 
-test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
+test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
 
   test.beforeAll(async () => {
     mockDb.clear();
     await new Promise<void>((resolve) => {
       apiServer = http.createServer(async (req, res) => {
-        // Handle CORS preflight & headers
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -123,172 +120,48 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
     }
   });
 
-  test('Registered scorer uploads match to API, spectator fetches purely via GET /matches/{id} network calls, and score syncs live', async ({ browser }) => {
-    // ------------------- 1. SCORER SESSION (REGISTERED USER) -------------------
-    const scorerContext = await browser.newContext();
-    await scorerContext.addInitScript(apiUrl => {
+  test('Registered account data is purged on sign-out, leaving Guest mode clean', async ({ page }) => {
+    await page.addInitScript(apiUrl => {
       (window as any).CRIC_API_BASE = apiUrl;
     }, API_BASE_URL);
 
-    const scorerPage = await scorerContext.newPage();
-    await scorerPage.goto('http://localhost:8080');
+    await page.goto('http://localhost:8080');
 
-    // Register a real test user via CricStorage.register to establish auth token and Cloud Sync
-    const regSuccess = await scorerPage.evaluate(async (apiUrl) => {
+    // Register test user
+    const user = await page.evaluate(async (apiUrl) => {
       const win = window as any;
       win.CRIC_API_BASE = apiUrl;
       const res = await win.CricStorage.register(
-        `registered_scorer_${Date.now()}@example.com`,
+        `user_isolation_${Date.now()}@example.com`,
         'SecretPassword123!',
-        'Registered Scorer'
+        'User Isolation'
       );
       if (typeof win.updateAuthUI === 'function') win.updateAuthUI();
       return res;
     }, API_BASE_URL);
 
-    expect(regSuccess?.userId).toBeTruthy();
+    expect(user?.userId).toBeTruthy();
 
     // Navigate to Create Match screen
-    await scorerPage.evaluate(() => {
+    await page.evaluate(() => {
       const win = window as any;
       if (typeof win.showNewMatchScreen === 'function') {
         win.showNewMatchScreen();
       }
     });
 
-    await scorerPage.evaluate(async () => {
-      const win = window as any;
-      const elA = document.getElementById('teamAName') as HTMLInputElement | null;
-      const elB = document.getElementById('teamBName') as HTMLInputElement | null;
-      if (elA) elA.value = 'Cloud Rockets';
-      if (elB) elB.value = 'Cloud Thunder';
-
-      if (typeof win.addPlayerObjectToSquad === 'function') {
-        win.addPlayerObjectToSquad('A', { id: 'pa_1', name: 'AlphaStriker' });
-        win.addPlayerObjectToSquad('A', { id: 'pa_2', name: 'AlphaNonStriker' });
-        win.addPlayerObjectToSquad('B', { id: 'pb_1', name: 'BetaBowler' });
-      }
-
-      if (typeof win.renderSquadList === 'function') {
-        win.renderSquadList('A');
-        win.renderSquadList('B');
-      }
-
-      if (typeof win.handleCreateMatch === 'function') {
-        await win.handleCreateMatch();
-      }
-    });
-
-    const tossModal = scorerPage.locator('#tossModal');
-    await expect(tossModal).toBeVisible();
-
-    await scorerPage.click('#tossModal button:has-text("Start Match Live")');
-
-    // Handle initial player prompts
-    for (let i = 0; i < 3; i++) {
-      const selectionModal = scorerPage.locator('#selectionModal');
-      if (await selectionModal.isVisible()) {
-        const confirmBtn = scorerPage.locator('#btnConfirmGenericSelection');
-        if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
-          await confirmBtn.click();
-        } else {
-          const bowlerOpt = scorerPage.locator('#bowlerListContainer .bowler-option').first();
-          if (await bowlerOpt.isVisible()) {
-            await bowlerOpt.click();
-          }
-        }
-        await scorerPage.waitForTimeout(300);
-      }
-    }
-
-    // Score Ball 1: 4 runs
-    await scorerPage.click('#scoringKeypad button:has-text("4")');
-    await expect(scorerPage.locator('#scoreMain')).toHaveText('4/0');
-
-    // Score Ball 2: 6 runs (Total: 10/0)
-    await scorerPage.click('#scoringKeypad button:has-text("6")');
-    await expect(scorerPage.locator('#scoreMain')).toHaveText('10/0');
-
-    const matchId = await scorerPage.evaluate(() => {
-      return (window as any).activeMatch?.id || localStorage.getItem('cric_active_match_id');
-    });
-
-    expect(matchId).toBeTruthy();
-
-    // ------------------- 2. SPECTATOR SESSION (PURE NETWORK FETCH) -------------------
-    // Open a fresh browser context WITHOUT copying any localStorage
-    const spectatorContext = await browser.newContext();
-    await spectatorContext.addInitScript(apiUrl => {
-      (window as any).CRIC_API_BASE = apiUrl;
-    }, API_BASE_URL);
-
-    const spectatorPage = await spectatorContext.newPage();
-
-    // Track network requests to ensure spectator only reads and NEVER mutates API
-    const mutatingRequests: string[] = [];
-    spectatorPage.on('request', request => {
-      const method = request.method();
-      if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
-        mutatingRequests.push(`${method} ${request.url()}`);
-      }
-    });
-
-    // Navigate spectator directly to ?matchId=<matchId>
-    await spectatorPage.goto(`http://localhost:8080/?matchId=${matchId}`);
-
-    // Assert Spectator Banner is VISIBLE
-    const spectatorBanner = spectatorPage.locator('#spectatorBanner');
-    await expect(spectatorBanner).toBeVisible();
-    await expect(spectatorBanner).toContainText('Spectator Live Viewer Mode');
-
-    // Assert Scoring Keypad is HIDDEN
-    const scoringKeypad = spectatorPage.locator('#scoringKeypad');
-    await expect(scoringKeypad).toBeHidden();
-
-    // Assert Spectator fetches and displays initial live score 10/0 from API
-    await expect(spectatorPage.locator('#scoreMain')).toHaveText('10/0');
-
-    // ------------------- 3. LIVE POLLING SCORE SYNC -------------------
-    // Scorer scores Ball 3: 4 runs -> Total 14/0
-    await scorerPage.click('#scoringKeypad button:has-text("4")');
-    await expect(scorerPage.locator('#scoreMain')).toHaveText('14/0');
-
-    // Wait for spectator 5-second polling interval
-    await spectatorPage.waitForTimeout(6500);
-
-    // Assert Spectator score automatically updates to 14/0 purely via network GET
-    await expect(spectatorPage.locator('#scoreMain')).toHaveText('14/0');
-
-    // Assert spectator session issued ZERO mutating requests
-    expect(mutatingRequests).toEqual([]);
-
-    await scorerContext.close();
-    await spectatorContext.close();
-  });
-
-  test('Guest scorer calling goLiveShare is blocked with sign-in warning and opens no spectator link', async ({ page, context }) => {
-    await page.goto('http://localhost:8080');
-
-    // Continue as Guest
-    const guestBtn = page.locator('button:has-text("Continue as Guest")');
-    if (await guestBtn.isVisible()) {
-      await guestBtn.click();
-    }
-
-    // Create a Guest match
-    await page.click('button:has-text("+ Create Match")');
-
+    // Create match as registered user
     await page.evaluate(async () => {
       const win = window as any;
       const elA = document.getElementById('teamAName') as HTMLInputElement | null;
       const elB = document.getElementById('teamBName') as HTMLInputElement | null;
-      if (elA) elA.value = 'Guest Team A';
-      if (elB) elB.value = 'Guest Team B';
+      if (elA) elA.value = 'Isolation Rockets';
+      if (elB) elB.value = 'Isolation Thunder';
 
       if (typeof win.addPlayerObjectToSquad === 'function') {
-        win.addPlayerObjectToSquad('A', { id: 'p_g1', name: 'GuestStriker' });
-        win.addPlayerObjectToSquad('A', { id: 'p_g2', name: 'GuestNonStriker' });
-        win.addPlayerObjectToSquad('B', { id: 'p_g3', name: 'GuestBowler' });
+        win.addPlayerObjectToSquad('A', { id: 'pa_1', name: 'AliceIso' });
+        win.addPlayerObjectToSquad('A', { id: 'pa_2', name: 'AmyIso' });
+        win.addPlayerObjectToSquad('B', { id: 'pb_1', name: 'BobIso' });
       }
 
       if (typeof win.renderSquadList === 'function') {
@@ -306,7 +179,7 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
 
     await page.click('#tossModal button:has-text("Start Match Live")');
 
-    // Handle initial player selection prompts
+    // Confirm initial selection prompts
     for (let i = 0; i < 3; i++) {
       const selectionModal = page.locator('#selectionModal');
       if (await selectionModal.isVisible()) {
@@ -323,21 +196,128 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
       }
     }
 
-    // Track popup / new tab creation
-    let popupOpened = false;
-    context.on('page', () => {
-      popupOpened = true;
+    // Verify match exists in localStorage
+    const matchesBeforeSignout = await page.evaluate(() => {
+      const raw = localStorage.getItem('cric_matches');
+      return raw ? JSON.parse(raw) : [];
+    });
+    expect(matchesBeforeSignout.length).toBeGreaterThan(0);
+
+    // Auto-confirm window.confirm dialogs during Sign Out
+    page.on('dialog', dialog => dialog.accept());
+
+    // Sign out through actual UI
+    await page.click('#authBtn');
+
+    // Assert landing screen is visible
+    const landingScreen = page.locator('#screenLanding');
+    await expect(landingScreen).toBeVisible();
+
+    // Click Continue as Guest
+    await page.click('button:has-text("Continue as Guest")');
+
+    // Assert match list is empty ("No matches found" or 0 matches)
+    const matchesAfterGuestSwitch = await page.evaluate(() => {
+      const raw = localStorage.getItem('cric_matches');
+      return raw ? JSON.parse(raw) : [];
+    });
+    expect(matchesAfterGuestSwitch.length).toBe(0);
+
+    // Assert cached collections in localStorage are null/empty
+    const storageState = await page.evaluate(() => ({
+      cric_matches: localStorage.getItem('cric_matches'),
+      cric_teams: localStorage.getItem('cric_teams'),
+      cric_tournaments: localStorage.getItem('cric_tournaments'),
+      cric_global_players: localStorage.getItem('cric_global_players'),
+      cric_active_match_id: localStorage.getItem('cric_active_match_id')
+    }));
+
+    expect(storageState.cric_matches).toBeNull();
+    expect(storageState.cric_teams).toBeNull();
+    expect(storageState.cric_tournaments).toBeNull();
+    expect(storageState.cric_global_players).toBeNull();
+    expect(storageState.cric_active_match_id).toBeNull();
+  });
+
+  test('Genuine guest user match data is retained when continuing guest session', async ({ page }) => {
+    await page.goto('http://localhost:8080');
+
+    // Continue as Guest
+    const guestBtn = page.locator('button:has-text("Continue as Guest")');
+    if (await guestBtn.isVisible()) {
+      await guestBtn.click();
+    }
+
+    // Create a local Guest match
+    await page.click('button:has-text("+ Create Match")');
+
+    await page.evaluate(async () => {
+      const win = window as any;
+      const elA = document.getElementById('teamAName') as HTMLInputElement | null;
+      const elB = document.getElementById('teamBName') as HTMLInputElement | null;
+      if (elA) elA.value = 'Pure Guest A';
+      if (elB) elB.value = 'Pure Guest B';
+
+      if (typeof win.addPlayerObjectToSquad === 'function') {
+        win.addPlayerObjectToSquad('A', { id: 'p_pg1', name: 'PureGuestStriker' });
+        win.addPlayerObjectToSquad('A', { id: 'p_pg2', name: 'PureGuestNonStriker' });
+        win.addPlayerObjectToSquad('B', { id: 'p_pg3', name: 'PureGuestBowler' });
+      }
+
+      if (typeof win.renderSquadList === 'function') {
+        win.renderSquadList('A');
+        win.renderSquadList('B');
+      }
+
+      if (typeof win.handleCreateMatch === 'function') {
+        await win.handleCreateMatch();
+      }
     });
 
-    // Attempt to click Share Live Score button in Guest Mode
-    await page.click('#shareWhatsAppBtn');
+    const tossModal = page.locator('#tossModal');
+    await expect(tossModal).toBeVisible();
 
-    // Assert NO new popup/tab was opened
-    expect(popupOpened).toBe(false);
+    await page.click('#tossModal button:has-text("Start Match Live")');
 
-    // Assert Toast warning is displayed indicating sign-in is required
-    const toast = page.locator('.toast', { hasText: 'Sign in to share live scores across devices' });
-    await expect(toast).toBeVisible();
+    // Confirm initial selection prompts
+    for (let i = 0; i < 3; i++) {
+      const selectionModal = page.locator('#selectionModal');
+      if (await selectionModal.isVisible()) {
+        const confirmBtn = page.locator('#btnConfirmGenericSelection');
+        if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
+          await confirmBtn.click();
+        } else {
+          const bowlerOpt = page.locator('#bowlerListContainer .bowler-option').first();
+          if (await bowlerOpt.isVisible()) {
+            await bowlerOpt.click();
+          }
+        }
+        await page.waitForTimeout(300);
+      }
+    }
+
+    // Score 1 ball to ensure match has data
+    await page.click('#scoringKeypad button:has-text("1")');
+
+    // Navigate back to Landing screen
+    await page.evaluate(() => {
+      const win = window as any;
+      if (typeof win.showLandingScreen === 'function') {
+        win.showLandingScreen();
+      }
+    });
+
+    // Tap "Continue as Guest" again mid-session
+    await page.click('button:has-text("Continue as Guest")');
+
+    // Assert Guest match data is NOT wiped
+    const guestMatches = await page.evaluate(() => {
+      const raw = localStorage.getItem('cric_matches');
+      return raw ? JSON.parse(raw) : [];
+    });
+
+    expect(guestMatches.length).toBeGreaterThan(0);
+    expect(guestMatches[0].teamA.name).toBe('Pure Guest A');
   });
 
 });

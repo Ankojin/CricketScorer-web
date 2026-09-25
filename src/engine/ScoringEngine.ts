@@ -645,9 +645,6 @@ export class ScoringEngine {
         'SELECT_RUNS_WICKET',
         'SELECT_FIELDER_DROPPED_CATCH',
         'SELECT_RUNS_DROPPED_CATCH',
-        'SELECT_STRIKER',
-        'SELECT_NON_STRIKER',
-        'SELECT_BOWLER',
         'REPLACE_STRIKER',
         'REPLACE_NON_STRIKER',
         'REPLACE_BOWLER'

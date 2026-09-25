@@ -9,6 +9,13 @@ import { chromium } from 'playwright';
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  page.on('console', msg => {
+    if (msg.type() === 'error') console.log('PAGE LOG ERROR:', msg.text());
+  });
+  page.on('pageerror', err => {
+    console.log('PAGE UNHANDLED ERROR:', err.message);
+  });
+
   const results = [];
 
   function record(id, section, description, pass, notes = '') {
@@ -18,27 +25,43 @@ import { chromium } from 'playwright';
   }
 
   async function handleSelectionModalsIfOpen() {
-    await page.waitForTimeout(200);
+    for (let loop = 0; loop < 5; loop++) {
+      await page.waitForTimeout(300);
 
-    const selectionModal = page.locator('#selectionModal');
-    if (await selectionModal.isVisible()) {
-      await page.evaluate(() => {
-        if (window.activeMatch) {
-          const isBattingA = window.activeMatch.battingTeamId === window.activeMatch.teamA?.id;
-          const bowlingTeam = isBattingA ? window.activeMatch.teamB : window.activeMatch.teamA;
-          const bowlers = bowlingTeam?.players || [];
-          const avail = bowlers.find(p => p.id !== window.activeMatch.lastBowlerId) || bowlers[0];
-          if (avail) {
-            window.selectBowlerDirect(avail.id);
-          } else {
-            const dropdown = document.getElementById('selectionDropdown');
-            if (dropdown && dropdown.value) {
-              window.confirmPlayerSelection();
+      // 1. Dismiss Over End Modal if visible
+      const overEndModal = page.locator('#overEndModal');
+      if (await overEndModal.isVisible()) {
+        const closeBtn = page.locator('#overEndModal button').first();
+        if (await closeBtn.isVisible()) await closeBtn.click();
+        await page.waitForTimeout(300);
+      }
+
+      // 2. Handle Selection Modal if visible
+      const selectionModal = page.locator('#selectionModal');
+      if (await selectionModal.isVisible()) {
+        const confirmBtn = page.locator('#btnConfirmGenericSelection');
+        if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
+          await page.evaluate(() => {
+            const select = document.getElementById('selectionDropdown');
+            if (select && select.options.length > 0) {
+              for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value) {
+                  select.selectedIndex = i;
+                  select.dispatchEvent(new Event('change', { bubbles: true }));
+                  break;
+                }
+              }
             }
+          });
+          await confirmBtn.click();
+        } else {
+          const bowlerOpt = page.locator('#bowlerListContainer .bowler-option').first();
+          if (await bowlerOpt.isVisible()) {
+            await bowlerOpt.click();
           }
         }
-      });
-      await page.waitForTimeout(300);
+        await page.waitForTimeout(400);
+      }
     }
   }
 
@@ -107,13 +130,15 @@ import { chromium } from 'playwright';
     record('A3-A5', 'Section A', 'Toss winner & decision selected, Start Match Live closes modal', tossVisible);
 
     await page.click('#tossModal button:has-text("Start Match Live")');
+    await page.waitForTimeout(600);
 
-    // A6-A7: Select striker, non-striker, bowler
-    for (let i = 0; i < 3; i++) {
-      await handleSelectionModalsIfOpen();
-    }
+    // A6-A7: Handle initial player selection prompts if any
+    await handleSelectionModalsIfOpen();
 
-    const inLiveScoring = await page.locator('#scoringKeypad').isVisible();
+    const inLiveScoring = await page.evaluate(() => {
+      const keypad = document.getElementById('scoringKeypad');
+      return keypad && keypad.offsetWidth > 0 && keypad.offsetHeight > 0;
+    });
     record('A6-A7', 'Section A', 'Prompted and selected players, entered live scoring keypad', inLiveScoring);
 
     // ------------------- SECTION B: SCORING (1ST INNINGS) -------------------
@@ -133,44 +158,45 @@ import { chromium } from 'playwright';
     // B2: Score 4 (5th ball of Over 1)
     await page.click('#scoringKeypad button:has-text("4")');
     await page.waitForTimeout(300);
-    const fourChip = page.locator('.ball-chip.four');
+    const fourChip = page.locator('#recentBalls .ball-chip.four');
     record('B2', 'Section B', 'Score 4 — styled mint boundary chip rendered', await fourChip.isVisible());
 
     // B3: Score 6 (6th ball of Over 1 -> completes Over 1)
     await page.click('#scoringKeypad button:has-text("6")');
-    await page.waitForTimeout(300);
-    const sixChip = page.locator('.ball-chip.six');
-    record('B3', 'Section B', 'Score 6 — styled sky boundary chip rendered', await sixChip.isVisible());
+    await page.waitForTimeout(500);
 
-    // Over 1 Completed: Handle Over-End & Select Bowler for Over 2
+    // Handle Over-End & Select Bowler for Over 2 BEFORE asserting chip visibility
     await handleSelectionModalsIfOpen();
+
+    const sixChip = page.locator('#recentBalls .ball-chip.six');
+    record('B3', 'Section B', 'Score 6 — styled sky boundary chip rendered', await sixChip.isVisible());
 
     // B4: Wide + No-ball extra runs
     await page.click('#scoringKeypad button:has-text("WD")');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
     const extraModal = page.locator('#extraRunsModal');
     if (await extraModal.isVisible()) {
       await page.locator('#extraRunsOptionsContainer button').first().click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(400);
     }
 
     await page.click('#scoringKeypad button:has-text("NB")');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
     if (await extraModal.isVisible()) {
       await page.locator('#extraRunsOptionsContainer button').first().click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(400);
     }
     record('B4', 'Section B', 'Wide & No-ball extra runs recorded without invalid legal ball count', true);
 
     // B5: Wicket (Bowled)
     await page.click('#scoringKeypad button:has-text("WICKET / RETIRE")');
-    await page.waitForTimeout(200);
-    await page.click('#wicketModal button:has-text("Confirm")');
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
+    await page.click('#wicketModal button.btn-primary');
+    await page.waitForTimeout(300);
 
     // Handle replacement striker selection
     await handleSelectionModalsIfOpen();
-    const wicketChip = page.locator('.ball-chip.wicket');
+    const wicketChip = page.locator('#recentBalls .ball-chip.wicket');
     record('B5', 'Section B', 'Wicket taken — red W chip rendered', await wicketChip.isVisible());
 
     // B7: Undo
@@ -262,7 +288,7 @@ import { chromium } from 'playwright';
     await page.click('#scoringKeypad button:has-text("WICKET / RETIRE")');
     await page.waitForTimeout(200);
     await page.selectOption('#wicketTypeSelect', 'RETIRED_HURT');
-    await page.click('#wicketModal button:has-text("Confirm")');
+    await page.click('#wicketModal button.btn-primary');
     await page.waitForTimeout(200);
 
     const ballsAfterRetire = await page.evaluate(() => window.activeMatch.totalBalls);
@@ -330,7 +356,6 @@ import { chromium } from 'playwright';
   // Print Summary Table
   console.log('\n===============================================================');
   console.log('                 FINAL QA SUITE SUMMARY TABLE');
-  console.log('===============================================================');
   console.table(results);
 
   const total = results.length;
@@ -338,5 +363,5 @@ import { chromium } from 'playwright';
   const failed = results.filter(r => r.status === 'FAIL').length;
 
   console.log(`\nTOTAL: ${total} | PASS: ${passed} | FAIL: ${failed}`);
-  console.log(`FINAL RESULT: ${failed === 0 ? '☐ PASS 🎉' : '☐ FAIL ❌'}`);
+  console.log(`FINAL RESULT: ${failed === 0 ? 'PASS 🎉' : 'FAIL ❌'}`);
 })();

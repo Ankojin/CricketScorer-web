@@ -94,6 +94,15 @@ function showLandingScreen() {
 }
 
 function continueAsGuest() {
+  const currentUser = window.CricStorage.getCurrentUser();
+  const token = localStorage.getItem('cric_auth_token');
+  const hasRegisteredSession = currentUser || (token && !token.startsWith('token_local'));
+
+  if (hasRegisteredSession) {
+    activeMatch = null;
+    window.CricStorage.logout();
+  }
+
   localStorage.setItem('cric_user_mode', 'GUEST');
   updateAuthUI();
   showToast('Entered Guest Mode (Temporary Local Scoring)', 'info');
@@ -105,6 +114,7 @@ function openAuthModal(defaultTab = 'LOGIN') {
   const user = window.CricStorage.getCurrentUser();
   if (user) {
     if (confirm(`Logged in as ${user.email}. Do you want to sign out?`)) {
+      activeMatch = null;
       window.CricStorage.logout();
       localStorage.removeItem('cric_user_mode');
       updateAuthUI();
@@ -191,6 +201,11 @@ function updateAuthUI() {
 // WhatsApp Live Score Sharing & Spectator Mode
 function goLiveShare() {
   if (!activeMatch) return;
+
+  if (window.CricStorage && window.CricStorage.isGuestUser()) {
+    showToast('Sign in to share live scores across devices', 'warning');
+    return;
+  }
 
   if (activeMatch.status !== 'LIVE') {
     showToast('Live link is available only while match is LIVE', 'warning');
@@ -1464,6 +1479,7 @@ function getLiveTickerMessage(match) {
 }
 
 function renderLiveScoring() {
+  window.activeMatch = activeMatch;
   const activeContainer = document.getElementById('liveScoringActiveContainer');
   const emptyContainer = document.getElementById('liveScoringEmptyContainer');
 
@@ -1513,6 +1529,17 @@ function renderLiveScoring() {
   }
 
   // Last Saved Tag
+  const shareBtn = document.getElementById('shareWhatsAppBtn');
+  if (shareBtn) {
+    if (window.CricStorage && window.CricStorage.isGuestUser()) {
+      shareBtn.title = 'Sign in to share live scores across devices';
+      shareBtn.style.opacity = '0.7';
+    } else {
+      shareBtn.title = 'Share live spectator score link';
+      shareBtn.style.opacity = '1';
+    }
+  }
+
   const lastSavedTag = document.getElementById('lastSavedTag');
   if (lastSavedTag) {
     const timeStr = m.updatedAt ? new Date(m.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now';
@@ -2187,12 +2214,15 @@ async function selectBowlerDirect(bowlerId) {
   }
 
   activeMatch.currentBowlerId = bowlerId;
-  activeMatch.pendingAction = nextPendingSelectionAction(activeMatch);
+  activeMatch.pendingAction = 'NONE';
   closeSelectionModal();
   activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
+  activeMatch.currentBowlerId = bowlerId;
+  activeMatch.pendingAction = 'NONE';
   activeMatch = await window.CricStorage.saveMatch(activeMatch);
   renderLiveScoring();
 }
+window.selectBowlerDirect = selectBowlerDirect;
 
 async function confirmPlayerSelection() {
   const select = document.getElementById('selectionDropdown');
@@ -2620,7 +2650,10 @@ function checkAndShowOverEndModal() {
 }
 
 function closeOverEndModal() {
-  document.getElementById('overEndModal').classList.remove('active');
+  const modal = document.getElementById('overEndModal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
   if (activeMatch?.pendingAction === 'START_SECOND_INNINGS') {
     promptPendingAction('START_SECOND_INNINGS');
   }
@@ -4246,3 +4279,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     showLandingScreen();
   }
 });
+
+// Window Exports for QA Automation
+window.addPlayerObjectToSquad = addPlayerObjectToSquad;
+window.renderSquadList = renderSquadList;
+window.onAddNewPlayerInput = onAddNewPlayerInput;
+window.removeFromSquad = removeFromSquad;
+window.handleCreateMatch = handleCreateMatch;
+window.confirmTossAndStart = confirmTossAndStart;
+window.startSecondInnings = startSecondInnings;
+window.showLiveScreen = showLiveScreen;
