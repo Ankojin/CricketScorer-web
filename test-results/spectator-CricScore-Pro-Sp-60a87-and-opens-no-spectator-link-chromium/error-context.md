@@ -1,0 +1,206 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: spectator.spec.ts >> CricScore Pro Spectator Read-Only & Live Sync E2E Tests >> Guest scorer calling goLiveShare is blocked with sign-in warning and opens no spectator link
+- Location: test\e2e\spectator.spec.ts:269:3
+
+# Error details
+
+```
+Error: page.click: Target crashed 
+Call log:
+  - waiting for locator('button.cric-btn:has-text("Quick Match")')
+    - locator resolved to 3 elements. Proceeding with the first one: <button type="button" onclick="startQuickMatch()" class="cric-btn cric-btn-primary">↵                🏏 Quick Match →↵              </button>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    48 × waiting for element to be visible, enabled and stable
+       - element is not visible
+     - retrying click action
+       - waiting 500ms
+
+```
+
+# Test source
+
+```ts
+  179 |       }
+  180 |     });
+  181 | 
+  182 |     const tossModal = scorerPage.locator('#tossModal');
+  183 |     await expect(tossModal).toBeVisible();
+  184 | 
+  185 |     await scorerPage.click('#tossModal button:has-text("Start match")');
+  186 | 
+  187 |     // Handle initial player prompts
+  188 |     for (let i = 0; i < 3; i++) {
+  189 |       const selectionModal = scorerPage.locator('#selectionModal');
+  190 |       if (await selectionModal.isVisible()) {
+  191 |         const confirmBtn = scorerPage.locator('#btnConfirmGenericSelection');
+  192 |         if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
+  193 |           await confirmBtn.click();
+  194 |         } else {
+  195 |           const bowlerOpt = scorerPage.locator('#bowlerListContainer .bowler-option').first();
+  196 |           if (await bowlerOpt.isVisible()) {
+  197 |             await bowlerOpt.click();
+  198 |           }
+  199 |         }
+  200 |         await scorerPage.waitForTimeout(300);
+  201 |       }
+  202 |     }
+  203 | 
+  204 |     // Score Ball 1: 4 runs
+  205 |     await scorerPage.click('#scoringKeypad button:has-text("4")');
+  206 |     await expect(scorerPage.locator('#scoreMain')).toHaveText('4/0');
+  207 | 
+  208 |     // Score Ball 2: 6 runs (Total: 10/0)
+  209 |     await scorerPage.click('#scoringKeypad button:has-text("6")');
+  210 |     await expect(scorerPage.locator('#scoreMain')).toHaveText('10/0');
+  211 | 
+  212 |     const matchId = await scorerPage.evaluate(() => {
+  213 |       return (window as any).activeMatch?.id || localStorage.getItem('cric_active_match_id');
+  214 |     });
+  215 | 
+  216 |     expect(matchId).toBeTruthy();
+  217 | 
+  218 |     // ------------------- 2. SPECTATOR SESSION (PURE NETWORK FETCH) -------------------
+  219 |     // Open a fresh browser context WITHOUT copying any localStorage
+  220 |     const spectatorContext = await browser.newContext();
+  221 |     await spectatorContext.addInitScript(apiUrl => {
+  222 |       (window as any).CRIC_API_BASE = apiUrl;
+  223 |     }, API_BASE_URL);
+  224 | 
+  225 |     const spectatorPage = await spectatorContext.newPage();
+  226 | 
+  227 |     // Track network requests to ensure spectator only reads and NEVER mutates API
+  228 |     const mutatingRequests: string[] = [];
+  229 |     spectatorPage.on('request', request => {
+  230 |       const method = request.method();
+  231 |       if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+  232 |         mutatingRequests.push(`${method} ${request.url()}`);
+  233 |       }
+  234 |     });
+  235 | 
+  236 |     // Navigate spectator directly to ?matchId=<matchId>
+  237 |     await spectatorPage.goto(`http://localhost:8080/?matchId=${matchId}`);
+  238 | 
+  239 |     // Assert Spectator Banner is VISIBLE
+  240 |     const spectatorBanner = spectatorPage.locator('#spectatorBanner');
+  241 |     await expect(spectatorBanner).toBeVisible();
+  242 |     await expect(spectatorBanner).toContainText('Spectator Live Viewer Mode');
+  243 | 
+  244 |     // Assert Scoring Keypad is HIDDEN
+  245 |     const scoringKeypad = spectatorPage.locator('#scoringKeypad');
+  246 |     await expect(scoringKeypad).toBeHidden();
+  247 | 
+  248 |     // Assert Spectator fetches and displays initial live score 10/0 from API
+  249 |     await expect(spectatorPage.locator('#scoreMain')).toHaveText('10/0');
+  250 | 
+  251 |     // ------------------- 3. LIVE POLLING SCORE SYNC -------------------
+  252 |     // Scorer scores Ball 3: 4 runs -> Total 14/0
+  253 |     await scorerPage.click('#scoringKeypad button:has-text("4")');
+  254 |     await expect(scorerPage.locator('#scoreMain')).toHaveText('14/0');
+  255 | 
+  256 |     // Wait for spectator 5-second polling interval
+  257 |     await spectatorPage.waitForTimeout(6500);
+  258 | 
+  259 |     // Assert Spectator score automatically updates to 14/0 purely via network GET
+  260 |     await expect(spectatorPage.locator('#scoreMain')).toHaveText('14/0');
+  261 | 
+  262 |     // Assert spectator session issued ZERO mutating requests
+  263 |     expect(mutatingRequests).toEqual([]);
+  264 | 
+  265 |     await scorerContext.close();
+  266 |     await spectatorContext.close();
+  267 |   });
+  268 | 
+  269 |   test('Guest scorer calling goLiveShare is blocked with sign-in warning and opens no spectator link', async ({ page, context }) => {
+  270 |     await page.goto('http://localhost:8080');
+  271 | 
+  272 |     // Continue as Guest
+  273 |     const guestBtn = page.locator('button:has-text("Continue as Guest")');
+  274 |     if (await guestBtn.isVisible()) {
+  275 |       await guestBtn.click();
+  276 |     }
+  277 | 
+  278 |     // Create a Guest match
+> 279 |     await page.click('button.cric-btn:has-text("Quick Match")');
+      |                ^ Error: page.click: Target crashed 
+  280 | 
+  281 |     await page.evaluate(async () => {
+  282 |       const win = window as any;
+  283 |       const elA = document.getElementById('teamAName') as HTMLInputElement | null;
+  284 |       const elB = document.getElementById('teamBName') as HTMLInputElement | null;
+  285 |       if (elA) elA.value = 'Guest Team A';
+  286 |       if (elB) elB.value = 'Guest Team B';
+  287 | 
+  288 |       if (typeof win.addPlayerObjectToSquad === 'function') {
+  289 |         win.addPlayerObjectToSquad('A', { id: 'p_g1', name: 'GuestStriker' });
+  290 |         win.addPlayerObjectToSquad('A', { id: 'p_g2', name: 'GuestNonStriker' });
+  291 |         win.addPlayerObjectToSquad('B', { id: 'p_g3', name: 'GuestBowler' });
+  292 |       }
+  293 | 
+  294 |       if (typeof win.renderSquadList === 'function') {
+  295 |         win.renderSquadList('A');
+  296 |         win.renderSquadList('B');
+  297 |       }
+  298 | 
+  299 |       if (typeof win.handleCreateMatch === 'function') {
+  300 |         await win.handleCreateMatch();
+  301 |       }
+  302 |     });
+  303 | 
+  304 |     const tossModal = page.locator('#tossModal');
+  305 |     await expect(tossModal).toBeVisible();
+  306 | 
+  307 |     await page.click('#tossModal button:has-text("Start match")');
+  308 | 
+  309 |     // Handle initial player selection prompts
+  310 |     for (let i = 0; i < 3; i++) {
+  311 |       const selectionModal = page.locator('#selectionModal');
+  312 |       if (await selectionModal.isVisible()) {
+  313 |         const confirmBtn = page.locator('#btnConfirmGenericSelection');
+  314 |         if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
+  315 |           await confirmBtn.click();
+  316 |         } else {
+  317 |           const bowlerOpt = page.locator('#bowlerListContainer .bowler-option').first();
+  318 |           if (await bowlerOpt.isVisible()) {
+  319 |             await bowlerOpt.click();
+  320 |           }
+  321 |         }
+  322 |         await page.waitForTimeout(300);
+  323 |       }
+  324 |     }
+  325 | 
+  326 |     // Track popup / new tab creation
+  327 |     let popupOpened = false;
+  328 |     context.on('page', () => {
+  329 |       popupOpened = true;
+  330 |     });
+  331 | 
+  332 |     // Attempt to click Share Live Score button in Guest Mode
+  333 |     await page.locator('#liveMoreMenu > summary').click();
+  334 |     await page.click('#shareWhatsAppBtn');
+  335 | 
+  336 |     // Assert NO new popup/tab was opened
+  337 |     expect(popupOpened).toBe(false);
+  338 | 
+  339 |     // Assert Toast warning is displayed indicating sign-in is required
+  340 |     const toast = page.locator('.toast', { hasText: 'Sign in to share live scores across devices' });
+  341 |     await expect(toast).toBeVisible();
+  342 |   });
+  343 | 
+  344 | });
+  345 | 
+```

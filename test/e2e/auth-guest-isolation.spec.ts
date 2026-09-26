@@ -249,7 +249,7 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
     }
 
     // Create a local Guest match
-    await page.click('button:has-text("Quick Match")');
+    await page.click('button.cric-btn:has-text("Quick Match")');
 
     await page.evaluate(async () => {
       const win = window as any;

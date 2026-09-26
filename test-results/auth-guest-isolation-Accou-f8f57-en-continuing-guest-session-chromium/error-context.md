@@ -6,121 +6,39 @@
 
 # Test info
 
-- Name: auth-guest-isolation.spec.ts >> Account Logout & Guest Mode Data Isolation E2E Tests >> Registered account data is purged on sign-out, leaving Guest mode clean
-- Location: test\e2e\auth-guest-isolation.spec.ts:123:3
+- Name: auth-guest-isolation.spec.ts >> Account Logout & Guest Mode Data Isolation E2E Tests >> Genuine guest user match data is retained when continuing guest session
+- Location: test\e2e\auth-guest-isolation.spec.ts:242:3
 
 # Error details
 
 ```
-Error: expect(locator).toBeVisible() failed
-
-Locator:  locator('#tossModal')
-Expected: visible
-Received: hidden
-Timeout:  10000ms
-
-Call log:
-  - Expect "toBeVisible" locator('#tossModal') with timeout 10000ms
-  - waiting for locator('#tossModal')
-    23 × locator resolved to <div id="tossModal" class="modal-overlay">…</div>
-       - unexpected value "hidden"
-
+Test timeout of 45000ms exceeded.
 ```
 
-```yaml
-- banner:
-  - button "CricScore Pro home":
-    - img "CricScore Pro Logo"
-    - text: CricScore Pro
-  - button "✨ Features ▾"
-  - button "🔑 Sign In"
-  - button "⚙️ Settings"
-  - text: 🟢 Sync Active
-- img "CricScore Pro App Icon"
-- heading "CricScore Pro" [level=2]
-- paragraph: Professional Cricket Scorer & Live Scoreboard
-- button "📝 Register / Sign In"
-- button "👤 Continue as Guest"
-- text: "Registered Users: Matches, Series, and Player stats persist permanently. Guest Users: Offline scoring stored temporarily in local storage."
+```
+Error: page.click: Test timeout of 45000ms exceeded.
+Call log:
+  - waiting for locator('button.cric-btn:has-text("Quick Match")')
+    - locator resolved to 3 elements. Proceeding with the first one: <button type="button" onclick="startQuickMatch()" class="cric-btn cric-btn-primary">↵                🏏 Quick Match →↵              </button>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    84 × waiting for element to be visible, enabled and stable
+       - element is not visible
+     - retrying click action
+       - waiting 500ms
+
 ```
 
 # Test source
 
 ```ts
-  78  |             if (typeof v === 'string') headers[k.toLowerCase()] = v;
-  79  |             else if (Array.isArray(v)) headers[k.toLowerCase()] = v.join(', ');
-  80  |           }
-  81  | 
-  82  |           const event = {
-  83  |             requestContext: {
-  84  |               http: { method: req.method || 'GET' }
-  85  |             },
-  86  |             httpMethod: req.method || 'GET',
-  87  |             rawPath,
-  88  |             path: rawPath,
-  89  |             pathParameters,
-  90  |             headers,
-  91  |             body: body || null
-  92  |           };
-  93  | 
-  94  |           try {
-  95  |             const result = await handler(event);
-  96  |             res.writeHead(result.statusCode || 200, {
-  97  |               'Content-Type': 'application/json',
-  98  |               'Access-Control-Allow-Origin': '*'
-  99  |             });
-  100 |             res.end(result.body || '');
-  101 |           } catch (err: any) {
-  102 |             res.writeHead(500, { 'Content-Type': 'application/json' });
-  103 |             res.end(JSON.stringify({ error: err.message }));
-  104 |           }
-  105 |         });
-  106 |       });
-  107 | 
-  108 |       apiServer.listen(API_PORT, () => {
-  109 |         resolve();
-  110 |       });
-  111 |     });
-  112 |   });
-  113 | 
-  114 |   test.afterAll(async () => {
-  115 |     if (apiServer) {
-  116 |       if (typeof (apiServer as any).closeAllConnections === 'function') {
-  117 |         (apiServer as any).closeAllConnections();
-  118 |       }
-  119 |       await new Promise<void>((resolve) => apiServer.close(() => resolve()));
-  120 |     }
-  121 |   });
-  122 | 
-  123 |   test('Registered account data is purged on sign-out, leaving Guest mode clean', async ({ page }) => {
-  124 |     await page.addInitScript(apiUrl => {
-  125 |       (window as any).CRIC_API_BASE = apiUrl;
-  126 |     }, API_BASE_URL);
-  127 | 
-  128 |     await page.goto('http://localhost:8080');
-  129 | 
-  130 |     // Register test user
-  131 |     const user = await page.evaluate(async (apiUrl) => {
-  132 |       const win = window as any;
-  133 |       win.CRIC_API_BASE = apiUrl;
-  134 |       const res = await win.CricStorage.register(
-  135 |         `user_isolation_${Date.now()}@example.com`,
-  136 |         'SecretPassword123!',
-  137 |         'User Isolation'
-  138 |       );
-  139 |       if (typeof win.updateAuthUI === 'function') win.updateAuthUI();
-  140 |       return res;
-  141 |     }, API_BASE_URL);
-  142 | 
-  143 |     expect(user?.userId).toBeTruthy();
-  144 | 
-  145 |     // Navigate to Create Match screen
-  146 |     await page.evaluate(async () => {
-  147 |       const win = window as any;
-  148 |       if (typeof win.showNewMatchScreen === 'function') {
-  149 |         await win.showNewMatchScreen();
-  150 |       }
-  151 |     });
   152 | 
   153 |     // Create match as registered user
   154 |     await page.evaluate(async () => {
@@ -147,8 +65,7 @@ Call log:
   175 |     });
   176 | 
   177 |     const tossModal = page.locator('#tossModal');
-> 178 |     await expect(tossModal).toBeVisible();
-      |                             ^ Error: expect(locator).toBeVisible() failed
+  178 |     await expect(tossModal).toBeVisible();
   179 | 
   180 |     await page.click('#tossModal button:has-text("Start match")');
   181 | 
@@ -222,7 +139,8 @@ Call log:
   249 |     }
   250 | 
   251 |     // Create a local Guest match
-  252 |     await page.click('button:visible:has-text("Quick Match")');
+> 252 |     await page.click('button.cric-btn:has-text("Quick Match")');
+      |                ^ Error: page.click: Test timeout of 45000ms exceeded.
   253 | 
   254 |     await page.evaluate(async () => {
   255 |       const win = window as any;
@@ -249,4 +167,51 @@ Call log:
   276 | 
   277 |     const tossModal = page.locator('#tossModal');
   278 |     await expect(tossModal).toBeVisible();
+  279 | 
+  280 |     await page.click('#tossModal button:has-text("Start match")');
+  281 | 
+  282 |     // Confirm initial selection prompts
+  283 |     for (let i = 0; i < 3; i++) {
+  284 |       const selectionModal = page.locator('#selectionModal');
+  285 |       if (await selectionModal.isVisible()) {
+  286 |         const confirmBtn = page.locator('#btnConfirmGenericSelection');
+  287 |         if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
+  288 |           await confirmBtn.click();
+  289 |         } else {
+  290 |           const bowlerOpt = page.locator('#bowlerListContainer .bowler-option').first();
+  291 |           if (await bowlerOpt.isVisible()) {
+  292 |             await bowlerOpt.click();
+  293 |           }
+  294 |         }
+  295 |         await page.waitForTimeout(300);
+  296 |       }
+  297 |     }
+  298 | 
+  299 |     // Score 1 ball to ensure match has data
+  300 |     await page.click('#scoringKeypad button:has-text("1")');
+  301 | 
+  302 |     // Navigate back to Landing screen
+  303 |     await page.evaluate(() => {
+  304 |       const win = window as any;
+  305 |       if (typeof win.showLandingScreen === 'function') {
+  306 |         win.showLandingScreen();
+  307 |       }
+  308 |     });
+  309 | 
+  310 |     // Returning home in Guest mode must keep the saved match visible.
+  311 |     await expect(page.locator('#homeDashboard')).toBeVisible();
+  312 |     await expect(page.locator('#homeRecentMatches')).toContainText('Pure Guest A vs Pure Guest B');
+  313 | 
+  314 |     // Assert Guest match data is NOT wiped
+  315 |     const guestMatches = await page.evaluate(() => {
+  316 |       const raw = localStorage.getItem('cric_matches');
+  317 |       return raw ? JSON.parse(raw) : [];
+  318 |     });
+  319 | 
+  320 |     expect(guestMatches.length).toBeGreaterThan(0);
+  321 |     expect(guestMatches[0].teamA.name).toBe('Pure Guest A');
+  322 |   });
+  323 | 
+  324 | });
+  325 | 
 ```

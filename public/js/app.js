@@ -292,17 +292,11 @@ async function renderHomeDashboard() {
       registeredCtas.style.display = 'none';
     }
   }
-      registeredCtas.hidden = true;
-      registeredCtas.style.display = 'none';
-    }
-  }
-
   // Ensure Features menu Full Match button is always accessible
   const featureFullMatchBtn = document.getElementById('featureFullMatchBtn');
   if (featureFullMatchBtn) {
     featureFullMatchBtn.hidden = false;
-  }
-    featureFullMatchBtn.hidden = !isRegistered;
+    featureFullMatchBtn.removeAttribute('hidden');
   }
 
   recentList.replaceChildren();
@@ -1375,123 +1369,128 @@ async function onSelectTeamBChange() {
 }
 
 async function handleCreateMatch() {
-  const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
-  const teamAColor = document.getElementById('teamAColor')?.value || '#2563eb';
+  try {
+    const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
+    const teamAColor = document.getElementById('teamAColor')?.value || '#2563eb';
 
-  const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
-  const teamBColor = document.getElementById('teamBColor')?.value || '#0284c7';
+    const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
+    const teamBColor = document.getElementById('teamBColor')?.value || '#0284c7';
 
-  // Auto-seed 11 placeholder players per team if matchSquadA / matchSquadB empty
-  if (matchSquadA.length < 1) {
-    matchSquadA = [];
-    for (let i = 1; i <= 11; i++) {
-      matchSquadA.push({
-        id: `pla_web_${Date.now()}_${i}`,
-        name: `${teamAName} Player ${i}`,
-        role: i === 1 ? 'BATTER' : 'ALL_ROUNDER'
-      });
+    // Auto-seed 11 placeholder players per team if matchSquadA / matchSquadB empty
+    if (!matchSquadA || matchSquadA.length < 1) {
+      matchSquadA = [];
+      for (let i = 1; i <= 11; i++) {
+        matchSquadA.push({
+          id: `pla_web_${Date.now()}_${i}`,
+          name: `${teamAName} Player ${i}`,
+          role: i === 1 ? 'BATTER' : 'ALL_ROUNDER'
+        });
+      }
     }
+
+    if (!matchSquadB || matchSquadB.length < 1) {
+      matchSquadB = [];
+      for (let i = 1; i <= 11; i++) {
+        matchSquadB.push({
+          id: `plb_web_${Date.now()}_${i}`,
+          name: `${teamBName} Player ${i}`,
+          role: i === 1 ? 'BATTER' : 'ALL_ROUNDER'
+        });
+      }
+    }
+
+    const overs = parseInt(document.getElementById('matchOvers')?.value, 10) || 6;
+    const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers')?.value, 10) || Math.max(1, Math.ceil(overs / 5));
+    const powerplayEl = document.getElementById('matchPowerplayOvers');
+    const powerplayOversRaw = powerplayEl ? parseInt(powerplayEl.value, 10) : NaN;
+    const tourneyDefaults = getTournamentDefaults(activeTournament);
+    const saveForReuseEl = document.getElementById('saveTeamsForReuse');
+    const saveForReuse = saveForReuseEl ? saveForReuseEl.checked : false;
+    const effectivePowerplay = normalizePowerplayOvers(
+      Number.isNaN(powerplayOversRaw) ? tourneyDefaults.powerplayOvers : powerplayOversRaw,
+      overs
+    );
+
+    const teamACaptain = matchSquadA.find(p => p.isCaptain)?.id || matchSquadA[0]?.id;
+    const teamAViceCaptain = matchSquadA.find(p => p.isViceCaptain)?.id || (matchSquadA[1] ? matchSquadA[1].id : null);
+
+    const teamBCaptain = matchSquadB.find(p => p.isCaptain)?.id || matchSquadB[0]?.id;
+    const teamBViceCaptain = matchSquadB.find(p => p.isViceCaptain)?.id || (matchSquadB[1] ? matchSquadB[1].id : null);
+
+    const teamA = {
+      id: 'team_a_' + Date.now(),
+      name: teamAName,
+      colorHex: teamAColor,
+      players: matchSquadA.map(p => ({
+        id: p.id,
+        name: p.name,
+        isCaptain: p.id === teamACaptain,
+        isViceCaptain: p.id === teamAViceCaptain,
+        battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
+        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+      }))
+    };
+
+    const teamB = {
+      id: 'team_b_' + Date.now(),
+      name: teamBName,
+      colorHex: teamBColor,
+      players: matchSquadB.map(p => ({
+        id: p.id,
+        name: p.name,
+        isCaptain: p.id === teamBCaptain,
+        isViceCaptain: p.id === teamBViceCaptain,
+        battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
+        bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
+      }))
+    };
+
+    if (saveForReuse) {
+      await window.CricStorage.saveTeam(teamA);
+      await window.CricStorage.saveTeam(teamB);
+
+      for (const p of teamA.players) {
+        await window.CricStorage.addGlobalPlayer({ id: p.id, name: p.name, role: 'Batter' });
+      }
+      for (const p of teamB.players) {
+        await window.CricStorage.addGlobalPlayer({ id: p.id, name: p.name, role: 'Batter' });
+      }
+    }
+
+    activeMatch = {
+      id: 'match_' + Date.now(),
+      scoringMode: currentScoringMode || 'QUICK',
+      tournamentId: activeTournament?.id || null,
+      tournamentName: activeTournament?.name || null,
+      teamA,
+      teamB,
+      teamACaptainId: teamACaptain,
+      teamAViceCaptainId: teamAViceCaptain,
+      teamBCaptainId: teamBCaptain,
+      teamBViceCaptainId: teamBViceCaptain,
+      status: 'UPCOMING',
+      currentInnings: 1,
+      battingTeamId: teamA.id,
+      bowlingTeamId: teamB.id,
+      totalRuns: 0,
+      totalWickets: 0,
+      totalBalls: 0,
+      oversPerInnings: overs,
+      maxOversPerBowler: maxBowlerOvers,
+      powerplayOvers: effectivePowerplay,
+      quotaBowlersCount: tourneyDefaults.quotaBowlersCount,
+      quotaMaxOvers: tourneyDefaults.quotaMaxOvers,
+      ballHistory: [],
+      wicketHistory: [],
+      pendingAction: 'TOSS_REQUIRED',
+      gullyRules: normalizeGullyRules(tourneyDefaults.gullyRules)
+    };
+
+    openTossModal();
+  } catch (err) {
+    console.error('Failed to create match:', err);
   }
-
-  if (matchSquadB.length < 1) {
-    matchSquadB = [];
-    for (let i = 1; i <= 11; i++) {
-      matchSquadB.push({
-        id: `plb_web_${Date.now()}_${i}`,
-        name: `${teamBName} Player ${i}`,
-        role: i === 1 ? 'BATTER' : 'ALL_ROUNDER'
-      });
-    }
-  }
-
-  const overs = parseInt(document.getElementById('matchOvers')?.value, 10) || 6;
-  const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers')?.value, 10) || Math.max(1, Math.ceil(overs / 5));
-  const powerplayEl = document.getElementById('matchPowerplayOvers');
-  const powerplayOversRaw = powerplayEl ? parseInt(powerplayEl.value, 10) : NaN;
-  const tourneyDefaults = getTournamentDefaults(activeTournament);
-  const saveForReuseEl = document.getElementById('saveTeamsForReuse');
-  const saveForReuse = saveForReuseEl ? saveForReuseEl.checked : false;
-  const effectivePowerplay = normalizePowerplayOvers(
-    Number.isNaN(powerplayOversRaw) ? tourneyDefaults.powerplayOvers : powerplayOversRaw,
-    overs
-  );
-
-  const teamACaptain = matchSquadA.find(p => p.isCaptain)?.id || matchSquadA[0]?.id;
-  const teamAViceCaptain = matchSquadA.find(p => p.isViceCaptain)?.id || (matchSquadA[1] ? matchSquadA[1].id : null);
-
-  const teamBCaptain = matchSquadB.find(p => p.isCaptain)?.id || matchSquadB[0]?.id;
-  const teamBViceCaptain = matchSquadB.find(p => p.isViceCaptain)?.id || (matchSquadB[1] ? matchSquadB[1].id : null);
-
-  const teamA = {
-    id: 'team_a_' + Date.now(),
-    name: teamAName,
-    colorHex: teamAColor,
-    players: matchSquadA.map(p => ({
-      id: p.id,
-      name: p.name,
-      isCaptain: p.id === teamACaptain,
-      isViceCaptain: p.id === teamAViceCaptain,
-      battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-      bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-    }))
-  };
-
-  const teamB = {
-    id: 'team_b_' + Date.now(),
-    name: teamBName,
-    colorHex: teamBColor,
-    players: matchSquadB.map(p => ({
-      id: p.id,
-      name: p.name,
-      isCaptain: p.id === teamBCaptain,
-      isViceCaptain: p.id === teamBViceCaptain,
-      battingStats: { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isRetiredHurt: false, wicketType: 'NONE' },
-      bowlingStats: { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, dotBalls: 0, wides: 0, noBalls: 0 }
-    }))
-  };
-
-  if (saveForReuse) {
-    await window.CricStorage.saveTeam(teamA);
-    await window.CricStorage.saveTeam(teamB);
-
-    for (const p of teamA.players) {
-      await window.CricStorage.addGlobalPlayer({ id: p.id, name: p.name, role: 'Batter' });
-    }
-    for (const p of teamB.players) {
-      await window.CricStorage.addGlobalPlayer({ id: p.id, name: p.name, role: 'Batter' });
-    }
-  }
-
-  activeMatch = {
-    id: 'match_' + Date.now(),
-    scoringMode: currentScoringMode || 'QUICK',
-    tournamentId: activeTournament?.id || null,
-    tournamentName: activeTournament?.name || null,
-    teamA,
-    teamB,
-    teamACaptainId: teamACaptain,
-    teamAViceCaptainId: teamAViceCaptain,
-    teamBCaptainId: teamBCaptain,
-    teamBViceCaptainId: teamBViceCaptain,
-    status: 'UPCOMING',
-    currentInnings: 1,
-    battingTeamId: teamA.id,
-    bowlingTeamId: teamB.id,
-    totalRuns: 0,
-    totalWickets: 0,
-    totalBalls: 0,
-    oversPerInnings: overs,
-    maxOversPerBowler: maxBowlerOvers,
-    powerplayOvers: effectivePowerplay,
-    quotaBowlersCount: tourneyDefaults.quotaBowlersCount,
-    quotaMaxOvers: tourneyDefaults.quotaMaxOvers,
-    ballHistory: [],
-    wicketHistory: [],
-    pendingAction: 'TOSS_REQUIRED',
-    gullyRules: normalizeGullyRules(tourneyDefaults.gullyRules)
-  };
-
-  openTossModal();
+}
 }
 
 function openTossModal() {

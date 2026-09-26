@@ -8,7 +8,7 @@
     "build": "tsc && node scripts/build-engine.js",
     "build:engine": "node scripts/build-engine.js",
     "start": "npx http-server public -p 8080",
-    "test": "node --test dist/test/ScoringEngine.test.js",
+    "test": "npm run build && node --test dist/test/ScoringEngine.test.js",
     "test:e2e": "playwright test"
   },
   "keywords": [
@@ -27,6 +27,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.500.0",
-    "@aws-sdk/lib-dynamodb": "^3.500.0"
+    "@aws-sdk/client-secrets-manager": "^3.1141.0",
+    "@aws-sdk/lib-dynamodb": "^3.500.0",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3"
   }
 }
