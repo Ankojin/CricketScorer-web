@@ -18,9 +18,9 @@
       <span>CricScore Pro</span>
     </div>
     <div class="app-header-actions" style="display:flex; align-items:center; gap:8px;">
-      <button class="nav-btn features-trigger-btn" style="background:#15803d; border:1px solid #22c55e;" onclick="toggleFeaturesMenu(event)">✨ Features ▾</button>
+      <button class="nav-btn features-trigger-btn" style="background:var(--color-primary-soft); border:1px solid var(--color-electric);" onclick="toggleFeaturesMenu(event)">✨ Features ▾</button>
       <button id="authBtn" class="nav-btn" style="background:var(--color-primary);" onclick="openAuthModal()">🔑 Sign In</button>
-      <button class="nav-btn" style="background:#1f482b;" onclick="openMatchSettingsModal()">⚙️ Settings</button>
+      <button class="nav-btn" style="background:var(--color-primary-soft);" onclick="openMatchSettingsModal()">⚙️ Settings</button>
       <span id="syncBadge" class="status-badge online">🟢 Sync Active</span>
     </div>
   </header>
@@ -85,7 +85,7 @@
             📝 Register / Sign In
           </button>
 
-          <button class="btn" style="background:#1f482b; padding:14px; font-size:14px; color:#f8fafc; border-color:#2e633d;" onclick="continueAsGuest()">
+          <button class="btn" style="background:var(--color-primary-soft); padding:14px; font-size:14px; color:var(--color-text-on-dark); border-color:var(--color-border-dark);" onclick="continueAsGuest()">
             👤 Continue as Guest
           </button>
         </div>
@@ -275,7 +275,7 @@
         </div>
 
         <!-- Filter Sub-Tabs Bar -->
-        <div style="display:flex; gap:6px; background:#0f172a; padding:4px; border-radius:10px; margin-bottom:14px; border:1px solid var(--card-border);">
+        <div style="display:flex; gap:6px; background:var(--color-primary); padding:4px; border-radius:10px; margin-bottom:14px; border:1px solid var(--card-border);">
           <button id="matchFilterAll" class="btn" style="flex:1; padding:8px; font-size:12px; background:var(--primary-color); color:#fff;" onclick="setMatchFilter('ALL')">ALL</button>
           <button id="matchFilterLive" class="btn" style="flex:1; padding:8px; font-size:12px; background:transparent; color:var(--text-muted);" onclick="setMatchFilter('LIVE')">🔴 LIVE</button>
           <button id="matchFilterCompleted" class="btn" style="flex:1; padding:8px; font-size:12px; background:transparent; color:var(--text-muted);" onclick="setMatchFilter('COMPLETED')">🏆 COMPLETED</button>
@@ -429,13 +429,13 @@
       <!-- Empty State Container when no match is currently active -->
       <div id="liveScoringEmptyContainer" class="card" style="display:none; text-align:center; padding:32px 16px;">
         <div style="font-size:48px; margin-bottom:12px;">🏏</div>
-        <h3 style="font-size:20px; font-weight:800; color:#fff; margin-bottom:8px;">Live Scoring Center</h3>
+        <h3 style="font-size:20px; font-weight:800; color:var(--color-primary); margin-bottom:8px;">Live Scoring Center</h3>
         <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">
           No live match is currently active. Select an existing match from Match Center or create a new match to begin scoring!
         </p>
         <div style="display:flex; flex-direction:column; gap:10px; max-width:320px; margin:0 auto;">
           <button class="btn-primary" onclick="showNewMatchScreen()">⚡ Create New Match</button>
-          <button class="btn" style="background:#283454; font-size:14px; padding:12px;" onclick="loadMatchListScreen()">📋 View Saved Matches</button>
+          <button class="btn" style="background:var(--color-surface-soft); font-size:14px; padding:12px;" onclick="loadMatchListScreen()">📋 View Saved Matches</button>
         </div>
       </div>
 
@@ -443,7 +443,7 @@
       <div id="liveScoringActiveContainer">
 
         <!-- Spectator Read-Only Mode Banner -->
-        <div id="spectatorBanner" class="card" style="background:#064e3b; border-color:#059669; color:#a7f3d0; font-weight:700; display:none; text-align:center;">
+        <div id="spectatorBanner" class="card" style="background:var(--color-success-soft); border-color:var(--color-success); color:var(--color-green-dark); font-weight:700; display:none; text-align:center;">
           👀 Spectator Live Viewer Mode (Read-Only)
         </div>
 
@@ -510,7 +510,7 @@
         </div>
 
         <!-- Action Prompt Banner -->
-        <div id="actionBanner" class="card" style="background:#78350f; border-color:#f59e0b; color:#fef3c7; font-weight:700; display:none; text-align:center;">
+        <div id="actionBanner" class="card" style="background:var(--color-warning-soft); border-color:var(--color-warning); color:var(--color-primary); font-weight:700; display:none; text-align:center;">
           Pending Action
         </div>
 
@@ -562,7 +562,7 @@
       </section>
       <div class="card">
         <h3 style="margin-bottom:12px;">Match Scorecard</h3>
-        <div style="display:flex; gap:6px; margin-bottom:14px; background:#121826; padding:4px; border-radius:10px; border:1px solid var(--card-border);">
+        <div style="display:flex; gap:6px; margin-bottom:14px; background:var(--color-primary); padding:4px; border-radius:10px; border:1px solid var(--card-border);">
           <button id="scorecardTabI1" class="btn" style="flex:1; padding:8px; font-size:12px;" onclick="setScorecardTab('INNINGS1')">1st Innings</button>
           <button id="scorecardTabI2" class="btn" style="flex:1; padding:8px; font-size:12px;" onclick="setScorecardTab('INNINGS2')">2nd Innings</button>
         </div>
@@ -580,7 +580,7 @@
       </section>
       <div class="card">
         <h3 style="margin-bottom:12px;">Over-By-Over Breakdown</h3>
-        <div style="display:flex; gap:6px; margin-bottom:14px; background:#121826; padding:4px; border-radius:10px; border:1px solid var(--card-border);">
+        <div style="display:flex; gap:6px; margin-bottom:14px; background:var(--color-primary); padding:4px; border-radius:10px; border:1px solid var(--card-border);">
           <button id="oversTabI1" class="btn" style="flex:1; padding:8px; font-size:12px;" onclick="setOversInningsTab('INNINGS1')">1st Innings</button>
           <button id="oversTabI2" class="btn" style="flex:1; padding:8px; font-size:12px;" onclick="setOversInningsTab('INNINGS2')">2nd Innings</button>
         </div>
@@ -634,14 +634,14 @@
     <div class="modal">
       <!-- Full Match Mode Info Banner -->
       <div id="authFullMatchBanner" style="background:var(--color-surface-dark); color:#ffffff; border-radius:14px; padding:16px; margin-bottom:16px; border:1px solid var(--color-border-dark); text-align:center;">
-        <div style="font-size:10px; font-weight:800; color:#4ade80; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">FULL MATCH MODE</div>
+        <div style="font-size:10px; font-weight:800; color:var(--color-electric); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">FULL MATCH MODE</div>
         <p style="font-size:12px; color:rgba(255,255,255,0.88); line-height:1.5; margin:0;">
           Player-level scoring for matches that matter — professional games, tournaments, box leagues, and your weekend gully. Build your squad once, pick your team sheets, and score every ball against real named players — who’s on strike, who bowled it, who took the catch. Real scorecards, real career stats, and gully rules built in.
         </p>
       </div>
 
       <h3 style="margin-bottom:12px; text-align:center; color:var(--color-text);">🔑 Sign In / Register Scorer</h3>
-      <div style="display:flex; gap:6px; margin-bottom:14px; background:#0f172a; padding:4px; border-radius:8px;">
+      <div style="display:flex; gap:6px; margin-bottom:14px; background:var(--color-primary); padding:4px; border-radius:8px;">
         <button id="authTabLogin" class="btn" style="flex:1; padding:6px; font-size:12px; background:var(--primary-color)" onclick="switchAuthTab('LOGIN')">Sign In</button>
         <button id="authTabRegister" class="btn" style="flex:1; padding:6px; font-size:12px; background:transparent" onclick="switchAuthTab('REGISTER')">Register</button>
       </div>
@@ -769,7 +769,7 @@
         <div class="form-group" style="flex:1;"><label for="editTeamBWK">Team B Wicket-Keeper</label><select id="editTeamBWK" class="form-control"></select></div>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:12px;">
-        <button id="btnAbandonResume" class="btn" style="flex:1; background:#7f1d1d; color:#fecaca;" onclick="toggleMatchAbandonedStatus()">⛔ Abandon Match</button>
+        <button id="btnAbandonResume" class="btn" style="flex:1; background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error);" onclick="toggleMatchAbandonedStatus()">⛔ Abandon Match</button>
         <button class="btn" style="flex:1; background:#334155;" onclick="triggerImportMatchBackup()">Import Backup</button>
         <button class="btn" style="flex:1; background:#334155;" onclick="exportActiveMatchBackup()">Export Backup</button>
       </div>
@@ -796,7 +796,7 @@
 
       <div style="display:flex; gap:8px; margin-top:20px;">
         <button class="btn-primary" onclick="saveMatchSettings()">Save Settings</button>
-        <button class="btn" style="background:#7f1d1d; color:#fca5a5; font-size:13px;" onclick="wipeAllAppData()">🧹 Reset App Data</button>
+        <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); font-size:13px;" onclick="wipeAllAppData()">🧹 Reset App Data</button>
         <button class="btn" style="background:#334155;" onclick="closeMatchSettingsModal()">Cancel</button>
       </div>
     </div>
@@ -837,7 +837,7 @@
   <div id="overEndModal" class="modal-overlay">
     <div class="modal">
       <h3 id="overEndTitle" style="margin-bottom:8px;">End of Over</h3>
-      <div id="overEndMatchScores" style="font-size:21px; font-weight:900; color:#fff; margin-bottom:10px;"></div>
+      <div id="overEndMatchScores" style="font-size:21px; font-weight:900; color:var(--color-primary); margin-bottom:10px;"></div>
       <div id="overEndBody" style="font-size:15px; font-weight:700; margin-bottom:8px;">Runs in Over: 0 | Wickets: 0</div>
       <div id="overEndBowlerStats" style="font-size:13px; color:var(--text-muted); margin-bottom:16px;"></div>
       <button id="overEndContinueBtn" class="btn-primary" onclick="closeOverEndModal()">Continue</button>
@@ -1017,7 +1017,7 @@
         <label for="seriesTeamPlayerSearch">Select Players from Directory (Checkbox Multi-Select)</label>
         <input type="text" id="seriesTeamPlayerSearch" aria-label="Search roster" class="form-control" placeholder="🔍 Search roster..." oninput="filterSeriesTeamPlayerPicker()" style="margin-bottom:6px;">
 
-        <div id="seriesTeamPlayerChecklist" style="max-height:130px; overflow-y:auto; background:#121826; border:1px solid var(--card-border); border-radius:8px; padding:8px; margin-bottom:6px;"></div>
+        <div id="seriesTeamPlayerChecklist" style="max-height:130px; overflow-y:auto; background:var(--color-surface-soft); border:1px solid var(--card-border); border-radius:8px; padding:8px; margin-bottom:6px;"></div>
 
         <div style="display:flex; gap:6px;">
           <button class="btn-primary" style="padding:6px 12px; font-size:12px;" onclick="addCheckedSeriesTeamPlayers()">☑️ Add Checked Players</button>
@@ -1028,7 +1028,7 @@
       <!-- Selected Players Chip List -->
       <div class="form-group">
         <label>Selected Squad Members</label>
-        <div id="seriesTeamSelectedPlayers" style="max-height:110px; overflow-y:auto; background:#121826; padding:8px; border-radius:8px; border:1px solid var(--card-border);"></div>
+        <div id="seriesTeamSelectedPlayers" style="max-height:110px; overflow-y:auto; background:var(--color-surface-soft); padding:8px; border-radius:8px; border:1px solid var(--card-border);"></div>
       </div>
 
       <div class="form-group">

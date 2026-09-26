@@ -417,7 +417,7 @@ function updateAuthUI() {
   if (user) {
     if (btn) {
       btn.innerText = `👤 ${user.name || user.email.split('@')[0]}`;
-      btn.style.background = '#064e3b';
+      btn.style.background = 'var(--color-primary-soft)';
     }
     if (syncBadge) {
       syncBadge.className = 'status-badge online';
@@ -427,7 +427,7 @@ function updateAuthUI() {
     const isGuest = localStorage.getItem('cric_user_mode') === 'GUEST';
     if (btn) {
       btn.innerText = '🔑 Sign In';
-      btn.style.background = '#3b82f6';
+      btn.style.background = 'var(--color-primary)';
     }
     if (syncBadge) {
       if (isGuest) {
@@ -795,7 +795,7 @@ async function loadMatchListScreen() {
 
     item.innerHTML = `
       <div style="flex:1; cursor:pointer;" onclick="selectMatch('${m.id}')">
-        <div style="font-weight:700; font-size:15px; color:#fff;">
+        <div style="font-weight:700; font-size:15px; color:var(--color-text);">
           <span class="team-badge" style="background:${teamAColor}"></span>${m.teamA?.name || 'Team A'} vs
           <span class="team-badge" style="background:${teamBColor}"></span>${m.teamB?.name || 'Team B'}
         </div>
@@ -804,10 +804,10 @@ async function loadMatchListScreen() {
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:12px;">
-        <div style="font-size:22px; font-weight:900; color:#fff; cursor:pointer;" onclick="selectMatch('${m.id}')">
+        <div style="font-size:22px; font-weight:900; color:var(--color-primary); cursor:pointer;" onclick="selectMatch('${m.id}')">
           ${m.totalRuns || 0}/${m.totalWickets || 0}
         </div>
-        <button class="btn" style="background:#7f1d1d; color:#fca5a5; padding:6px 10px; font-size:12px; border-radius:8px;" onclick="handleDeleteMatch('${m.id}', event)">
+        <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:6px 10px; font-size:12px; border-radius:8px;" onclick="handleDeleteMatch('${m.id}', event)">
           🗑️ Delete
         </button>
       </div>
@@ -916,7 +916,7 @@ function renderSquadList(side) {
       <div class="squad-btn-group">
         <button class="role-btn ${p.isCaptain ? 'active-c' : ''}" onclick="setSquadRole('${side}', ${idx}, 'C')">C</button>
         <button class="role-btn ${p.isViceCaptain ? 'active-vc' : ''}" onclick="setSquadRole('${side}', ${idx}, 'VC')">VC</button>
-        <button class="role-btn" style="background:#334155; color:#f8fafc;" title="Move to Team ${side === 'A' ? 'B' : 'A'}" onclick="movePlayerToOtherSquad('${side}', ${idx})">⇄ Move</button>
+        <button class="role-btn" style="background:var(--color-surface-soft); color:var(--color-text);" title="Move to Team ${side === 'A' ? 'B' : 'A'}" onclick="movePlayerToOtherSquad('${side}', ${idx})">⇄ Move</button>
         <button class="squad-remove" onclick="removeFromSquad('${side}', ${idx})">✕</button>
       </div>
     `;
@@ -1202,7 +1202,7 @@ function renderGlobalPlayerOptionsForSide(side) {
     const inputId = `chk_${side}_${idx}`;
     const encodedPayload = encodeURIComponent(JSON.stringify(p));
     return `
-      <label for="${inputId}" style="display:flex; align-items:center; gap:6px; padding:3px 0; font-size:12px; color:#e2e8f0;">
+      <label for="${inputId}" style="display:flex; align-items:center; gap:6px; padding:3px 0; font-size:12px; color:var(--color-text);">
         <input id="${inputId}" type="checkbox" value="${encodedPayload}">
         <span>${p.name} (${p.role || 'Batter'}) • [${statusLabel}]</span>
       </label>
@@ -1491,8 +1491,6 @@ async function handleCreateMatch() {
     console.error('Failed to create match:', err);
   }
 }
-}
-
 function openTossModal() {
   if (!activeMatch) return;
   updateQuickMatchProgress(3);
@@ -1664,12 +1662,12 @@ function openMatchSettingsModal() {
   if (lifecycleBtn) {
     if (activeMatch.status === 'ABANDONED') {
       lifecycleBtn.innerText = '▶️ Resume Match';
-      lifecycleBtn.style.background = '#065f46';
-      lifecycleBtn.style.color = '#a7f3d0';
+      lifecycleBtn.style.background = 'var(--color-success-soft)';
+      lifecycleBtn.style.color = 'var(--color-green-dark)';
     } else {
       lifecycleBtn.innerText = '⛔ Abandon Match';
-      lifecycleBtn.style.background = '#7f1d1d';
-      lifecycleBtn.style.color = '#fecaca';
+      lifecycleBtn.style.background = 'var(--color-danger-soft)';
+      lifecycleBtn.style.color = 'var(--color-error)';
     }
   }
 
@@ -2470,15 +2468,15 @@ function openPlayerSelection(type) {
       }
 
       let tag = '';
-      if (isCurrent) tag = '<span style="font-size:10px; color:#60a5fa; margin-left:4px;">(Current)</span>';
-      else if (allowFallback && blockers.length > 0) tag = '<span style="font-size:10px; color:#f59e0b; margin-left:4px;">(Fallback Allowed)</span>';
-      else if (isLastBowler && isDisabled) tag = '<span style="font-size:10px; color:#fca5a5; margin-left:4px;">(Last Bowler)</span>';
-      else if (blockers.includes('quota-complete')) tag = '<span style="font-size:10px; color:#fca5a5; margin-left:4px;">(Quota Completed)</span>';
-      else if (blockers.includes('quota-bowlers-count')) tag = '<span style="font-size:10px; color:#fca5a5; margin-left:4px;">(Quota Bowlers Limit)</span>';
+      if (isCurrent) tag = '<span style="font-size:10px; color:var(--color-info); margin-left:4px;">(Current)</span>';
+      else if (allowFallback && blockers.length > 0) tag = '<span style="font-size:10px; color:var(--color-warning); margin-left:4px;">(Fallback Allowed)</span>';
+      else if (isLastBowler && isDisabled) tag = '<span style="font-size:10px; color:var(--color-error); margin-left:4px;">(Last Bowler)</span>';
+      else if (blockers.includes('quota-complete')) tag = '<span style="font-size:10px; color:var(--color-error); margin-left:4px;">(Quota Completed)</span>';
+      else if (blockers.includes('quota-bowlers-count')) tag = '<span style="font-size:10px; color:var(--color-error); margin-left:4px;">(Quota Bowlers Limit)</span>';
 
       item.innerHTML = `
         <div>
-          <div style="font-weight:700; color:#fff; display:flex; align-items:center;">${p.name} ${tag}</div>
+          <div style="font-weight:700; color:var(--color-text); display:flex; align-items:center;">${p.name} ${tag}</div>
           <div style="font-size:11px; color:var(--text-muted);">${stats.overs}.${stats.balls} Ov | ${stats.runsConceded} Runs | ${stats.wickets} Wkts</div>
         </div>
         <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" ${isDisabled ? 'disabled' : ''} onclick="event.stopPropagation(); selectBowlerDirect('${p.id}')">Select</button>
@@ -3673,7 +3671,7 @@ function renderScorecardInnings(tab) {
 
     return `
       <tr>
-        <td style="font-weight:600; color:#fff;">
+        <td style="font-weight:600; color:var(--color-text);">
           ${p.name}
           ${isC ? '<span class="badge-c">(C)</span>' : ''}
           ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
@@ -3720,7 +3718,7 @@ function renderScorecardInnings(tab) {
 
       return `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-top:8px;">
-          <div style="font-size:12px; color:#e2e8f0; font-weight:700; min-width:72px;">Over ${o.overNumber}${o.isPartial ? ' *' : ''}</div>
+          <div style="font-size:12px; color:var(--color-text); font-weight:700; min-width:72px;">Over ${o.overNumber}${o.isPartial ? ' *' : ''}</div>
           <div style="display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end;">${chips}</div>
         </div>
       `;
@@ -3748,7 +3746,7 @@ function renderScorecardInnings(tab) {
     </table></div>
 
     <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-top:16px;">Ball History ${(isReadOnlySpectator || isInningsView) ? '' : '(Tap to Edit)'}</h4>
-    <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:10px;">${scorecardHistoryHtml}</div>
+    <div style="background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:8px; padding:10px;">${scorecardHistoryHtml}</div>
 
     <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-top:16px;">Fall of Wickets</h4>
     <ul style="padding-left:18px; margin-top:6px; font-size:12px; line-height:1.6; color:var(--text-muted);">
@@ -3831,8 +3829,8 @@ function renderOvers() {
       return `
         <div class="over-card-row">
           <div style="flex:1; min-width:0;">
-            <div style="font-size:13px; font-weight:700; color:#fff;">Over ${over.overNumber} ${over.isPartial ? '(In Progress)' : ''}</div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Bowler: <span style="color:#e2e8f0; font-weight:600;">${bowlerLabel}</span></div>
+            <div style="font-size:13px; font-weight:700; color:var(--color-text);">Over ${over.overNumber} ${over.isPartial ? '(In Progress)' : ''}</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Bowler: <span style="color:var(--color-text); font-weight:600;">${bowlerLabel}</span></div>
             <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">${chipsHtml}</div>
           </div>
           <div style="text-align:right; flex-shrink:0;">
@@ -3898,8 +3896,8 @@ async function renderTournaments() {
     `).join('');
 
     const teamsListHtml = (t.teams || []).map(tm => `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:8px 12px; border-radius:8px; margin-top:6px;">
-        <div style="font-weight:700; font-size:13px; color:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--color-surface-soft); padding:8px 12px; border-radius:8px; margin-top:6px;">
+        <div style="font-weight:700; font-size:13px; color:var(--color-text);">
           <span class="team-badge" style="background:${tm.colorHex||'#2196F3'}"></span>${tm.name} (${(tm.players||[]).length} Players)
         </div>
       </div>
@@ -3907,18 +3905,18 @@ async function renderTournaments() {
 
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h4 style="font-size:16px; font-weight:800; color:#fff;">🏆 ${t.name}</h4>
+        <h4 style="font-size:16px; font-weight:800; color:var(--color-primary);">🏆 ${t.name}</h4>
         <div style="display:flex; gap:6px;">
           <button class="btn" style="background:#0f766e; color:#a7f3d0; padding:4px 8px; font-size:11px;" onclick="exportTournamentSnapshot('${t.id}')">📸 Snapshot</button>
-          <button class="btn" style="background:#334155; color:#dbeafe; padding:4px 8px; font-size:11px;" onclick="openEditTournamentModal('${t.id}')">✏️ Edit Defaults</button>
-          <button class="btn" style="background:#7f1d1d; color:#fca5a5; padding:4px 8px; font-size:11px;" onclick="deleteSeries('${t.id}')">🗑️ Delete</button>
+          <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); padding:4px 8px; font-size:11px;" onclick="openEditTournamentModal('${t.id}')">✏️ Edit Defaults</button>
+          <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:4px 8px; font-size:11px;" onclick="deleteSeries('${t.id}')">🗑️ Delete</button>
         </div>
       </div>
 
       ${defaultsSummary}
 
       <!-- Sub-Tabs Bar for Tournament Details -->
-      <div style="display:flex; gap:6px; background:#0f172a; padding:4px; border-radius:8px; margin-top:8px; margin-bottom:12px;">
+      <div style="display:flex; gap:6px; background:var(--color-surface-soft); padding:4px; border-radius:8px; margin-top:8px; margin-bottom:12px;">
         <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='TEAMS'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('TEAMS')">TEAMS</button>
         <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='MATCHES'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('MATCHES')">MATCHES</button>
         <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='TABLE'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('TABLE')">TABLE</button>
@@ -4189,7 +4187,7 @@ async function renderPlayers() {
         </div>
         <div style="display:flex; gap:8px;">
           <button class="btn" style="background:var(--color-surface-muted); padding:6px 12px; font-size:12px; border-color:var(--color-border);" onclick="toggleTeamSquadView('${t.id}')">📋 Players</button>
-          <button class="btn" style="background:var(--color-danger-soft); color:#991b1b; border-color:#fca5a5; padding:6px 10px; font-size:12px;" onclick="deleteSavedTeam('${t.id}')">🗑️ Delete</button>
+          <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:6px 10px; font-size:12px;" onclick="deleteSavedTeam('${t.id}')">🗑️ Delete</button>
         </div>
       </div>
       <div id="teamSquad_${t.id}" hidden style="margin-top:14px; padding-top:10px; border-top:1px solid var(--color-border);">
@@ -4256,9 +4254,9 @@ function renderSeriesTeamSelectedPlayers() {
   );
 
   listEl.innerHTML = sortedSelected.map(p => `
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:6px 8px; margin-top:6px;">
-      <span style="font-size:12px; color:#e2e8f0;">${p.name}</span>
-      <button class="btn" style="background:#7f1d1d; color:#fca5a5; width:auto; padding:2px 8px; font-size:11px;" onclick="removeSeriesTeamPlayer('${p.id}')">Remove</button>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:8px; padding:6px 8px; margin-top:6px;">
+      <span style="font-size:12px; color:var(--color-text);">${p.name}</span>
+      <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); width:auto; padding:2px 8px; font-size:11px;" onclick="removeSeriesTeamPlayer('${p.id}')">Remove</button>
     </div>
   `).join('');
 }
@@ -4326,7 +4324,7 @@ function filterSeriesTeamPlayerPicker() {
     const inputId = `chk_series_${idx}`;
 
     return `
-      <label for="${inputId}" style="display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12px; color:#e2e8f0; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.03);">
+      <label for="${inputId}" style="display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12px; color:var(--color-text); cursor:pointer; border-bottom:1px solid var(--color-border);">
         <div style="display:flex; align-items:center; gap:6px;">
           <input id="${inputId}" type="checkbox" value="${p.id}" ${isAlreadySelected ? 'checked disabled' : ''} style="accent-color:var(--primary-color);">
           <span style="font-weight:600;">${p.name}</span>
@@ -4597,13 +4595,13 @@ async function renderStats() {
   const i2Name = m.initialBattingTeamId === teamA.id ? teamB.name : teamA.name;
 
   const motmCardHtml = motm ? `
-    <div class="card" style="background:linear-gradient(135deg, #1e1b4b 0%, #1a237e 100%); border-color:#ffd700; padding:16px;">
+    <div class="card" style="background:var(--color-primary); border-color:var(--color-electric); padding:16px;">
       <div style="display:flex; align-items:center; gap:12px;">
         <div style="font-size:36px;">🌟</div>
         <div>
-          <div style="font-size:11px; color:#fde047; font-weight:800; text-transform:uppercase;">MAN OF THE MATCH • ICC RANKED</div>
+          <div style="font-size:11px; color:var(--color-electric); font-weight:800; text-transform:uppercase;">MAN OF THE MATCH • ICC RANKED</div>
           <div style="font-size:18px; font-weight:900; color:#fff;">${motm.player.name.toUpperCase()}</div>
-          <div style="font-size:12px; color:#e2e8f0;">Impact Score: <span style="color:#ffd700; font-weight:800;">${motm.impactScore} pts</span></div>
+          <div style="font-size:12px; color:var(--color-text-on-dark);">Impact Score: <span style="color:var(--color-electric); font-weight:800;">${motm.impactScore} pts</span></div>
         </div>
       </div>
     </div>
@@ -4618,7 +4616,7 @@ async function renderStats() {
         <span style="color:${teamB.colorHex||'#2196F3'}">${teamB.name.toUpperCase()} (${fc.teamBWin}%)</span>
       </div>
 
-      <div style="height:10px; background:#0f172a; border-radius:6px; overflow:hidden; display:flex;">
+      <div style="height:10px; background:var(--color-surface-soft); border-radius:6px; overflow:hidden; display:flex;">
         <div style="width:${fc.teamAWin}%; background:${teamA.colorHex||'#FF5722'}; transition:width 0.5s ease;"></div>
         <div style="width:${fc.teamBWin}%; background:${teamB.colorHex||'#2196F3'}; transition:width 0.5s ease;"></div>
       </div>
@@ -4669,13 +4667,13 @@ async function renderStats() {
     <!-- 3. Progress Interactive Line Chart Card -->
     <div class="card" style="padding:16px;">
       <h4 style="font-size:13px; color:var(--primary-color); font-weight:900; text-transform:uppercase; margin-bottom:12px;">📈 PROGRESS CHART</h4>
-      <canvas id="progressChartCanvas" width="480" height="220" style="width:100%; height:220px; background:#0f172a; border-radius:8px;"></canvas>
+      <canvas id="progressChartCanvas" width="480" height="220" style="width:100%; height:220px; background:var(--color-primary); border-radius:8px;"></canvas>
     </div>
 
     <!-- 4. Over-by-Over Bar Chart Card -->
     <div class="card" style="padding:16px;">
       <h4 style="font-size:13px; color:var(--primary-color); font-weight:900; text-transform:uppercase; margin-bottom:12px;">📊 OVER BY OVER</h4>
-      <canvas id="overByOverChartCanvas" width="480" height="220" style="width:100%; height:220px; background:#0f172a; border-radius:8px;"></canvas>
+      <canvas id="overByOverChartCanvas" width="480" height="220" style="width:100%; height:220px; background:var(--color-primary); border-radius:8px;"></canvas>
     </div>
   `;
 
