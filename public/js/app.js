@@ -1226,25 +1226,31 @@ async function showNewMatchScreen() {
     powerplayInput.value = defaults.powerplayOvers ? `${defaults.powerplayOvers}` : '';
   }
 
-  const teams = await getAllTeamsList();
   const selectA = document.getElementById('selectTeamA');
   const selectB = document.getElementById('selectTeamB');
 
-  selectA.innerHTML = '<option value="">-- Custom Team A --</option>';
-  selectB.innerHTML = '<option value="">-- Custom Team B --</option>';
+  if (selectA) selectA.innerHTML = '<option value="">-- Custom Team A --</option>';
+  if (selectB) selectB.innerHTML = '<option value="">-- Custom Team B --</option>';
 
-  teams.forEach(t => {
-    const pCount = (t.players || []).length;
-    const optA = document.createElement('option');
-    optA.value = t.id;
-    optA.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
-    selectA.appendChild(optA);
+  if (selectA || selectB) {
+    const teams = await getAllTeamsList();
+    teams.forEach(t => {
+      const pCount = (t.players || []).length;
+      if (selectA) {
+        const optA = document.createElement('option');
+        optA.value = t.id;
+        optA.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
+        selectA.appendChild(optA);
+      }
 
-    const optB = document.createElement('option');
-    optB.value = t.id;
-    optB.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
-    selectB.appendChild(optB);
-  });
+      if (selectB) {
+        const optB = document.createElement('option');
+        optB.value = t.id;
+        optB.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
+        selectB.appendChild(optB);
+      }
+    });
+  }
 
   renderSquadList('A');
   renderSquadList('B');
@@ -1252,8 +1258,9 @@ async function showNewMatchScreen() {
 }
 
 async function onSelectTeamAChange() {
-  const teamId = document.getElementById('selectTeamA').value;
-  if (!teamId) return;
+  const selectA = document.getElementById('selectTeamA');
+  if (!selectA || !selectA.value) return;
+  const teamId = selectA.value;
 
   const teams = await getAllTeamsList();
   const found = teams.find(t => t.id === teamId);
@@ -1263,8 +1270,9 @@ async function onSelectTeamAChange() {
 }
 
 async function onSelectTeamBChange() {
-  const teamId = document.getElementById('selectTeamB').value;
-  if (!teamId) return;
+  const selectB = document.getElementById('selectTeamB');
+  if (!selectB || !selectB.value) return;
+  const teamId = selectB.value;
 
   const teams = await getAllTeamsList();
   const found = teams.find(t => t.id === teamId);
@@ -1274,27 +1282,42 @@ async function onSelectTeamBChange() {
 }
 
 async function handleCreateMatch() {
-  const teamAName = document.getElementById('teamAName').value.trim() || 'Team A';
-  const teamAColor = document.getElementById('teamAColor').value || '#FF5722';
+  const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
+  const teamAColor = document.getElementById('teamAColor')?.value || '#2563eb';
 
-  const teamBName = document.getElementById('teamBName').value.trim() || 'Team B';
-  const teamBColor = document.getElementById('teamBColor').value || '#2196F3';
+  const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
+  const teamBColor = document.getElementById('teamBColor')?.value || '#0284c7';
 
+  // Auto-seed 11 placeholder players per team if matchSquadA / matchSquadB empty
   if (matchSquadA.length < 1) {
-    showToast('Please add at least 1 player to Team A squad', 'warning');
-    return;
-  }
-  if (matchSquadB.length < 1) {
-    showToast('Please add at least 1 player to Team B squad', 'warning');
-    return;
+    matchSquadA = [];
+    for (let i = 1; i <= 11; i++) {
+      matchSquadA.push({
+        id: `pla_web_${Date.now()}_${i}`,
+        name: `${teamAName} Player ${i}`,
+        role: i === 1 ? 'BATTER' : 'ALL_ROUNDER'
+      });
+    }
   }
 
-  const overs = parseInt(document.getElementById('matchOvers')?.value) || 5;
-  const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers')?.value) || 2;
+  if (matchSquadB.length < 1) {
+    matchSquadB = [];
+    for (let i = 1; i <= 11; i++) {
+      matchSquadB.push({
+        id: `plb_web_${Date.now()}_${i}`,
+        name: `${teamBName} Player ${i}`,
+        role: i === 1 ? 'BATTER' : 'ALL_ROUNDER'
+      });
+    }
+  }
+
+  const overs = parseInt(document.getElementById('matchOvers')?.value, 10) || 6;
+  const maxBowlerOvers = parseInt(document.getElementById('maxBowlerOvers')?.value, 10) || Math.max(1, Math.ceil(overs / 5));
   const powerplayEl = document.getElementById('matchPowerplayOvers');
   const powerplayOversRaw = powerplayEl ? parseInt(powerplayEl.value, 10) : NaN;
   const tourneyDefaults = getTournamentDefaults(activeTournament);
-  const saveForReuse = document.getElementById('saveTeamsForReuse').checked;
+  const saveForReuseEl = document.getElementById('saveTeamsForReuse');
+  const saveForReuse = saveForReuseEl ? saveForReuseEl.checked : false;
   const effectivePowerplay = normalizePowerplayOvers(
     Number.isNaN(powerplayOversRaw) ? tourneyDefaults.powerplayOvers : powerplayOversRaw,
     overs
@@ -4767,11 +4790,219 @@ function closeFeaturesMenu() {
 // Close features dropdown on click outside
 document.addEventListener('click', (e) => {
   const menu = document.getElementById('featuresMenuDropdown');
-  const trigger = e.target.closest('.features-trigger-btn') || e.target.closest('.gully-btn-outline');
+  const trigger = e.target.closest('.features-trigger-btn') || e.target.closest('.cric-btn-outline');
   if (menu && !menu.hidden && !menu.contains(e.target) && !trigger) {
     menu.hidden = true;
   }
 });
+
+// Streamlined 4-Step Web Score Wizard Handlers
+let currentWizardStep = 0;
+let tossCallerTeam = 'A'; // 'A' or 'B'
+let tossDecisionChoice = 'BAT'; // 'BAT' or 'BOWL'
+
+function updateWizardStepUI(stepIndex) {
+  currentWizardStep = stepIndex;
+
+  // Update wizard progress indicator
+  document.querySelectorAll('.wizard-step').forEach((el, idx) => {
+    el.classList.toggle('active', idx === stepIndex);
+    el.classList.toggle('complete', idx < stepIndex);
+  });
+
+  // Update panels
+  document.querySelectorAll('.wizard-step-panel').forEach((panel, idx) => {
+    panel.hidden = idx !== stepIndex;
+  });
+}
+
+function startWebScorerWizard() {
+  closeFeaturesMenu();
+  showScreen('screenNewMatch');
+  updateWizardStepUI(0);
+}
+
+function goToWizardTeamsStep() {
+  updateWizardStepUI(0);
+}
+
+function goToWizardOversStep() {
+  const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
+  const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
+
+  if (!teamAName) {
+    showToast('Please enter Team A name', 'warning');
+    return;
+  }
+  if (!teamBName) {
+    showToast('Please enter Team B name', 'warning');
+    return;
+  }
+
+  // Auto-populate default 11-player squads if empty
+  if (matchSquadA.length < 1) {
+    matchSquadA = [];
+    for (let i = 1; i <= 11; i++) {
+      matchSquadA.push({
+        id: `pla_web_${Date.now()}_${i}`,
+        name: `${teamAName} Player ${i}`,
+        role: i === 1 ? 'BATTER' : 'ALL_ROUNDER'
+      });
+    }
+  }
+
+  if (matchSquadB.length < 1) {
+    matchSquadB = [];
+    for (let i = 1; i <= 11; i++) {
+      matchSquadB.push({
+        id: `plb_web_${Date.now()}_${i}`,
+        name: `${teamBName} Player ${i}`,
+        role: i === 1 ? 'BATTER' : 'ALL_ROUNDER'
+      });
+    }
+  }
+
+  updateWizardStepUI(1);
+}
+
+function adjustMatchOvers(delta) {
+  const matchOversInput = document.getElementById('matchOvers');
+  const display = document.getElementById('oversValueDisplay');
+  let val = parseInt(matchOversInput.value, 10) || 6;
+  val = Math.max(1, Math.min(100, val + delta));
+
+  matchOversInput.value = val;
+  if (display) display.innerText = val;
+
+  // Max bowler overs logic
+  const maxBowlerInput = document.getElementById('maxBowlerOvers');
+  if (maxBowlerInput) {
+    maxBowlerInput.value = Math.max(1, Math.ceil(val / 5));
+  }
+
+  // Update pills
+  document.querySelectorAll('.overs-pill').forEach(pill => {
+    pill.classList.toggle('active', parseInt(pill.innerText, 10) === val);
+  });
+}
+
+function setQuickMatchOvers(num) {
+  const matchOversInput = document.getElementById('matchOvers');
+  const display = document.getElementById('oversValueDisplay');
+
+  matchOversInput.value = num;
+  if (display) display.innerText = num;
+
+  const maxBowlerInput = document.getElementById('maxBowlerOvers');
+  if (maxBowlerInput) {
+    maxBowlerInput.value = Math.max(1, Math.ceil(num / 5));
+  }
+
+  document.querySelectorAll('.overs-pill').forEach(pill => {
+    pill.classList.toggle('active', parseInt(pill.innerText, 10) === num);
+  });
+}
+
+function goToWizardTossStep() {
+  const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
+  const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
+
+  const btnA = document.getElementById('tossCallTeamA');
+  const btnB = document.getElementById('tossCallTeamB');
+  if (btnA) btnA.innerText = teamAName;
+  if (btnB) btnB.innerText = teamBName;
+
+  selectTossCaller('A');
+  updateWizardStepUI(2);
+}
+
+function selectTossCaller(caller) {
+  tossCallerTeam = caller;
+  const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
+  const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
+
+  const btnA = document.getElementById('tossCallTeamA');
+  const btnB = document.getElementById('tossCallTeamB');
+  if (btnA) btnA.classList.toggle('active', caller === 'A');
+  if (btnB) btnB.classList.toggle('active', caller === 'B');
+
+  const msg = document.getElementById('tossCallerMessage');
+  if (msg) {
+    const callerName = caller === 'A' ? teamAName : teamBName;
+    msg.innerText = `${callerName} calls it in the air`;
+  }
+}
+
+function flipCoinChoice(callChoice) {
+  const coinImg = document.getElementById('coinImg');
+  if (coinImg) {
+    coinImg.classList.add('spinning');
+  }
+
+  const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
+  const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
+
+  setTimeout(() => {
+    if (coinImg) coinImg.classList.remove('spinning');
+    const isHeads = Math.random() < 0.5;
+    const landedResult = isHeads ? 'HEADS' : 'TAILS';
+
+    const callerName = tossCallerTeam === 'A' ? teamAName : teamBName;
+    const nonCallerName = tossCallerTeam === 'A' ? teamBName : teamAName;
+
+    const callerWon = callChoice === landedResult;
+    const winnerName = callerWon ? callerName : nonCallerName;
+
+    const decisionBox = document.getElementById('tossWinnerDecisionSection');
+    const winnerHeading = document.getElementById('tossWinnerText');
+    const winnerSub = document.getElementById('tossWinnerSubtext');
+
+    if (winnerHeading) winnerHeading.innerText = `${winnerName.toUpperCase()} WON THE TOSS`;
+    if (winnerSub) winnerSub.innerText = `It landed on ${landedResult.toLowerCase()}. What will they do?`;
+    if (decisionBox) decisionBox.hidden = false;
+
+    // Save selected winner team
+    selectedTossWinnerId = (winnerName === teamAName) ? 'TEAM_A' : 'TEAM_B';
+  }, 800);
+}
+
+function setTossDecisionChoice(decision) {
+  tossDecisionChoice = decision;
+  const batBtn = document.getElementById('tossChoiceBat');
+  const bowlBtn = document.getElementById('tossChoiceBowl');
+
+  if (batBtn) batBtn.classList.toggle('active', decision === 'BAT');
+  if (bowlBtn) bowlBtn.classList.toggle('active', decision === 'BOWL');
+}
+
+async function finishWizardAndStartMatch() {
+  await handleCreateMatch();
+
+  // Trigger toss confirm
+  selectedTossDecision = tossDecisionChoice;
+  if (activeMatch) {
+    if (selectedTossWinnerId === 'TEAM_A') {
+      activeMatch.tossWinnerId = activeMatch.teamA.id;
+    } else if (selectedTossWinnerId === 'TEAM_B') {
+      activeMatch.tossWinnerId = activeMatch.teamB.id;
+    } else {
+      activeMatch.tossWinnerId = activeMatch.teamA.id;
+    }
+
+    activeMatch.tossDecision = selectedTossDecision;
+    activeMatch.status = 'LIVE';
+    activeMatch.pendingAction = 'NONE';
+    activeMatch.updatedAt = new Date().toISOString();
+
+    activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
+    await window.CricStorage.saveMatch(activeMatch);
+
+    // Transition to SCORE (Step 4)
+    updateWizardStepUI(3);
+    showLiveScreen();
+    showToast('🏏 Match Started! Live Scoring Active.', 'success');
+  }
+}
 
 // Quick Coin Toss Standalone Modal
 function openQuickTossModal() {
@@ -4801,9 +5032,26 @@ function promptSpectatorStream() {
   }
 }
 
+// Show Web Scorer Landing Screen (Home > Features > Web Scorer)
+function showWebScorerLandingScreen() {
+  closeFeaturesMenu();
+  showScreen('screenWebScorerLanding');
+}
+
 // Window Exports for QA Automation & UI Actions
 window.toggleFeaturesMenu = toggleFeaturesMenu;
 window.closeFeaturesMenu = closeFeaturesMenu;
+window.showWebScorerLandingScreen = showWebScorerLandingScreen;
+window.startWebScorerWizard = startWebScorerWizard;
+window.goToWizardTeamsStep = goToWizardTeamsStep;
+window.goToWizardOversStep = goToWizardOversStep;
+window.adjustMatchOvers = adjustMatchOvers;
+window.setQuickMatchOvers = setQuickMatchOvers;
+window.goToWizardTossStep = goToWizardTossStep;
+window.selectTossCaller = selectTossCaller;
+window.flipCoinChoice = flipCoinChoice;
+window.setTossDecisionChoice = setTossDecisionChoice;
+window.finishWizardAndStartMatch = finishWizardAndStartMatch;
 window.openQuickTossModal = openQuickTossModal;
 window.promptSpectatorStream = promptSpectatorStream;
 window.addPlayerObjectToSquad = addPlayerObjectToSquad;

@@ -1,32 +1,32 @@
 :root {
   color-scheme: light;
 
-  /* Gully Crix inspired CricScore Pro UI v2 design tokens */
-  --color-background: #f4f1ea;       /* Soft warm cream background */
-  --color-surface: #ffffff;          /* Clean white card surface */
+  /* Rich Gully Scorer Inspired Home Palette */
+  --color-background: #f4f1ea;       /* Page under hero */
+  --color-surface: #ffffff;          /* Pure white card surface */
   --color-surface-muted: #efece4;    /* Light muted surface */
-  --color-surface-dark: #0b2213;     /* Dark forest green header/hero */
-  --color-surface-dark-card: #0f2e1b;/* Dark forest green dropdown/cards */
-  --color-primary: #16a34a;          /* Emerald Green primary */
+  --color-surface-dark: #0b2213;     /* Hero background (#0b2213) */
+  --color-surface-dark-card: #0f2e1b;/* Dark green dropdown/cards */
+  --color-primary: #16a34a;          /* Primary buttons (#16a34a) */
   --color-primary-dark: #15803d;     /* Deep green primary dark */
-  --color-primary-light: #22c55e;    /* Vibrant green accent */
+  --color-primary-light: #22c55e;    /* Accent green (#22c55e) */
   --color-primary-soft: #dcfce7;     /* Soft green tint */
-  --color-text: #0b2213;             /* Dark green slate primary text */
-  --color-text-secondary: #526053;   /* Muted secondary text */
+  --color-text: #0b2213;             /* Dark text */
+  --color-text-secondary: #526053;   /* Secondary muted text */
   --color-text-light: #ffffff;       /* Light text on dark surfaces */
-  --color-border: #e2ddd0;           /* Soft border color */
+  --color-border: #e2ddd0;           /* Soft card border (#e2ddd0) */
   --color-border-dark: #1f482b;      /* Dark green surface border */
   --color-success: #16a34a;
   --color-success-soft: #dcfce7;
-  --color-danger: #dc2626;
-  --color-danger-soft: #fef2f2;
-  --color-warning: #d97706;
+  --color-danger: #ef4444;
+  --color-danger-soft: #fee2e2;
+  --color-warning: #f59e0b;
   --color-warning-soft: #fef3c7;
   --color-focus: #16a34a;
-  --shadow-card: 0 2px 8px rgba(11, 34, 19, 0.06), 0 1px 2px rgba(11, 34, 19, 0.04);
-  --shadow-raised: 0 12px 32px rgba(11, 34, 19, 0.2);
-  --radius-card: 14px;
-  --radius-control: 10px;
+  --shadow-card: 0 4px 12px rgba(11, 34, 19, 0.05), 0 1px 3px rgba(11, 34, 19, 0.03);
+  --shadow-raised: 0 16px 36px rgba(11, 34, 19, 0.2);
+  --radius-card: 18px;
+  --radius-control: 12px;
   --touch-target: 44px;
 
   /* Compatibility aliases used throughout the existing UI/controller. */
@@ -42,8 +42,8 @@
   --success-color: var(--color-success);
   --chip-4: #16a34a;
   --chip-6: #0284c7;
-  --chip-w: #dc2626;
-  --chip-extra: #d97706;
+  --chip-w: #ef4444;
+  --chip-extra: #f59e0b;
 }
 
 * {
@@ -62,11 +62,11 @@ body {
   line-height: 1.45;
 }
 
-/* App Header - Gully Crix Dark Forest Green Header */
+/* App Header - Dark Forest Green Header */
 .app-header {
   background: var(--color-surface-dark);
   color: var(--color-text-light);
-  padding: 12px 16px;
+  padding: 12px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -74,7 +74,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 20px rgba(11, 34, 19, 0.3);
 }
 
 .app-title {
@@ -476,42 +476,44 @@ html.session-restoring #screenLanding { display: none !important; }
   gap: 10px;
 }
 
-/* Gully Crix-inspired Hero Section */
-.gully-hero {
+/* CricScore Pro Original Hero Section */
+/* Marketing Quality Home Hero */
+.cric-home-hero {
   background: var(--color-surface-dark);
   color: #ffffff;
-  padding: 28px 20px 32px;
-  border-radius: 20px;
-  box-shadow: 0 12px 32px rgba(11, 34, 19, 0.25);
+  padding: 32px 20px 28px;
+  border-radius: 24px;
+  box-shadow: 0 16px 36px rgba(11, 34, 19, 0.25);
   position: relative;
   overflow: hidden;
   border: 1px solid var(--color-border-dark);
+  text-align: center;
 }
 
-.gully-hero::before {
+.cric-home-hero::before {
   content: '';
   position: absolute;
   top: -50%;
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(34, 197, 94, 0.1) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.12) 0%, transparent 60%);
   pointer-events: none;
 }
 
-.gully-hero-badge {
+.cric-hero-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.4);
+  border: 1px solid rgba(34, 197, 94, 0.35);
   color: #4ade80;
   font-size: 11px;
   font-weight: 800;
   padding: 6px 14px;
   border-radius: 999px;
   margin-bottom: 16px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .badge-dot {
@@ -522,88 +524,246 @@ html.session-restoring #screenLanding { display: none !important; }
   box-shadow: 0 0 8px #22c55e;
 }
 
-.gully-hero-title {
-  font-size: clamp(28px, 7.5vw, 44px);
+.cric-hero-title {
+  font-size: clamp(26px, 7.5vw, 42px);
   font-weight: 900;
-  line-height: 1.05;
+  line-height: 1.08;
   letter-spacing: -0.02em;
   color: #ffffff;
   margin-bottom: 14px;
 }
 
-.gully-hero-title .highlight-green {
+.cric-hero-title .highlight-green {
   color: #22c55e;
 }
 
-.gully-hero-summary {
+.cric-hero-subline {
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.5;
   color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 24px;
-  max-width: 580px;
+  margin: 0 auto 22px;
+  max-width: 520px;
 }
 
-.gully-hero-actions {
+.cric-hero-actions {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
+  margin-bottom: 24px;
 }
 
-.gully-btn {
+.cric-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 13px 24px;
   border-radius: 999px;
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
-  min-height: 46px;
+  min-height: 48px;
 }
 
-.gully-btn-primary {
-  background: #22c55e;
-  color: #0b2213;
-  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
-}
-
-.gully-btn-primary:hover {
+.cric-btn-primary {
   background: #16a34a;
   color: #ffffff;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4);
 }
 
-.gully-btn-secondary {
+.cric-btn-primary:hover {
+  background: #15803d;
+}
+
+.cric-btn-secondary {
   background: #ffffff;
   color: #0b2213;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.gully-btn-secondary:hover {
+.cric-btn-secondary:hover {
   background: #e2e8f0;
 }
 
-.gully-btn-outline {
-  background: rgba(255, 255, 255, 0.1);
+/* Mobile Screenshot Placeholder Frames */
+.home-shots-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+  overflow-x: auto;
+  padding: 8px 4px 4px;
+}
+
+.home-shot-frame {
+  flex: 0 0 110px;
+  height: 170px;
+  background: #0f2e1b;
+  border: 2px solid #1f482b;
+  border-radius: 18px;
+  padding: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  background: #163e24;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.shot-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: cover;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.shot-placeholder-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.shot-icon {
+  font-size: 28px;
+}
+
+.shot-caption {
+  font-size: 10px;
+  font-weight: 800;
+  color: #4ade80;
+  letter-spacing: 0.02em;
+}
+
+/* How It Works Section */
+.how-it-works-section {
+  margin-top: 20px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0b2213;
+  margin-bottom: 12px;
+}
+
+.how-it-works-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.how-card {
+  background: #ffffff;
+  border: 1px solid #e2ddd0;
+  border-radius: 16px;
+  padding: 16px 12px;
+  box-shadow: 0 2px 8px rgba(11, 34, 19, 0.04);
+  text-align: left;
+}
+
+.how-step-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 900;
+  font-size: 13px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+}
+
+.how-card h3 {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0b2213;
+  margin-bottom: 4px;
+}
+
+.how-card p {
+  font-size: 12px;
+  color: #526053;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Feature Strip */
+.feature-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2ddd0;
+  border-radius: 16px;
+  padding: 12px 16px;
+  margin-top: 14px;
+  gap: 8px;
+}
+
+.strip-item {
+  font-size: 12px;
+  font-weight: 750;
+  color: #0b2213;
+}
+
+@media (max-width: 580px) {
+  .how-it-works-grid {
+    grid-template-columns: 1fr;
+  }
+}
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  min-height: 50px;
+}
+
+.cric-btn-primary {
+  background: #2563eb;
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
 }
 
-.gully-btn-outline:hover {
-  background: rgba(255, 255, 255, 0.2);
+.cric-btn-primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
 }
 
-/* Features Options Menu Dropdown (Gully Crix style dark green card) */
+.cric-btn-outline {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.cric-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Features Options Menu Dropdown (Slate dark card) */
 .features-dropdown {
   position: fixed;
   top: 60px;
   right: 16px;
   z-index: 250;
   width: min(380px, calc(100vw - 32px));
-  background: #0f2e1b;
-  border: 1px solid #1f482b;
+  background: #1e293b;
+  border: 1px solid #334155;
   border-radius: 20px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
   padding: 16px;
@@ -621,12 +781,12 @@ html.session-restoring #screenLanding { display: none !important; }
   align-items: center;
   justify-content: space-between;
   padding-bottom: 12px;
-  border-bottom: 1px solid #1f482b;
+  border-bottom: 1px solid #334155;
   margin-bottom: 10px;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: #4ade80;
+  color: #38bdf8;
 }
 
 .features-close-btn {
@@ -664,8 +824,8 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .feature-item:hover {
-  background: rgba(34, 197, 94, 0.15);
-  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(37, 99, 235, 0.2);
+  border-color: rgba(37, 99, 235, 0.4);
 }
 
 .feature-icon {
@@ -678,7 +838,7 @@ html.session-restoring #screenLanding { display: none !important; }
   flex-shrink: 0;
 }
 
-.feature-icon.bg-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+.feature-icon.bg-green { background: rgba(37, 99, 235, 0.2); color: #60a5fa; }
 .feature-icon.bg-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; }
 .feature-icon.bg-teal { background: rgba(20, 184, 166, 0.2); color: #2dd4bf; }
 .feature-icon.bg-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
@@ -705,6 +865,377 @@ html.session-restoring #screenLanding { display: none !important; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Web Score Wizard Styling */
+.wizard-progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 24px;
+  max-width: 440px;
+}
+
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.step-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #cbd5e1;
+  color: #64748b;
+  font-weight: 800;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
+}
+
+.step-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.wizard-step.active .step-num {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.wizard-step.active .step-label {
+  color: #2563eb;
+}
+
+.wizard-step.complete .step-num {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.wizard-step.complete .step-label {
+  color: #10b981;
+}
+
+.wizard-step-line {
+  flex: 1;
+  height: 2px;
+  background: #e2e8f0;
+  margin-top: -14px;
+}
+
+.wizard-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 28px 24px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.team-input-group {
+  margin-bottom: 16px;
+}
+
+.team-input-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.team-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.team-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.team-name-input {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px solid #cbd5e1;
+}
+
+.team-name-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.team-input-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 20px 0;
+}
+
+.wizard-next-btn {
+  width: 100%;
+  min-height: 52px;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-top: 24px;
+  transition: all 0.2s ease;
+}
+
+.wizard-next-btn:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
+
+.overs-section-heading {
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.overs-stepper-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.overs-stepper-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  font-size: 24px;
+  font-weight: 800;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s ease;
+}
+
+.overs-stepper-btn:hover {
+  background: #1e293b;
+  transform: scale(1.05);
+}
+
+.overs-display-num {
+  font-size: 56px;
+  font-weight: 900;
+  color: #0f172a;
+  min-width: 80px;
+  text-align: center;
+}
+
+.overs-pills-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.overs-pill {
+  min-width: 48px;
+  height: 42px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.overs-pill:hover,
+.overs-pill.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.wizard-back-link {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.wizard-back-link button {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.wizard-back-link button:hover {
+  color: #0f172a;
+}
+
+.toss-badge-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: #2563eb;
+  letter-spacing: 0.08em;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.toss-coin-box {
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 20px;
+}
+
+.toss-who-calls-section {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.toss-calls-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.toss-calls-toggle {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.toss-call-btn {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toss-call-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.toss-caller-msg {
+  font-size: 13px;
+  font-weight: 750;
+  color: #0f172a;
+  margin-top: 12px;
+}
+
+.toss-action-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.toss-call-choice-btn {
+  min-height: 52px;
+  border-radius: 14px;
+  border: none;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toss-call-choice-btn.btn-heads {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.toss-call-choice-btn.btn-tails {
+  background: #f59e0b;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.toss-decision-box {
+  text-align: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px 16px;
+  margin-top: 16px;
+}
+
+.toss-winner-heading {
+  font-size: 18px;
+  font-weight: 900;
+  color: #2563eb;
+  margin-bottom: 4px;
+}
+
+.toss-winner-sub {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.toss-decision-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.toss-decision-btn {
+  min-height: 48px;
+  border-radius: 999px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.toss-decision-btn.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
 }
 
 .home-dashboard {

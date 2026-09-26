@@ -276,7 +276,7 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
     }
 
     // Create a Guest match
-    await page.click('button:has-text("Quick Match")');
+    await page.click('button:visible:has-text("Quick Match")');
 
     await page.evaluate(async () => {
       const win = window as any;

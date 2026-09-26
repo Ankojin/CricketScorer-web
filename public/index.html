@@ -32,7 +32,7 @@
       <button class="features-close-btn" type="button" onclick="closeFeaturesMenu()">&times;</button>
     </div>
     <div class="features-dropdown-grid">
-      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); loadMatchListScreen();">
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showWebScorerLandingScreen();">
         <span class="feature-icon bg-green">⚡</span>
         <div class="feature-info">
           <strong>Web Scorer</strong>
@@ -129,37 +129,89 @@
       </div>
 
       <section id="homeDashboard" class="home-dashboard" hidden aria-labelledby="homeHeading">
-        <!-- Gully Crix Inspired Hero Banner -->
-        <div class="gully-hero">
-          <div class="gully-hero-content">
-            <div class="gully-hero-badge">
-              <span class="badge-dot"></span> NEW · Version 2.33 on Web & PWA
+        <!-- Marketing Quality Home Hero -->
+        <div class="cric-home-hero">
+          <div class="cric-hero-content">
+            <div class="cric-hero-badge">
+              <span class="badge-dot"></span> WEB PWA · SCORE IN THE BROWSER
             </div>
 
-            <h1 id="homeHeading" class="gully-hero-title">
-              YOUR GULLY.<br>
-              <span class="highlight-green">YOUR MATCH.</span><br>
-              YOUR SCORE.
+            <h1 id="homeHeading" class="cric-hero-title">
+              YOUR MATCH.<br>
+              YOUR SCOREBOOK.<br>
+              <span class="highlight-green">YOUR SCORE.</span>
             </h1>
 
-            <p class="gully-hero-summary">
-              The best cricket scoring app for your matches. Score every ball, track your gully cricket score, relive every moment, and share the glory.
+            <p class="cric-hero-subline">
+              Score live cricket in the browser — guest or signed-in.
             </p>
 
-            <div class="gully-hero-actions">
-              <button class="gully-btn gully-btn-primary" type="button" onclick="loadMatchListScreen()">
+            <div class="cric-hero-actions">
+              <button class="cric-btn cric-btn-primary" type="button" onclick="showWebScorerLandingScreen()">
                 ⚡ Web Scorer
               </button>
-              <button class="gully-btn gully-btn-secondary" type="button" onclick="showNewMatchScreen()">
+              <button class="cric-btn cric-btn-secondary" type="button" onclick="showNewMatchScreen()">
                 🏏 Quick Match
               </button>
-              <button class="gully-btn gully-btn-outline" type="button" onclick="toggleFeaturesMenu(event)">
-                ✨ Features ▾
-              </button>
+            </div>
+
+            <!-- Mobile Screenshot Placeholder Slots -->
+            <div class="home-shots-row" aria-label="Mobile app screenshots">
+              <div id="homeShot1" class="home-shot-frame">
+                <div class="phone-screen">
+                  <img src="img/app-icon.png" alt="CricScore Pro Preview" class="shot-img">
+                  <span class="shot-caption">Live Scoring</span>
+                </div>
+              </div>
+              <div id="homeShot2" class="home-shot-frame">
+                <div class="phone-screen">
+                  <img src="img/coin_heads.png" alt="Coin Toss Preview" class="shot-img">
+                  <span class="shot-caption">Virtual Toss</span>
+                </div>
+              </div>
+              <div id="homeShot3" class="home-shot-frame">
+                <div class="phone-screen">
+                  <div class="shot-placeholder-box">
+                    <span class="shot-icon">📊</span>
+                    <span class="shot-caption">Scorecard</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
+        <!-- How It Works (3 Cards) -->
+        <section class="how-it-works-section">
+          <h2 class="section-title">How it works</h2>
+          <div class="how-it-works-grid">
+            <div class="how-card">
+              <div class="how-step-badge">1</div>
+              <h3>Set up teams</h3>
+              <p>Enter team names, overs & bowler limits in seconds.</p>
+            </div>
+            <div class="how-card">
+              <div class="how-step-badge">2</div>
+              <h3>Score every ball</h3>
+              <p>Tap runs, wickets & extras with instant state recalculation.</p>
+            </div>
+            <div class="how-card">
+              <div class="how-step-badge">3</div>
+              <h3>Share live</h3>
+              <p>Generate spectator links & view complete scorecards.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Feature Strip -->
+        <div class="feature-strip">
+          <span class="strip-item">⚡ Ball-by-ball</span>
+          <span class="strip-item">👤 Offline guest</span>
+          <span class="strip-item">🔗 Live share link</span>
+          <span class="strip-item">📊 Full scorecard</span>
+        </div>
+
+        <!-- Recent Matches -->
         <section class="home-recent-section" aria-labelledby="recentMatchesHeading">
           <div class="home-section-heading">
             <div><h2 id="recentMatchesHeading">Recent Matches</h2><p>Your latest saved scorecards</p></div>
@@ -168,6 +220,49 @@
           <div id="homeRecentMatches" class="home-recent-list" aria-live="polite"></div>
         </section>
       </section>
+    </div>
+
+    <!-- Screen 0.5: Dedicated Web Scorer Landing (Home > Features > Web Scorer) -->
+    <div id="screenWebScorerLanding" class="screen">
+      <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-primary); font-weight:700; cursor:pointer; padding:0;">Home</button>
+        <span>›</span>
+        <span>Features</span>
+        <span>›</span>
+        <span style="color:var(--text-color);">Web Scorer</span>
+      </div>
+
+      <div class="cric-hero">
+        <div class="cric-hero-content">
+          <div class="cric-hero-badge">
+            <span class="badge-dot"></span> FREE WEB SCORER
+          </div>
+
+          <h1 class="cric-hero-title">
+            THE CRICKET <span class="highlight-blue">SCORING</span> WEBSITE
+          </h1>
+
+          <p class="cric-hero-summary">
+            Score a live match ball-by-ball, right here in your browser — team names, overs, toss, first ball. No login, no download, no ads.
+          </p>
+
+          <div class="cric-hero-pills">
+            <span class="cric-pill">● FREE FOREVER</span>
+            <span class="cric-pill">● NO LOGIN</span>
+            <span class="cric-pill">● NO ADS</span>
+            <span class="cric-pill">● BALL-BY-BALL</span>
+          </div>
+
+          <div class="cric-hero-actions">
+            <button class="cric-btn cric-btn-primary" type="button" onclick="startWebScorerWizard()">
+              Start scoring now →
+            </button>
+            <button class="cric-btn cric-btn-outline" type="button" onclick="toggleFeaturesMenu(event)">
+              ✨ Features ▾
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Screen 1: Saved Matches List (Match Center) -->
@@ -179,7 +274,7 @@
         </div>
 
         <!-- Filter Sub-Tabs Bar -->
-        <div style="display:flex; gap:6px; background:#121826; padding:4px; border-radius:10px; margin-bottom:14px; border:1px solid var(--card-border);">
+        <div style="display:flex; gap:6px; background:#0f172a; padding:4px; border-radius:10px; margin-bottom:14px; border:1px solid var(--card-border);">
           <button id="matchFilterAll" class="btn" style="flex:1; padding:8px; font-size:12px; background:var(--primary-color); color:#fff;" onclick="setMatchFilter('ALL')">ALL</button>
           <button id="matchFilterLive" class="btn" style="flex:1; padding:8px; font-size:12px; background:transparent; color:var(--text-muted);" onclick="setMatchFilter('LIVE')">🔴 LIVE</button>
           <button id="matchFilterCompleted" class="btn" style="flex:1; padding:8px; font-size:12px; background:transparent; color:var(--text-muted);" onclick="setMatchFilter('COMPLETED')">🏆 COMPLETED</button>
@@ -189,83 +284,135 @@
       </div>
     </div>
 
-    <!-- Screen 2: New Match Setup (Squad Builder) -->
+    <!-- Screen 2: New Match Setup (Streamlined 4-Step Web Score Wizard) -->
     <div id="screenNewMatch" class="screen">
-      <div class="card">
-        <div class="quick-match-heading">
-          <div><p class="home-eyebrow">QUICK MATCH</p><h3>Create a match</h3></div>
-          <button class="btn" type="button" onclick="loadMatchListScreen()">Cancel</button>
+      <div class="wizard-progress-bar">
+        <div class="wizard-step active" data-wizard-step="0" onclick="goToWizardTeamsStep()">
+          <div class="step-num" id="stepNum0">1</div>
+          <div class="step-label">TEAMS</div>
         </div>
-
-        <div id="quickMatchProgress" class="quick-match-progress" aria-label="Quick Match progress">
-          <button class="quick-match-progress-step" type="button" data-quick-match-progress="0" onclick="setQuickMatchStep(0)"><span>1</span><small>Teams</small></button>
-          <button class="quick-match-progress-step" type="button" data-quick-match-progress="1" onclick="setQuickMatchStep(1)"><span>2</span><small>Players</small></button>
-          <button class="quick-match-progress-step" type="button" data-quick-match-progress="2" onclick="setQuickMatchStep(2)"><span>3</span><small>Settings</small></button>
-          <div class="quick-match-progress-step" data-quick-match-progress="3"><span>4</span><small>Toss</small></div>
-          <div class="quick-match-progress-step" data-quick-match-progress="4"><span>5</span><small>Live</small></div>
+        <div class="wizard-step-line"></div>
+        <div class="wizard-step" data-wizard-step="1" onclick="goToWizardOversStep()">
+          <div class="step-num" id="stepNum1">2</div>
+          <div class="step-label">OVERS</div>
         </div>
+        <div class="wizard-step-line"></div>
+        <div class="wizard-step" data-wizard-step="2" onclick="goToWizardTossStep()">
+          <div class="step-num" id="stepNum2">3</div>
+          <div class="step-label">TOSS</div>
+        </div>
+        <div class="wizard-step-line"></div>
+        <div class="wizard-step" data-wizard-step="3">
+          <div class="step-num" id="stepNum3">4</div>
+          <div class="step-label">SCORE</div>
+        </div>
+      </div>
 
-        <section class="quick-match-step" data-quick-match-step="0" aria-labelledby="quickMatchTeamsHeading">
-          <div class="quick-match-step-heading"><h4 id="quickMatchTeamsHeading">Choose your teams</h4><p>Name each team or load a saved team.</p></div>
-          <div class="team-builder-block">
-            <div class="team-builder-header"><h4 class="team-builder-title">TEAM A</h4></div>
-            <div class="form-group"><label for="selectTeamA">Load Saved Team (Optional)</label><select id="selectTeamA" class="form-control" onchange="onSelectTeamAChange()"></select></div>
-            <div class="quick-match-team-fields">
-              <div class="form-group"><label for="teamAName">Team A Name</label><input type="text" id="teamAName" class="form-control" placeholder="e.g. Rockets" oninput="filterGlobalPlayerOptions('A'); filterGlobalPlayerOptions('B');"></div>
-              <div class="form-group"><label for="teamAColor">Colour</label><input type="color" id="teamAColor" class="form-control team-color-input" value="#FF5722"></div>
+      <div class="wizard-card">
+
+        <!-- STEP 1: TEAMS -->
+        <div id="wizardPanelTeams" class="wizard-step-panel" data-step-panel="0">
+          <div class="team-input-group">
+            <label class="team-input-label">TEAM A</label>
+            <div class="team-input-row">
+              <span class="team-dot" style="background:#2563eb;"></span>
+              <input type="text" id="teamAName" class="form-control team-name-input" value="Team A" placeholder="Team A Name" oninput="syncTeamNamesToTossUI()">
+              <input type="color" id="teamAColor" value="#2563eb" style="display:none;">
             </div>
           </div>
-          <div class="team-builder-block">
-            <div class="team-builder-header"><h4 class="team-builder-title" style="color:var(--primary-color);">TEAM B</h4></div>
-            <div class="form-group"><label for="selectTeamB">Load Saved Team (Optional)</label><select id="selectTeamB" class="form-control" onchange="onSelectTeamBChange()"></select></div>
-            <div class="quick-match-team-fields">
-              <div class="form-group"><label for="teamBName">Team B Name</label><input type="text" id="teamBName" class="form-control" placeholder="e.g. Thunder" oninput="filterGlobalPlayerOptions('A'); filterGlobalPlayerOptions('B');"></div>
-              <div class="form-group"><label for="teamBColor">Colour</label><input type="color" id="teamBColor" class="form-control team-color-input" value="#2196F3"></div>
+
+          <div class="team-input-divider"></div>
+
+          <div class="team-input-group">
+            <label class="team-input-label">TEAM B</label>
+            <div class="team-input-row">
+              <span class="team-dot" style="background:#0284c7;"></span>
+              <input type="text" id="teamBName" class="form-control team-name-input" value="Team B" placeholder="Team B Name" oninput="syncTeamNamesToTossUI()">
+              <input type="color" id="teamBColor" value="#0284c7" style="display:none;">
             </div>
           </div>
-        </section>
 
-        <section class="quick-match-step" data-quick-match-step="1" aria-labelledby="quickMatchPlayersHeading" hidden>
-          <div class="quick-match-step-heading"><h4 id="quickMatchPlayersHeading">Add players</h4><p>Build both squads. Directory options are available when needed.</p></div>
-          <div class="team-builder-block">
-            <div class="team-builder-header"><h4 class="team-builder-title">TEAM A PLAYERS</h4><button class="btn" type="button" onclick="clearSquad('A')">Clear</button></div>
-            <div id="teamASquadList" class="squad-list"></div>
-            <details class="player-directory-disclosure">
-              <summary>Choose from player directory</summary>
-              <div class="form-group"><label for="globalPlayerSearchA">Search Team A directory</label><input type="text" id="globalPlayerSearchA" aria-label="Search Team A directory" class="form-control" placeholder="Search players..." oninput="filterGlobalPlayerOptions('A')"></div>
-              <div id="globalPlayerChecklistA" class="player-directory-checklist"></div>
-              <div class="player-directory-controls"><button class="btn-primary" type="button" onclick="addSelectedDirectoryPlayers('A')">Add checked players</button><select id="selectGlobalPlayerA" aria-label="Quick pick single player Team A" class="form-control" onchange="onAddGlobalPlayer('A')"></select></div>
-            </details>
-            <div class="form-group"><label for="newPlayerInputA">Add a player by name</label><div class="squad-add-row"><input type="text" id="newPlayerInputA" class="form-control" placeholder="e.g. Alice" onkeydown="if(event.key==='Enter'){event.preventDefault();onAddNewPlayerInput('A');}"><button class="squad-add-btn" type="button" onclick="onAddNewPlayerInput('A')">Add</button></div></div>
-          </div>
-          <div class="team-builder-block">
-            <div class="team-builder-header"><h4 class="team-builder-title" style="color:var(--primary-color);">TEAM B PLAYERS</h4><button class="btn" type="button" onclick="clearSquad('B')">Clear</button></div>
-            <div id="teamBSquadList" class="squad-list"></div>
-            <details class="player-directory-disclosure">
-              <summary>Choose from player directory</summary>
-              <div class="form-group"><label for="globalPlayerSearchB">Search Team B directory</label><input type="text" id="globalPlayerSearchB" aria-label="Search Team B directory" class="form-control" placeholder="Search players..." oninput="filterGlobalPlayerOptions('B')"></div>
-              <div id="globalPlayerChecklistB" class="player-directory-checklist"></div>
-              <div class="player-directory-controls"><button class="btn-primary" type="button" onclick="addSelectedDirectoryPlayers('B')">Add checked players</button><select id="selectGlobalPlayerB" aria-label="Quick pick single player Team B" class="form-control" onchange="onAddGlobalPlayer('B')"></select></div>
-            </details>
-            <div class="form-group"><label for="newPlayerInputB">Add a player by name</label><div class="squad-add-row"><input type="text" id="newPlayerInputB" class="form-control" placeholder="e.g. Eve" onkeydown="if(event.key==='Enter'){event.preventDefault();onAddNewPlayerInput('B');}"><button class="squad-add-btn" type="button" onclick="onAddNewPlayerInput('B')">Add</button></div></div>
-          </div>
-        </section>
+          <!-- Optional squad list backing inputs -->
+          <div id="teamASquadList" hidden></div>
+          <div id="teamBSquadList" hidden></div>
 
-        <section class="quick-match-step" data-quick-match-step="2" aria-labelledby="quickMatchSettingsHeading" hidden>
-          <div class="quick-match-step-heading"><h4 id="quickMatchSettingsHeading">Match settings</h4><p>Set the innings length and bowler limit.</p></div>
-          <div class="quick-match-settings-fields">
-            <div class="form-group"><label for="matchOvers">Overs Per Innings</label><input type="number" id="matchOvers" class="form-control" value="5"></div>
-            <div class="form-group"><label for="maxBowlerOvers">Max Overs Per Bowler</label><input type="number" id="maxBowlerOvers" class="form-control" value="2"></div>
-          </div>
-          <div class="form-group"><label for="matchPowerplayOvers">Powerplay Overs (optional)</label><input type="number" id="matchPowerplayOvers" class="form-control" min="1" placeholder="Use series default"></div>
-          <div class="checkbox-row"><input type="checkbox" id="saveTeamsForReuse" checked><label for="saveTeamsForReuse">Save these teams for reuse</label></div>
-        </section>
-
-        <div class="quick-match-navigation">
-          <button id="quickMatchBack" class="btn" type="button" onclick="previousQuickMatchStep()" hidden>Back</button>
-          <button id="quickMatchContinue" class="btn-primary" type="button" onclick="nextQuickMatchStep()">Continue</button>
-          <button id="quickMatchStart" class="btn-primary" type="button" onclick="handleCreateMatch()" hidden>Proceed to Toss 🪙</button>
+          <button class="wizard-next-btn" type="button" onclick="goToWizardOversStep()">
+            Next: overs →
+          </button>
         </div>
+
+        <!-- STEP 2: OVERS -->
+        <div id="wizardPanelOvers" class="wizard-step-panel" data-step-panel="1" hidden>
+          <div class="overs-section-heading">OVERS</div>
+          <div class="overs-stepper-row">
+            <button class="overs-stepper-btn" type="button" onclick="adjustMatchOvers(-1)">−</button>
+            <div class="overs-display-num" id="oversValueDisplay">6</div>
+            <button class="overs-stepper-btn" type="button" onclick="adjustMatchOvers(1)">＋</button>
+          </div>
+
+          <div class="overs-pills-row">
+            <button class="overs-pill active" type="button" onclick="setQuickMatchOvers(6)">6</button>
+            <button class="overs-pill" type="button" onclick="setQuickMatchOvers(10)">10</button>
+            <button class="overs-pill" type="button" onclick="setQuickMatchOvers(20)">20</button>
+            <button class="overs-pill" type="button" onclick="setQuickMatchOvers(35)">35</button>
+            <button class="overs-pill" type="button" onclick="setQuickMatchOvers(50)">50</button>
+          </div>
+
+          <!-- Hidden backing inputs for match configuration -->
+          <input type="hidden" id="matchOvers" value="6">
+          <input type="hidden" id="maxBowlerOvers" value="2">
+          <input type="checkbox" id="saveTeamsForReuse" checked style="display:none;">
+
+          <button class="wizard-next-btn" type="button" onclick="goToWizardTossStep()">
+            Next: toss →
+          </button>
+
+          <div class="wizard-back-link">
+            <button type="button" onclick="goToWizardTeamsStep()">← Back to teams</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: TOSS -->
+        <div id="wizardPanelToss" class="wizard-step-panel" data-step-panel="2" hidden>
+          <div class="toss-badge-tag">🟢 COIN TOSS</div>
+
+          <div class="toss-coin-box">
+            <img id="coinImg" class="coin-flip-img" src="img/coin_heads.png" alt="Coin Toss">
+          </div>
+
+          <div class="toss-who-calls-section">
+            <div class="toss-calls-label">WHO CALLS?</div>
+            <div class="toss-calls-toggle">
+              <button id="tossCallTeamA" class="toss-call-btn active" type="button" onclick="selectTossCaller('A')">Team A</button>
+              <button id="tossCallTeamB" class="toss-call-btn" type="button" onclick="selectTossCaller('B')">Team B</button>
+            </div>
+            <div id="tossCallerMessage" class="toss-caller-msg">Team A calls it in the air</div>
+          </div>
+
+          <div id="tossCallActions" class="toss-action-btns">
+            <button class="toss-call-choice-btn btn-heads" type="button" onclick="flipCoinChoice('HEADS')">Heads</button>
+            <button class="toss-call-choice-btn btn-tails" type="button" onclick="flipCoinChoice('TAILS')">Tails</button>
+          </div>
+
+          <div id="tossWinnerDecisionSection" class="toss-decision-box" hidden>
+            <div id="tossWinnerText" class="toss-winner-heading">TEAM A WON THE TOSS</div>
+            <p id="tossWinnerSubtext" class="toss-winner-sub">It landed on heads. What will they do?</p>
+
+            <div class="toss-decision-choices">
+              <button id="tossChoiceBat" class="toss-decision-btn active" type="button" onclick="setTossDecisionChoice('BAT')">🏏 Bat first</button>
+              <button id="tossChoiceBowl" class="toss-decision-btn" type="button" onclick="setTossDecisionChoice('BOWL')">⚾ Bowl first</button>
+            </div>
+
+            <button class="wizard-next-btn" type="button" onclick="finishWizardAndStartMatch()">
+              Start Scoring Now →
+            </button>
+          </div>
+
+          <div class="wizard-back-link">
+            <button type="button" onclick="goToWizardOversStep()">← Back to overs</button>
+          </div>
+        </div>
+
       </div>
     </div>
 
