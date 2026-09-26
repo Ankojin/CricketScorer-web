@@ -143,10 +143,10 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
     expect(user?.userId).toBeTruthy();
 
     // Navigate to Create Match screen
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
       const win = window as any;
       if (typeof win.showNewMatchScreen === 'function') {
-        win.showNewMatchScreen();
+        await win.showNewMatchScreen();
       }
     });
 
@@ -249,7 +249,7 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
     }
 
     // Create a local Guest match
-    await page.click('button:visible:has-text("Quick Match")');
+    await page.click('button:has-text("Quick Match")');
 
     await page.evaluate(async () => {
       const win = window as any;

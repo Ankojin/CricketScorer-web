@@ -115,10 +115,10 @@ Call log:
   143 |     expect(user?.userId).toBeTruthy();
   144 | 
   145 |     // Navigate to Create Match screen
-  146 |     await page.evaluate(() => {
+  146 |     await page.evaluate(async () => {
   147 |       const win = window as any;
   148 |       if (typeof win.showNewMatchScreen === 'function') {
-  149 |         win.showNewMatchScreen();
+  149 |         await win.showNewMatchScreen();
   150 |       }
   151 |     });
   152 | 
@@ -222,7 +222,7 @@ Call log:
   249 |     }
   250 | 
   251 |     // Create a local Guest match
-  252 |     await page.click('button:visible:has-text("Quick Match")');
+  252 |     await page.click('button:has-text("Quick Match")');
   253 | 
   254 |     await page.evaluate(async () => {
   255 |       const win = window as any;

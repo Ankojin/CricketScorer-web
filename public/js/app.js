@@ -148,7 +148,10 @@ function closePrimaryActionModalsExcept(exceptId = null) {
 function openPrimaryActionModal(modalId) {
   closePrimaryActionModalsExcept(modalId);
   const el = document.getElementById(modalId);
-  if (el) el.classList.add('active');
+  if (el) {
+    el.removeAttribute('hidden');
+    el.classList.add('active');
+  }
 }
 
 function initializeDialogAccessibility() {
@@ -254,9 +257,18 @@ async function renderHomeDashboard() {
   const isRegistered = Boolean(user) || userMode === 'REGISTERED';
   const hasAppSession = isRegistered || userMode === 'GUEST';
 
-  entry.hidden = hasAppSession;
-  dashboard.hidden = !hasAppSession;
-  if (!hasAppSession) return;
+  if (hasAppSession) {
+    entry.hidden = true;
+    entry.setAttribute('hidden', '');
+    dashboard.hidden = false;
+    dashboard.removeAttribute('hidden');
+  } else {
+    entry.hidden = false;
+    entry.removeAttribute('hidden');
+    dashboard.hidden = true;
+    dashboard.setAttribute('hidden', '');
+    return;
+  }
 
   // Toggle CTAs based on session state (Guest vs Signed-In)
   const guestCtas = document.getElementById('homeGuestCtas');
@@ -264,12 +276,22 @@ async function renderHomeDashboard() {
   if (guestCtas && registeredCtas) {
     if (isRegistered) {
       guestCtas.hidden = true;
+      guestCtas.setAttribute('hidden', '');
       guestCtas.style.display = 'none';
+
       registeredCtas.hidden = false;
+      registeredCtas.removeAttribute('hidden');
       registeredCtas.style.display = 'flex';
     } else {
       guestCtas.hidden = false;
+      guestCtas.removeAttribute('hidden');
       guestCtas.style.display = 'flex';
+
+      registeredCtas.hidden = true;
+      registeredCtas.setAttribute('hidden', '');
+      registeredCtas.style.display = 'none';
+    }
+  }
       registeredCtas.hidden = true;
       registeredCtas.style.display = 'none';
     }
@@ -1267,16 +1289,19 @@ function normalizePowerplayOvers(powerplayOvers, oversPerInnings) {
 
 async function showNewMatchScreen(mode = 'QUICK') {
   currentScoringMode = mode || 'QUICK';
-  showScreen('screenNewMatch');
-  setQuickMatchStep(0);
-
   matchSquadA = [];
   matchSquadB = [];
+
+  showScreen('screenNewMatch');
+  setQuickMatchStep(0);
 
   const teamAInput = document.getElementById('teamAName');
   const teamBInput = document.getElementById('teamBName');
   if (teamAInput) teamAInput.value = '';
   if (teamBInput) teamBInput.value = '';
+
+  renderSquadList('A');
+  renderSquadList('B');
 
   const defaults = getTournamentDefaults(activeTournament);
   const matchOversInput = document.getElementById('matchOvers');
@@ -1299,27 +1324,29 @@ async function showNewMatchScreen(mode = 'QUICK') {
   if (selectB) selectB.innerHTML = '<option value="">-- Custom Team B --</option>';
 
   if (selectA || selectB) {
-    const teams = await getAllTeamsList();
-    teams.forEach(t => {
-      const pCount = (t.players || []).length;
-      if (selectA) {
-        const optA = document.createElement('option');
-        optA.value = t.id;
-        optA.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
-        selectA.appendChild(optA);
-      }
+    try {
+      const teams = await getAllTeamsList();
+      teams.forEach(t => {
+        const pCount = (t.players || []).length;
+        if (selectA) {
+          const optA = document.createElement('option');
+          optA.value = t.id;
+          optA.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
+          selectA.appendChild(optA);
+        }
 
-      if (selectB) {
-        const optB = document.createElement('option');
-        optB.value = t.id;
-        optB.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
-        selectB.appendChild(optB);
-      }
-    });
+        if (selectB) {
+          const optB = document.createElement('option');
+          optB.value = t.id;
+          optB.innerText = `${t.name} (${pCount} player${pCount !== 1 ? 's' : ''})`;
+          selectB.appendChild(optB);
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to load team select options:', e);
+    }
   }
 
-  renderSquadList('A');
-  renderSquadList('B');
   await refreshPlayerPickOptions();
 }
 
@@ -4954,7 +4981,7 @@ function updateWizardStepUI(stepIndex) {
 
 function startWebScorerWizard() {
   closeFeaturesMenu();
-  showScreen('screenNewMatch');
+  showNewMatchScreen('QUICK');
   updateWizardStepUI(0);
 }
 
