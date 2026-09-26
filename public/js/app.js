@@ -48,9 +48,22 @@ window.CricStorage.onToast = showToast;
 function updateBottomNavVisibility(screenId) {
   const bottomNav = document.getElementById('bottomNav');
   if (!bottomNav) return;
-  const userMode = localStorage.getItem('cric_user_mode');
-  const hasAppSession = Boolean(window.CricStorage.getCurrentUser()) || userMode === 'GUEST' || userMode === 'REGISTERED';
-  bottomNav.style.display = screenId === 'screenLanding' && !hasAppSession ? 'none' : 'grid';
+
+  const isQuickMode = (activeMatch?.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK');
+
+  // Hide bottom navigation bar on Home Page, Landing views, Quick Match wizard, and Quick Match live scoring
+  const hideNavScreens = [
+    'screenLanding',
+    'screenQuickMatchLanding',
+    'screenFullMatchLanding',
+    'screenNewMatch'
+  ];
+
+  if (hideNavScreens.includes(screenId) || (isQuickMode && ['screenLiveScoring', 'screenScorecard', 'screenOvers'].includes(screenId))) {
+    bottomNav.style.setProperty('display', 'none', 'important');
+  } else {
+    bottomNav.style.setProperty('display', 'grid', 'important');
+  }
 }
 
 function updateBottomNavContext(screenId) {
@@ -215,8 +228,18 @@ function startQuickMatch() {
 }
 
 function startFullMatch() {
-  currentScoringMode = 'FULL';
   closeFeaturesMenu();
+  const user = window.CricStorage.getCurrentUser();
+  const userMode = localStorage.getItem('cric_user_mode');
+  const isRegistered = Boolean(user) || userMode === 'REGISTERED';
+
+  if (!isRegistered) {
+    showToast('Sign in or Register to access Full Match Mode', 'info');
+    openAuthModal('REGISTER');
+    return;
+  }
+
+  currentScoringMode = 'FULL';
   showNewMatchScreen('FULL');
 }
 
@@ -252,9 +275,11 @@ async function renderHomeDashboard() {
     }
   }
 
-  // Update Features menu Full Match button visibility
+  // Ensure Features menu Full Match button is always accessible
   const featureFullMatchBtn = document.getElementById('featureFullMatchBtn');
   if (featureFullMatchBtn) {
+    featureFullMatchBtn.hidden = false;
+  }
     featureFullMatchBtn.hidden = !isRegistered;
   }
 
@@ -1448,18 +1473,20 @@ function openTossModal() {
   const btnA = document.getElementById('tossBtnTeamA');
   const btnB = document.getElementById('tossBtnTeamB');
 
-  btnA.innerText = activeMatch.teamA.name;
-  btnB.innerText = activeMatch.teamB.name;
+  if (btnA) btnA.innerText = activeMatch.teamA?.name || 'Team A';
+  if (btnB) btnB.innerText = activeMatch.teamB?.name || 'Team B';
 
-  selectedTossWinnerId = activeMatch.teamA.id;
+  selectedTossWinnerId = activeMatch.teamA?.id || 'teamA';
   selectedTossDecision = 'BAT';
 
   if (activeMatch.status === 'UPCOMING') {
     setPendingAction('TOSS_REQUIRED');
   }
 
-  document.getElementById('tossResultText').innerText = '';
-  document.getElementById('coinImg').src = 'img/coin_heads.png';
+  const tossResultText = document.getElementById('tossResultText');
+  if (tossResultText) tossResultText.innerText = '';
+  const coinImg = document.getElementById('coinImg');
+  if (coinImg) coinImg.src = 'img/coin_heads.png';
 
   updateTossButtonsUI();
   openPrimaryActionModal('tossModal');
@@ -1477,21 +1504,21 @@ function spinCoinFlip() {
   const coinImg = document.getElementById('coinImg');
   const resultText = document.getElementById('tossResultText');
 
-  coinImg.classList.add('spinning');
-  resultText.innerText = 'Flipping coin... 🪙';
+  if (coinImg) coinImg.classList.add('spinning');
+  if (resultText) resultText.innerText = 'Flipping coin... 🪙';
 
   setTimeout(() => {
     const isHeads = Math.random() < 0.5;
-    coinImg.classList.remove('spinning');
+    if (coinImg) coinImg.classList.remove('spinning');
 
     if (isHeads) {
-      coinImg.src = 'img/coin_heads.png';
-      selectedTossWinnerId = activeMatch.teamA.id;
-      resultText.innerText = `🪙 Result: HEADS! (${activeMatch.teamA.name} won the toss)`;
+      if (coinImg) coinImg.src = 'img/coin_heads.png';
+      selectedTossWinnerId = activeMatch.teamA?.id || 'teamA';
+      if (resultText) resultText.innerText = `🪙 Result: HEADS! (${activeMatch.teamA?.name || 'Team A'} won the toss)`;
     } else {
-      coinImg.src = 'img/coin_tails.png';
-      selectedTossWinnerId = activeMatch.teamB.id;
-      resultText.innerText = `🪙 Result: TAILS! (${activeMatch.teamB.name} won the toss)`;
+      if (coinImg) coinImg.src = 'img/coin_tails.png';
+      selectedTossWinnerId = activeMatch.teamB?.id || 'teamB';
+      if (resultText) resultText.innerText = `🪙 Result: TAILS! (${activeMatch.teamB?.name || 'Team B'} won the toss)`;
     }
 
     updateTossButtonsUI();
@@ -1500,7 +1527,7 @@ function spinCoinFlip() {
 
 function selectTossWinner(teamKey) {
   if (!activeMatch) return;
-  selectedTossWinnerId = teamKey === 'teamA' ? activeMatch.teamA.id : activeMatch.teamB.id;
+  selectedTossWinnerId = teamKey === 'teamA' ? activeMatch.teamA?.id : activeMatch.teamB?.id;
   updateTossButtonsUI();
 }
 
@@ -1517,14 +1544,16 @@ function updateTossButtonsUI() {
   const btnBowl = document.getElementById('tossBtnBowl');
 
   const choices = [
-    [btnA, selectedTossWinnerId === activeMatch.teamA.id],
-    [btnB, selectedTossWinnerId === activeMatch.teamB.id],
+    [btnA, selectedTossWinnerId === activeMatch.teamA?.id],
+    [btnB, selectedTossWinnerId === activeMatch.teamB?.id],
     [btnBat, selectedTossDecision === 'BAT'],
     [btnBowl, selectedTossDecision === 'BOWL']
   ];
   choices.forEach(([button, selected]) => {
-    button.classList.toggle('is-selected', selected);
-    button.setAttribute('aria-pressed', `${selected}`);
+    if (button) {
+      button.classList.toggle('is-selected', selected);
+      button.setAttribute('aria-pressed', `${selected}`);
+    }
   });
 }
 
@@ -4837,6 +4866,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateDeviceSyncStatus();
   window.addEventListener('online', updateDeviceSyncStatus);
   window.addEventListener('offline', updateDeviceSyncStatus);
+  window.addEventListener('popstate', handleUrlRouting);
+
+  // Check URL routing for separate navigation pages (/quick-match, /full-match, /coin-toss, /settings-gully-rules)
+  const isRouted = handleUrlRouting();
 
   // Check URL query parameters for Spectator Live View Mode (?matchId=match_123)
   const urlParams = new URLSearchParams(window.location.search);
@@ -4868,13 +4901,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Check user mode or existing session
-  const userMode = localStorage.getItem('cric_user_mode');
-  const user = window.CricStorage.getCurrentUser();
-
-  if (user || userMode === 'GUEST' || userMode === 'REGISTERED') {
-    showLandingScreen();
-  } else {
+  // Default to Landing / Home screen if no specific page route was requested
+  if (!isRouted) {
     showLandingScreen();
   }
 });
@@ -5139,23 +5167,48 @@ async function finishWizardAndStartMatch() {
   }
 }
 
-// Quick Coin Toss Standalone Modal
+// Standalone Coin Toss Modal (Only Flip Coin, no teams/match setup)
 function openQuickTossModal() {
   closeFeaturesMenu();
-  if (activeMatch) {
-    openTossModal();
-  } else {
-    // Populate default team names for standalone toss
-    const btnA = document.getElementById('tossBtnTeamA');
-    const btnB = document.getElementById('tossBtnTeamB');
-    if (btnA) btnA.innerText = 'Team A';
-    if (btnB) btnB.innerText = 'Team B';
-    const resultText = document.getElementById('tossResultText');
-    if (resultText) resultText.innerText = '';
-    const coinImg = document.getElementById('coinImg');
-    if (coinImg) coinImg.src = 'img/coin_heads.png';
-    openPrimaryActionModal('tossModal');
-  }
+  const modal = document.getElementById('standaloneCoinTossModal');
+  const resultEl = document.getElementById('standaloneTossResult');
+  const coinImg = document.getElementById('standaloneCoinImg');
+
+  if (resultEl) resultEl.innerText = 'Flip the coin to start';
+  if (coinImg) coinImg.src = 'img/coin_heads.png';
+  if (modal) modal.classList.add('active');
+}
+
+function closeStandaloneCoinTossModal() {
+  const modal = document.getElementById('standaloneCoinTossModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function spinStandaloneCoin() {
+  const coinImg = document.getElementById('standaloneCoinImg');
+  const resultEl = document.getElementById('standaloneTossResult');
+  const flipBtn = document.getElementById('standaloneFlipBtn');
+
+  if (coinImg) coinImg.classList.add('spinning');
+  if (resultEl) resultEl.innerText = 'Flipping... 🪙';
+  if (flipBtn) flipBtn.disabled = true;
+
+  setTimeout(() => {
+    if (coinImg) coinImg.classList.remove('spinning');
+    if (flipBtn) flipBtn.disabled = false;
+
+    const isHeads = Math.random() < 0.5;
+    if (coinImg) coinImg.src = isHeads ? 'img/coin_heads.png' : 'img/coin_tails.png';
+    if (resultEl) resultEl.innerText = isHeads ? 'Heads!' : 'Tails!';
+  }, 800);
+}
+
+function resetStandaloneCoin() {
+  const resultEl = document.getElementById('standaloneTossResult');
+  const coinImg = document.getElementById('standaloneCoinImg');
+
+  if (resultEl) resultEl.innerText = 'Flip the coin to start';
+  if (coinImg) coinImg.src = 'img/coin_heads.png';
 }
 
 // Prompt for Live Stream Spectator View
@@ -5167,15 +5220,69 @@ function promptSpectatorStream() {
   }
 }
 
-// Show Web Scorer Landing Screen (Home > Features > Web Scorer)
-function showWebScorerLandingScreen() {
+// URL Navigation & Separate Routing Handlers
+function navigateToRoute(routePath) {
+  if (window.history && window.history.pushState) {
+    try {
+      window.history.pushState({}, '', routePath);
+    } catch (e) {
+      window.location.hash = routePath.replace('/', '#');
+    }
+  } else {
+    window.location.hash = routePath.replace('/', '#');
+  }
+}
+
+function showQuickMatchLandingScreen() {
   closeFeaturesMenu();
-  showScreen('screenWebScorerLanding');
+  navigateToRoute('/quick-match');
+  showScreen('screenQuickMatchLanding');
+}
+
+function showFullMatchLandingScreen() {
+  closeFeaturesMenu();
+  navigateToRoute('/full-match');
+
+  const btn = document.getElementById('fullMatchLandingBtn');
+  const user = window.CricStorage.getCurrentUser();
+  const userMode = localStorage.getItem('cric_user_mode');
+  const isRegistered = Boolean(user) || userMode === 'REGISTERED';
+
+  if (btn) {
+    btn.innerText = isRegistered ? '📋 Start Full Match Now →' : '🔑 Sign In / Register to Start Full Match →';
+  }
+
+  showScreen('screenFullMatchLanding');
+}
+
+function handleUrlRouting() {
+  const path = window.location.pathname.toLowerCase();
+  const search = window.location.search.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+
+  if (path.includes('/quick-match') || search.includes('quick-match') || hash.includes('quick-match')) {
+    showQuickMatchLandingScreen();
+    return true;
+  } else if (path.includes('/full-match') || search.includes('full-match') || hash.includes('full-match')) {
+    showFullMatchLandingScreen();
+    return true;
+  } else if (path.includes('/coin-toss') || search.includes('coin-toss') || hash.includes('coin-toss')) {
+    openQuickTossModal();
+    return true;
+  } else if (path.includes('/settings-gully-rules') || search.includes('settings-gully-rules') || hash.includes('settings-gully-rules')) {
+    openMatchSettingsModal();
+    return true;
+  }
+  return false;
 }
 
 // Window Exports for QA Automation & UI Actions
 window.toggleFeaturesMenu = toggleFeaturesMenu;
 window.closeFeaturesMenu = closeFeaturesMenu;
+window.showQuickMatchLandingScreen = showQuickMatchLandingScreen;
+window.showFullMatchLandingScreen = showFullMatchLandingScreen;
+window.navigateToRoute = navigateToRoute;
+window.handleUrlRouting = handleUrlRouting;
 window.startQuickMatch = startQuickMatch;
 window.startFullMatch = startFullMatch;
 window.startWebScorerWizard = startWebScorerWizard;
@@ -5189,6 +5296,9 @@ window.flipCoinChoice = flipCoinChoice;
 window.setTossDecisionChoice = setTossDecisionChoice;
 window.finishWizardAndStartMatch = finishWizardAndStartMatch;
 window.openQuickTossModal = openQuickTossModal;
+window.closeStandaloneCoinTossModal = closeStandaloneCoinTossModal;
+window.spinStandaloneCoin = spinStandaloneCoin;
+window.resetStandaloneCoin = resetStandaloneCoin;
 window.promptSpectatorStream = promptSpectatorStream;
 window.addPlayerObjectToSquad = addPlayerObjectToSquad;
 window.renderSquadList = renderSquadList;

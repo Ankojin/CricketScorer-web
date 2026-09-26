@@ -3,7 +3,8 @@
 **Application:** CricScore Pro Web (PWA)
 **Version:** 2.33.28
 **Repository:** [https://github.com/Ankojin/CricketScorer-web](https://github.com/Ankojin/CricketScorer-web)
-**Date:** 2026-09-25
+**Latest Commit:** `bfd655d` (pushed to `main`)
+**Date:** 2026-09-26
 
 ---
 
@@ -22,6 +23,12 @@ The application strictly separates its **Presentation Layer**, **Application Con
 | **Home Redesign** | Guest CTAs (`Quick Match` + `Sign in`) vs Registered CTAs (`Full Match` + `Quick Match`) | **DONE** | Wired dynamically in `renderHomeDashboard()` (`app.js`) based on `cric_user_mode` and auth session. |
 | **Color System** | Single unified Forest (`#0b2213`) + Emerald (`#16a34a` / `#22c55e`) + Cream (`#f4f1ea`) palette | **DONE** | Applied via CSS tokens in `:root` (`styles.css`). |
 | **Webscore Removal** | Remove "Web Scorer / Webscore" user-facing branding from Home & Features menu | **DONE** | Merged into Quick Match. Features menu clean without duplicate Webscore entry (`index.html`). |
+| **Features Menu Cleanup** | Streamlined to 4 options (`Quick Match`, `Full Match`, `Coin Toss`, `Settings & Gully Rules`) | **DONE** | Removed duplicate/obsolete entries (`Watch Live Stream`, `Tournaments`, `Teams & Players`). |
+| **Full Match Sign-In Gate** | Clicking Full Match in Guest mode opens Sign In / Register modal with Full Match mode banner | **DONE** | Guest redirection via `startFullMatch()` to `openAuthModal('REGISTER')` (`app.js` & `index.html`). |
+| **URL Navigation Routes** | Separate URL routes `/quick-match`, `/full-match`, `/coin-toss`, `/settings-gully-rules` | **DONE** | Implemented `handleUrlRouting()` and `navigateToRoute()` (`app.js`). |
+| **Standalone Coin Toss** | Instant coin flip utility (`Heads` / `Tails` with `Flip Coin` and `Reset`) without match setup | **DONE** | Standalone `#standaloneCoinTossModal` (`index.html` & `app.js`). |
+| **Teams & Roster Directory** | Display saved teams as cards with expandable `📋 Players` roster toggle | **DONE** | Refactored `renderPlayers()` to focus on saved teams instead of dumping default player lists. |
+| **Bottom Nav Cleanup** | Hide bottom nav on Home, Quick Match wizard, and Quick Match live scoring | **DONE** | Updated `updateBottomNavVisibility()` (`app.js`). Hides `Matches · Teams · Series · Stats` on Home and Quick Match. |
 | **Scoring Mode CTAs** | `startQuickMatch()` sets `scoringMode = 'QUICK'`; `startFullMatch()` sets `scoringMode = 'FULL'` | **DONE** | Invokes `showNewMatchScreen(mode)` with explicit mode parameter (`app.js`). |
 | **Match Object Persistence** | Store `activeMatch.scoringMode = 'QUICK' \| 'FULL'` on match creation | **DONE** | Saved in `handleCreateMatch()` and persisted to `cric_matches` (`storage.js`). |
 | **QUICK Simple Panel** | Live scoring hides full batters table, bowler table & match tabs in QUICK mode | **DONE** | Evaluated in `renderLiveScoring()`. Full UI remains active for FULL mode (`app.js`). |
@@ -61,7 +68,7 @@ The application strictly separates its **Presentation Layer**, **Application Con
 | Layer | Primary Files | Responsibilities | Key Design Principles |
 | :--- | :--- | :--- | :--- |
 | **Presentation** | `index.html`<br>`styles.css` | DOM structure, semantic HTML5 modal overlays, responsive CSS layout, design tokens. | Mobile-first (~44px touch targets), single unified Forest + Emerald + Cream design system. |
-| **App Controller** | `app.js` | SPA screen routing, session management, UI event wiring, wizard step progression, modal state gates. | High performance, zero framework overhead, strict null-guards on DOM operations. Signature: `showNewMatchScreen(mode = 'QUICK')`. |
+| **App Controller** | `app.js` | SPA screen routing, session management, UI event wiring, wizard step progression, modal state gates, URL routing (`/quick-match`, `/full-match`, `/coin-toss`, `/settings-gully-rules`). | High performance, zero framework overhead, strict null-guards on DOM operations. Signature: `showNewMatchScreen(mode = 'QUICK')`. |
 | **Scoring Engine** | `src/engine/ScoringEngine.ts`<br>`public/js/scoring-engine.js` | Cricket rules, ball event replay, run rates (CRR/RRR), wicket attribution, bowler limits, NRR. | **Immutable & Isolated**. Compiled via `tsc` + `build-engine.js`. Never hand-edited in bundle form. |
 | **Persistence** | `storage.js` | LocalStorage caching, guest vs registered user isolation, background AWS API Gateway / DynamoDB sync. | **Offline-first**. Offline actions succeed locally and automatically sync when online. |
 | **PWA Shell** | `sw.js`<br>`manifest.json` | Offline asset caching, PWA installation, standalone app display mode. | Zero network latency for cached SPA assets. |
@@ -187,7 +194,7 @@ Home Dashboard (Guest Mode)
        │  • Secondary CTA: [ 🔑 Sign in to Save ]
        │
        ▼
-Quick Match Wizard (4-Step Fast Path)
+Quick Match Wizard (4-Step Fast Path - /quick-match)
        │
        ├──► Step 1: TEAMS  ── (Inputs Team A & Team B names; auto-seeds 11 squad players if empty)
        ├──► Step 2: OVERS  ── (Stepper − 6 ＋ and quick pills: 6, 10, 20, 35, 50)
@@ -199,7 +206,7 @@ Quick Live Scoring Panel (`scoringMode === 'QUICK'`)
        │  • Dominant score hero (0/0 · 0.0 overs)
        │  • Current over ball chips & primary keypad
        │  • Auto-assigned striker, non-striker & bowler (no start modals)
-       │  • Full tables & match tabs hidden for clean, simple scoring
+       │  • Full tables, match tabs & general bottom nav hidden for clean, simple scoring
        │
        ▼
 Completed Match Summary
@@ -219,7 +226,7 @@ Home Dashboard (Registered Mode)
        │  • Secondary CTA: [ 🏏 Quick Match ]
        │
        ▼
-Full Match Builder (`showNewMatchScreen('FULL')`)
+Full Match Builder (`showNewMatchScreen('FULL')` - /full-match)
        │
        ├──► Squad Builder: Load saved teams or create custom rosters (Captains & Vice-Captains)
        ├──► Match Settings: Overs per innings, max bowler overs, powerplay overs, Gully rules
@@ -279,6 +286,7 @@ Live Score Refresh
 
 - **Repository:** [https://github.com/Ankojin/CricketScorer-web](https://github.com/Ankojin/CricketScorer-web)
 - **Version:** `2.33.28` (`package.json`)
-- **Date:** 2026-09-25
+- **Latest Commit:** `bfd655d` (pushed to `origin/main`)
+- **Date:** 2026-09-26
 - **Engine Bundle Status:** Verified generated via `npm run build`
 - **Test Suite Status:** 27/27 Node Unit Tests Passed, 4/4 Playwright E2E Tests Passed
