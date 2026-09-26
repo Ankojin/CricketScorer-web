@@ -25,31 +25,23 @@
     </div>
   </header>
 
-  <!-- Features Options Dropdown Menu (Gully Crix style dark green card) -->
+  <!-- Features Options Dropdown Menu (No Webscore entry) -->
   <div id="featuresMenuDropdown" class="features-dropdown" hidden>
     <div class="features-dropdown-header">
       <span>CRICSCORE PRO FEATURES</span>
       <button class="features-close-btn" type="button" onclick="closeFeaturesMenu()">&times;</button>
     </div>
     <div class="features-dropdown-grid">
-      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showWebScorerLandingScreen();">
-        <span class="feature-icon bg-green">⚡</span>
-        <div class="feature-info">
-          <strong>Web Scorer</strong>
-          <small>Score free in your browser</small>
-        </div>
-      </button>
-
-      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showNewMatchScreen();">
-        <span class="feature-icon bg-emerald">🏏</span>
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); startQuickMatch();">
+        <span class="feature-icon bg-green">🏏</span>
         <div class="feature-info">
           <strong>Quick Match</strong>
           <small>Score a game in seconds</small>
         </div>
       </button>
 
-      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showNewMatchScreen();">
-        <span class="feature-icon bg-teal">📋</span>
+      <button id="featureFullMatchBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); startFullMatch();">
+        <span class="feature-icon bg-emerald">📋</span>
         <div class="feature-info">
           <strong>Full Match</strong>
           <small>Squads, player stats & scorecards</small>
@@ -91,7 +83,7 @@
       <button class="feature-item" type="button" onclick="closeFeaturesMenu(); openMatchSettingsModal();">
         <span class="feature-icon bg-slate">⚙️</span>
         <div class="feature-info">
-          <strong>Gully Rules & Settings</strong>
+          <strong>Settings & Gully Rules</strong>
           <small>Custom overs, powerplays & rules</small>
         </div>
       </button>
@@ -129,7 +121,7 @@
       </div>
 
       <section id="homeDashboard" class="home-dashboard" hidden aria-labelledby="homeHeading">
-        <!-- Marketing Quality Home Hero -->
+        <!-- Marketing Quality Home Hero (Forest #0b2213, Emerald #22c55e, Cream #f4f1ea) -->
         <div class="cric-home-hero">
           <div class="cric-hero-content">
             <div class="cric-hero-badge">
@@ -143,19 +135,29 @@
             </h1>
 
             <p class="cric-hero-subline">
-              Score live cricket in the browser — guest or signed-in.
+              Score live in the browser. Guest for a quick game — sign in to save matches and stats.
             </p>
 
-            <div class="cric-hero-actions">
-              <button class="cric-btn cric-btn-primary" type="button" onclick="showWebScorerLandingScreen()">
-                ⚡ Web Scorer
+            <!-- Dynamic CTAs based on session state (Guest vs Signed-In) -->
+            <div id="homeGuestCtas" class="cric-hero-actions">
+              <button class="cric-btn cric-btn-primary" type="button" onclick="startQuickMatch()">
+                🏏 Quick Match →
               </button>
-              <button class="cric-btn cric-btn-secondary" type="button" onclick="showNewMatchScreen()">
+              <button class="cric-btn cric-btn-secondary" type="button" onclick="openAuthModal()">
+                🔑 Sign in to Save
+              </button>
+            </div>
+
+            <div id="homeRegisteredCtas" class="cric-hero-actions" hidden>
+              <button class="cric-btn cric-btn-primary" type="button" onclick="startFullMatch()">
+                📋 Full Match →
+              </button>
+              <button class="cric-btn cric-btn-secondary" type="button" onclick="startQuickMatch()">
                 🏏 Quick Match
               </button>
             </div>
 
-            <!-- Mobile Screenshot Placeholder Slots -->
+            <!-- Optional Mobile Screenshot Placeholder Slots -->
             <div class="home-shots-row" aria-label="Mobile app screenshots">
               <div id="homeShot1" class="home-shot-frame">
                 <div class="phone-screen">
@@ -181,7 +183,7 @@
           </div>
         </div>
 
-        <!-- How It Works (3 Cards) -->
+        <!-- How It Works (3 Steps on Cream #f4f1ea) -->
         <section class="how-it-works-section">
           <h2 class="section-title">How it works</h2>
           <div class="how-it-works-grid">
@@ -220,49 +222,6 @@
           <div id="homeRecentMatches" class="home-recent-list" aria-live="polite"></div>
         </section>
       </section>
-    </div>
-
-    <!-- Screen 0.5: Dedicated Web Scorer Landing (Home > Features > Web Scorer) -->
-    <div id="screenWebScorerLanding" class="screen">
-      <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-primary); font-weight:700; cursor:pointer; padding:0;">Home</button>
-        <span>›</span>
-        <span>Features</span>
-        <span>›</span>
-        <span style="color:var(--text-color);">Web Scorer</span>
-      </div>
-
-      <div class="cric-hero">
-        <div class="cric-hero-content">
-          <div class="cric-hero-badge">
-            <span class="badge-dot"></span> FREE WEB SCORER
-          </div>
-
-          <h1 class="cric-hero-title">
-            THE CRICKET <span class="highlight-blue">SCORING</span> WEBSITE
-          </h1>
-
-          <p class="cric-hero-summary">
-            Score a live match ball-by-ball, right here in your browser — team names, overs, toss, first ball. No login, no download, no ads.
-          </p>
-
-          <div class="cric-hero-pills">
-            <span class="cric-pill">● FREE FOREVER</span>
-            <span class="cric-pill">● NO LOGIN</span>
-            <span class="cric-pill">● NO ADS</span>
-            <span class="cric-pill">● BALL-BY-BALL</span>
-          </div>
-
-          <div class="cric-hero-actions">
-            <button class="cric-btn cric-btn-primary" type="button" onclick="startWebScorerWizard()">
-              Start scoring now →
-            </button>
-            <button class="cric-btn cric-btn-outline" type="button" onclick="toggleFeaturesMenu(event)">
-              ✨ Features ▾
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Screen 1: Saved Matches List (Match Center) -->

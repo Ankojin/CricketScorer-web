@@ -208,6 +208,20 @@ function previousQuickMatchStep() {
   setQuickMatchStep(activeQuickMatchStep - 1);
 }
 
+let currentScoringMode = 'QUICK'; // 'QUICK' | 'FULL'
+
+function startQuickMatch() {
+  currentScoringMode = 'QUICK';
+  closeFeaturesMenu();
+  startWebScorerWizard();
+}
+
+function startFullMatch() {
+  currentScoringMode = 'FULL';
+  closeFeaturesMenu();
+  showNewMatchScreen('FULL');
+}
+
 async function renderHomeDashboard() {
   const entry = document.getElementById('landingAuthEntry');
   const dashboard = document.getElementById('homeDashboard');
@@ -215,10 +229,36 @@ async function renderHomeDashboard() {
   if (!entry || !dashboard || !recentList) return;
 
   const userMode = localStorage.getItem('cric_user_mode');
-  const hasAppSession = Boolean(window.CricStorage.getCurrentUser()) || userMode === 'GUEST' || userMode === 'REGISTERED';
+  const user = window.CricStorage.getCurrentUser();
+  const isRegistered = Boolean(user) || userMode === 'REGISTERED';
+  const hasAppSession = isRegistered || userMode === 'GUEST';
+
   entry.hidden = hasAppSession;
   dashboard.hidden = !hasAppSession;
   if (!hasAppSession) return;
+
+  // Toggle CTAs based on session state (Guest vs Signed-In)
+  const guestCtas = document.getElementById('homeGuestCtas');
+  const registeredCtas = document.getElementById('homeRegisteredCtas');
+  if (guestCtas && registeredCtas) {
+    if (isRegistered) {
+      guestCtas.hidden = true;
+      guestCtas.style.display = 'none';
+      registeredCtas.hidden = false;
+      registeredCtas.style.display = 'flex';
+    } else {
+      guestCtas.hidden = false;
+      guestCtas.style.display = 'flex';
+      registeredCtas.hidden = true;
+      registeredCtas.style.display = 'none';
+    }
+  }
+
+  // Update Features menu Full Match button visibility
+  const featureFullMatchBtn = document.getElementById('featureFullMatchBtn');
+  if (featureFullMatchBtn) {
+    featureFullMatchBtn.hidden = !isRegistered;
+  }
 
   recentList.replaceChildren();
   try {
@@ -5041,7 +5081,8 @@ function showWebScorerLandingScreen() {
 // Window Exports for QA Automation & UI Actions
 window.toggleFeaturesMenu = toggleFeaturesMenu;
 window.closeFeaturesMenu = closeFeaturesMenu;
-window.showWebScorerLandingScreen = showWebScorerLandingScreen;
+window.startQuickMatch = startQuickMatch;
+window.startFullMatch = startFullMatch;
 window.startWebScorerWizard = startWebScorerWizard;
 window.goToWizardTeamsStep = goToWizardTeamsStep;
 window.goToWizardOversStep = goToWizardOversStep;

@@ -552,6 +552,11 @@ html.session-restoring #screenLanding { display: none !important; }
   margin-bottom: 24px;
 }
 
+.cric-hero-actions[hidden],
+[hidden] {
+  display: none !important;
+}
+
 .cric-btn {
   display: inline-flex;
   align-items: center;
