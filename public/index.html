@@ -209,7 +209,7 @@
         <section class="home-recent-section" aria-labelledby="recentMatchesHeading">
           <div class="home-section-heading">
             <div><h2 id="recentMatchesHeading">Recent Matches</h2><p>Your latest saved scorecards</p></div>
-            <button class="home-text-action" type="button" onclick="loadMatchListScreen()">View all</button>
+            <button class="home-text-action" type="button" onclick="viewAllMatches()">View all</button>
           </div>
           <div id="homeRecentMatches" class="home-recent-list" aria-live="polite"></div>
         </section>
@@ -285,9 +285,9 @@
     <!-- Screen 1: Saved Matches List (Match Center) -->
     <div id="screenMatchList" class="screen">
       <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="margin-bottom:12px;">
           <h3 style="font-size:18px;">Match Center</h3>
-          <button class="btn-primary" style="width:auto; padding:8px 16px; font-size:13px;" onclick="showNewMatchScreen()">+ Create Match</button>
+          <p style="margin:4px 0 0; font-size:12px; color:var(--text-muted);">View your existing and live matches.</p>
         </div>
 
         <!-- Filter Sub-Tabs Bar -->

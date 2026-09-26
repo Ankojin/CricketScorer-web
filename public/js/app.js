@@ -774,7 +774,7 @@ async function loadMatchListScreen() {
   listEl.innerHTML = '';
 
   if (!matches || matches.length === 0) {
-    listEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No matches found. Create a new match to start scoring!</div>';
+    listEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No existing or live matches found.</div>';
     return;
   }
 
@@ -819,6 +819,10 @@ async function loadMatchListScreen() {
     `;
     listEl.appendChild(item);
   });
+}
+
+function viewAllMatches() {
+  setMatchFilter('ALL');
 }
 
 function setOversInningsTab(tab) {
@@ -5314,6 +5318,7 @@ window.navigateToRoute = navigateToRoute;
 window.handleUrlRouting = handleUrlRouting;
 window.startQuickMatch = startQuickMatch;
 window.startFullMatch = startFullMatch;
+window.viewAllMatches = viewAllMatches;
 window.startWebScorerWizard = startWebScorerWizard;
 window.goToWizardTeamsStep = goToWizardTeamsStep;
 window.goToWizardOversStep = goToWizardOversStep;

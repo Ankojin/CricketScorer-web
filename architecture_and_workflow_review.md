@@ -163,7 +163,42 @@ NONE ──wicket──► SELECT_STRIKER / fielder steps
 ---
 
 ## 5. User workflows
-
+### APP Entry Flow
+                    OPEN APP / REFRESH
+                            │
+                            ▼
+              ┌─────────────────────────┐
+              │     LANDING SCREEN        │
+              │   (screenLanding)         │
+              └─────────────┬─────────────┘
+                            │
+              Has session? (localStorage)
+              • cric_user_mode = GUEST
+              • or REGISTERED + user/token
+                            │
+              ┌─────────────┴─────────────┐
+              │ NO                         │ YES
+              ▼                            ▼
+┌──────────────────┐         ┌──────────────────┐
+│  SIGN-IN ENTRY     │         │   HOME PAGE       │
+│  #landingAuthEntry │         │   #homeDashboard  │
+│                    │         │                  │
+│ [Register/Sign In] │         │ Guest or          │
+│ [Continue as Guest]│         │ Registered CTAs   │
+└────────┬───────────┘         └──────────────────┘
+│
+┌──────┴──────┐
+│             │
+▼             ▼
+SIGN IN /      CONTINUE AS
+REGISTER         GUEST
+│             │
+│             ├─ set cric_user_mode = GUEST
+│             └─ show Home
+│
+├─ success → cric_user_mode = REGISTERED
+│            save user/token
+└─ show Home
 ### Workflow A — Guest (Quick Match first)
 
 ```text
