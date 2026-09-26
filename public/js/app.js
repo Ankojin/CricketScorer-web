@@ -256,6 +256,7 @@ async function renderHomeDashboard() {
   const user = window.CricStorage.getCurrentUser();
   const isRegistered = Boolean(user) || userMode === 'REGISTERED';
   const hasAppSession = isRegistered || userMode === 'GUEST';
+  document.documentElement.classList.toggle('has-app-session', hasAppSession);
 
   if (hasAppSession) {
     entry.hidden = true;
@@ -485,6 +486,10 @@ function hexToRgb(hex) {
   return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
+function uiColor(token) {
+  return getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+}
+
 // Multi-Tab Persistence Sync
 window.addEventListener('storage', (e) => {
   if (e.key === 'cric_matches' && activeMatch && !isReadOnlySpectator) {
@@ -661,8 +666,8 @@ async function createSnapshotBlobFromElement(element) {
   wrap.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
   wrap.style.width = `${width}px`;
   wrap.style.height = `${height}px`;
-  wrap.style.background = '#0f172a';
-  wrap.style.color = '#f8fafc';
+  wrap.style.background = 'var(--color-primary)';
+  wrap.style.color = 'var(--color-text-on-dark)';
   wrap.style.padding = '8px';
   wrap.appendChild(cloned);
 
@@ -688,7 +693,7 @@ async function createSnapshotBlobFromElement(element) {
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = uiColor('--color-primary');
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0);
 
@@ -754,7 +759,7 @@ function updateScorecardTabUI() {
     const btn = document.getElementById(id);
     if (!btn) return;
     btn.style.background = activeScorecardTab === tab ? 'var(--primary-color)' : 'transparent';
-    btn.style.color = activeScorecardTab === tab ? '#fff' : '#cbd5e1';
+    btn.style.color = activeScorecardTab === tab ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)';
   });
 }
 
@@ -791,7 +796,7 @@ async function loadMatchListScreen() {
     const teamAColor = m.teamA?.colorHex || '#FF5722';
     const teamBColor = m.teamB?.colorHex || '#2196F3';
     const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
-    const statusColor = m.status === 'COMPLETED' ? '#10b981' : (m.status === 'ABANDONED' ? '#f59e0b' : '#3b82f6');
+    const statusColor = m.status === 'COMPLETED' ? 'var(--color-success)' : (m.status === 'ABANDONED' ? 'var(--color-warning)' : 'var(--color-info)');
 
     item.innerHTML = `
       <div style="flex:1; cursor:pointer;" onclick="selectMatch('${m.id}')">
@@ -831,7 +836,7 @@ function updateOversTabUI(hasSecondInnings) {
     if (!button) return;
     const active = activeOversInningsTab === tab;
     button.style.background = active ? 'var(--primary-color)' : 'transparent';
-    button.style.color = active ? '#fff' : 'var(--text-muted)';
+    button.style.color = active ? 'var(--color-text-on-dark)' : 'var(--text-muted)';
     button.setAttribute('aria-pressed', `${active}`);
   });
 }
@@ -849,7 +854,7 @@ function setMatchFilter(filter) {
     if (!button) return;
     const active = value === filter;
     button.style.background = active ? 'var(--primary-color)' : 'transparent';
-    button.style.color = active ? '#fff' : 'var(--text-muted)';
+    button.style.color = active ? 'var(--color-text-on-dark)' : 'var(--text-muted)';
     button.setAttribute('aria-pressed', `${active}`);
   });
   loadMatchListScreen();
@@ -2014,7 +2019,7 @@ function renderLiveScoring() {
 
       // Calculate Man of the Match
       const motm = window.ScoringEngine.calculateMotm(m);
-      const motmHtml = motm ? `<div style="font-size:13px; color:#f59e0b; font-weight:800; margin-top:8px;">🌟 MAN OF THE MATCH: ${motm.player.name.toUpperCase()} (Impact: ${motm.impactScore} pts)</div>` : '';
+      const motmHtml = motm ? `<div style="font-size:13px; color:var(--color-warning); font-weight:800; margin-top:8px;">🌟 MAN OF THE MATCH: ${motm.player.name.toUpperCase()} (Impact: ${motm.impactScore} pts)</div>` : '';
 
       document.getElementById('winnerTitle').innerText = resultStr;
       document.getElementById('marginText').innerHTML = `
@@ -2038,7 +2043,7 @@ function renderLiveScoring() {
   if (scoringHeader) {
     scoringHeader.innerHTML = `
       <div style="margin-bottom:8px;">
-        <span style="background:${battingTeamColor}; color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block; letter-spacing:0.5px; box-shadow:0 2px 8px rgba(0,0,0,0.3);">🏏 ${battingTeam?.name?.toUpperCase() || ''} BATTING</span>
+        <span style="background:${battingTeamColor}; color:var(--color-text-on-dark); font-size:11px; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block; letter-spacing:0.5px; box-shadow:0 2px 8px rgba(0,0,0,0.3);">🏏 ${battingTeam?.name?.toUpperCase() || ''} BATTING</span>
       </div>
       <div style="font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px;">
         <span style="color:${teamAColor}; border-bottom:2px solid ${teamAColor}; padding-bottom:1px; display:inline-flex; align-items:center; gap:4px;">
@@ -2365,7 +2370,7 @@ function showFirstInningsCompleteModal() {
   if (summary) {
     summary.innerHTML = `
       <div style="font-size:16px; font-weight:800; margin-bottom:8px;">${battingTeam?.name || 'Batting team'}: ${score} (${overs} overs)</div>
-      <div style="font-size:14px; color:var(--text-muted);">${bowlingTeam?.name || 'Chasing team'} need <strong style="color:#fff;">${activeMatch.target || (Number(first.runs || 0) + 1)}</strong> runs to win.</div>
+      <div style="font-size:14px; color:var(--text-muted);">${bowlingTeam?.name || 'Chasing team'} need <strong style="color:var(--color-text-on-dark);">${activeMatch.target || (Number(first.runs || 0) + 1)}</strong> runs to win.</div>
       <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Target: ${activeMatch.target || (Number(first.runs || 0) + 1)}</div>
     `;
   }
@@ -3687,7 +3692,7 @@ function renderScorecardInnings(tab) {
 
   const history = m.wicketHistory || [];
   const indexedOvers = getOverGroupsWithIndices(m);
-  const statusColor = m.status === 'COMPLETED' ? '#10b981' : (m.status === 'ABANDONED' ? '#f59e0b' : '#3b82f6');
+  const statusColor = m.status === 'COMPLETED' ? 'var(--color-success)' : (m.status === 'ABANDONED' ? 'var(--color-warning)' : 'var(--color-info)');
   const scorecardHistoryHtml = indexedOvers.length === 0
     ? '<div style="font-size:12px; color:var(--text-muted);">No balls recorded yet.</div>'
     : indexedOvers.slice().reverse().map(o => {
@@ -3907,7 +3912,7 @@ async function renderTournaments() {
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <h4 style="font-size:16px; font-weight:800; color:var(--color-primary);">🏆 ${t.name}</h4>
         <div style="display:flex; gap:6px;">
-          <button class="btn" style="background:#0f766e; color:#a7f3d0; padding:4px 8px; font-size:11px;" onclick="exportTournamentSnapshot('${t.id}')">📸 Snapshot</button>
+          <button class="btn" style="background:var(--color-primary); color:var(--color-text-on-dark); border-color:var(--color-primary); padding:4px 8px; font-size:11px;" onclick="exportTournamentSnapshot('${t.id}')">📸 Snapshot</button>
           <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); padding:4px 8px; font-size:11px;" onclick="openEditTournamentModal('${t.id}')">✏️ Edit Defaults</button>
           <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:4px 8px; font-size:11px;" onclick="deleteSeries('${t.id}')">🗑️ Delete</button>
         </div>
@@ -3939,7 +3944,7 @@ async function renderTournaments() {
 
       ${activeTourneySubTab === 'TABLE' ? `
         <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Points Table</div>
-        ${!canBuildPointsTable ? '<div style="font-size:11px; color:#fbbf24; margin:6px 0;">Standings temporarily unavailable, but your series is saved.</div>' : ''}
+        ${!canBuildPointsTable ? '<div style="font-size:11px; color:var(--color-warning); margin:6px 0;">Standings temporarily unavailable, but your series is saved.</div>' : ''}
         <table class="stats-table">
           <thead>
             <tr><th>Team</th><th style="text-align:right">P</th><th style="text-align:right">W</th><th style="text-align:right">L</th><th style="text-align:right">T</th><th style="text-align:right">NRR</th><th style="text-align:right">PTS</th></tr>
@@ -4170,7 +4175,7 @@ async function renderPlayers() {
     card.style.cssText = 'background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow-card);';
 
     const playerListHtml = (t.players || []).map((p, idx) => `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--color-border-muted, #efece4); font-size:13px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--color-border-muted); font-size:13px;">
         <span style="font-weight:700; color:var(--color-text);">${idx + 1}. ${p.name || 'Player'}</span>
         <span style="font-size:11px; color:var(--text-muted);">${p.role || 'Batter'}</span>
       </div>
@@ -4277,18 +4282,18 @@ async function populateSeriesTeamPlayerPicker() {
 function getPlayerSeriesTeamStatus(player, currentModalTeamName = '') {
   if (seriesTeamSelectedPlayers.some(sp => sp.id === player.id || sp.name.toLowerCase() === player.name.toLowerCase())) {
     const labelName = currentModalTeamName ? `In ${currentModalTeamName}` : 'Already Added';
-    return { label: labelName, color: '#34d399' };
+    return { label: labelName, color: 'var(--color-success)' };
   }
 
   if (activeTournament && Array.isArray(activeTournament.teams)) {
     for (const team of activeTournament.teams) {
       if ((team.players || []).some(p => p.id === player.id || p.name.toLowerCase() === player.name.toLowerCase())) {
-        return { label: `In ${team.name}`, color: '#38bdf8' };
+        return { label: `In ${team.name}`, color: 'var(--color-info)' };
       }
     }
   }
 
-  return { label: 'Unassigned', color: '#94a3b8' };
+  return { label: 'Unassigned', color: 'var(--color-text-subtle)' };
 }
 
 function filterSeriesTeamPlayerPicker() {
@@ -4600,7 +4605,7 @@ async function renderStats() {
         <div style="font-size:36px;">🌟</div>
         <div>
           <div style="font-size:11px; color:var(--color-electric); font-weight:800; text-transform:uppercase;">MAN OF THE MATCH • ICC RANKED</div>
-          <div style="font-size:18px; font-weight:900; color:#fff;">${motm.player.name.toUpperCase()}</div>
+          <div style="font-size:18px; font-weight:900; color:var(--color-text-on-dark);">${motm.player.name.toUpperCase()}</div>
           <div style="font-size:12px; color:var(--color-text-on-dark);">Impact Score: <span style="color:var(--color-electric); font-weight:800;">${motm.impactScore} pts</span></div>
         </div>
       </div>
@@ -4687,9 +4692,9 @@ async function renderStats() {
 function buildBreakdownRow(label, v1, v2) {
   return `
     <div style="display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.03);">
-      <span style="font-weight:700; color:#fff; width:30%;">${v1}</span>
+      <span style="font-weight:700; color:var(--color-text-on-dark); width:30%;">${v1}</span>
       <span style="color:var(--text-muted); text-align:center; width:40%; font-size:11px;">${label}</span>
-      <span style="font-weight:700; color:#fff; text-align:right; width:30%;">${v2}</span>
+      <span style="font-weight:700; color:var(--color-text-on-dark); text-align:right; width:30%;">${v2}</span>
     </div>
   `;
 }
@@ -4698,17 +4703,17 @@ function buildPartnershipsHtml(title, partnerships) {
   if (!partnerships || partnerships.length === 0) return `<div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">No partnerships recorded for ${title}.</div>`;
 
   const rows = partnerships.map(p => `
-    <div style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:8px; border-radius:8px; margin-bottom:6px; font-size:12px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--color-primary); padding:8px; border-radius:8px; margin-bottom:6px; font-size:12px;">
       <div style="width:35%;">
-        <div style="font-weight:700; color:#fff;">${p.batter1Name}</div>
+        <div style="font-weight:700; color:var(--color-text-on-dark);">${p.batter1Name}</div>
         <div style="color:var(--text-muted); font-size:10px;">${p.batter1Runs} (${p.batter1Balls}b)</div>
       </div>
-      <div style="text-align:center; background:#1e293b; padding:4px 10px; border-radius:6px;">
+      <div style="text-align:center; background:var(--color-primary-soft); padding:4px 10px; border-radius:6px;">
         <div style="font-size:14px; font-weight:900; color:var(--accent-color);">${p.totalRuns}</div>
         <div style="font-size:10px; color:var(--text-muted);">${p.totalBalls}b stand</div>
       </div>
       <div style="text-align:right; width:35%;">
-        <div style="font-weight:700; color:#fff;">${p.batter2Name}</div>
+        <div style="font-weight:700; color:var(--color-text-on-dark);">${p.batter2Name}</div>
         <div style="color:var(--text-muted); font-size:10px;">${p.batter2Runs} (${p.batter2Balls}b)</div>
       </div>
     </div>
@@ -4749,9 +4754,9 @@ function drawProgressCanvasChart(match, i1Balls, i2Balls, color1, color2) {
   const p2 = buildPoints(i2Balls);
   const maxRuns = Math.max(20, Math.max(...p1.map(p => p.runs), ...p2.map(p => p.runs)));
 
-  ctx.strokeStyle = '#334155';
+  ctx.strokeStyle = uiColor('--color-border-dark');
   ctx.lineWidth = 0.5;
-  ctx.fillStyle = '#94a3b8';
+  ctx.fillStyle = uiColor('--color-text-subtle');
   ctx.font = '10px sans-serif';
 
   for (let i = 0; i <= 4; i++) {
@@ -4790,7 +4795,7 @@ function drawProgressCanvasChart(match, i1Balls, i2Balls, color1, color2) {
       if (pt.isWicket) {
         const x = padL + (pt.over / totalOvers) * w;
         const y = padT + h - (pt.runs / maxRuns) * h;
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = uiColor('--color-text-on-dark');
         ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = color;
         ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
@@ -4837,9 +4842,9 @@ function drawOverByOverCanvasChart(match, i1Balls, i2Balls, color1, color2) {
   const o2 = buildOvers(i2Balls);
   const maxRuns = Math.max(12, Math.max(...o1.map(o => o.runs), ...o2.map(o => o.runs)));
 
-  ctx.strokeStyle = '#334155';
+  ctx.strokeStyle = uiColor('--color-border-dark');
   ctx.lineWidth = 0.5;
-  ctx.fillStyle = '#94a3b8';
+  ctx.fillStyle = uiColor('--color-text-subtle');
   ctx.font = '10px sans-serif';
 
   for (let i = 0; i <= 3; i++) {
@@ -4863,7 +4868,7 @@ function drawOverByOverCanvasChart(match, i1Balls, i2Balls, color1, color2) {
       ctx.fillRect(xBase, padT + h - bH, barW, bH);
 
       if (over1.wickets > 0) {
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = uiColor('--color-text-on-dark');
         ctx.beginPath(); ctx.arc(xBase + barW / 2, padT + h - bH - 6, 3, 0, Math.PI * 2); ctx.fill();
       }
     }
@@ -4875,7 +4880,7 @@ function drawOverByOverCanvasChart(match, i1Balls, i2Balls, color1, color2) {
       ctx.fillRect(xBase + barW + 2, padT + h - bH, barW, bH);
 
       if (over2.wickets > 0) {
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = uiColor('--color-text-on-dark');
         ctx.beginPath(); ctx.arc(xBase + barW + 2 + barW / 2, padT + h - bH - 6, 3, 0, Math.PI * 2); ctx.fill();
       }
     }

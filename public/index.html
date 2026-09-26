@@ -4,6 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CricScore Pro Web</title>
+  <script>
+    (function () {
+      try {
+        const mode = localStorage.getItem('cric_user_mode');
+        const user = localStorage.getItem('cric_auth_user');
+        const token = localStorage.getItem('cric_auth_token');
+        const hasRegisteredSession = mode === 'REGISTERED' || Boolean(user) || Boolean(token && !token.startsWith('token_local'));
+
+        if (mode === 'GUEST' || hasRegisteredSession) {
+          document.documentElement.classList.add('has-app-session');
+        }
+      } catch (_) {
+        // Storage may be unavailable in a restricted browser context; render the normal first-visit state.
+      }
+    })();
+  </script>
   <link rel="icon" href="img/app-icon.png" type="image/png">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="manifest" href="manifest.json">
@@ -661,7 +677,7 @@
 
       <div style="display:flex; gap:8px; margin-top:20px;">
         <button class="btn-primary" onclick="handleAuthSubmit()">Submit</button>
-        <button class="btn" style="background:#334155;" onclick="closeAuthModal()">Cancel</button>
+        <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="closeAuthModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -677,7 +693,7 @@
         <img id="standaloneCoinImg" class="coin-flip-img" src="img/coin_heads.png" alt="Coin Toss">
       </div>
 
-      <div id="standaloneTossResult" style="font-size:24px; font-weight:900; color:#f59e0b; min-height:36px; margin-bottom:20px; display:flex; align-items:center; justify-content:center;">
+      <div id="standaloneTossResult" style="font-size:24px; font-weight:900; color:var(--color-warning); min-height:36px; margin-bottom:20px; display:flex; align-items:center; justify-content:center;">
         Flip the coin to start
       </div>
 
@@ -770,8 +786,8 @@
       </div>
       <div style="display:flex; gap:8px; margin-bottom:12px;">
         <button id="btnAbandonResume" class="btn" style="flex:1; background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error);" onclick="toggleMatchAbandonedStatus()">⛔ Abandon Match</button>
-        <button class="btn" style="flex:1; background:#334155;" onclick="triggerImportMatchBackup()">Import Backup</button>
-        <button class="btn" style="flex:1; background:#334155;" onclick="exportActiveMatchBackup()">Export Backup</button>
+        <button class="btn" style="flex:1; background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="triggerImportMatchBackup()">Import Backup</button>
+        <button class="btn" style="flex:1; background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="exportActiveMatchBackup()">Export Backup</button>
       </div>
       <input type="file" id="importMatchFileInput" aria-label="Import match backup file" accept="application/json,.json" style="display:none" onchange="handleImportMatchBackup(event)">
       <div id="deviceSyncStatus" style="font-size:11px; color:var(--text-muted); margin-bottom:10px;"></div>
@@ -797,7 +813,7 @@
       <div style="display:flex; gap:8px; margin-top:20px;">
         <button class="btn-primary" onclick="saveMatchSettings()">Save Settings</button>
         <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); font-size:13px;" onclick="wipeAllAppData()">🧹 Reset App Data</button>
-        <button class="btn" style="background:#334155;" onclick="closeMatchSettingsModal()">Cancel</button>
+        <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="closeMatchSettingsModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -889,7 +905,7 @@
       </div>
       <div style="display:flex; gap:8px; margin-top:16px;">
         <button class="btn-primary" id="btnConfirmGenericSelection" style="display:none;" onclick="confirmPlayerSelection()">Confirm Selection</button>
-        <button class="btn" style="background:#334155;" onclick="closeSelectionModal({ clearPending: true })">Cancel</button>
+        <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="closeSelectionModal({ clearPending: true })">Cancel</button>
       </div>
     </div>
   </div>
@@ -922,7 +938,7 @@
       </div>
       <div style="display:flex; gap:8px; margin-top:16px;">
         <button class="btn-primary" onclick="submitCustomOtherRuns()">Submit Runs</button>
-        <button class="btn" style="background:#334155;" onclick="closeOtherRunsModal()">Cancel</button>
+        <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="closeOtherRunsModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -960,7 +976,7 @@
       <div class="form-group"><label for="editBallWicketType">Wicket</label><select id="editBallWicketType" class="form-control"><option value="NONE">None</option><option value="BOWLED">Bowled</option><option value="CAUGHT">Caught</option><option value="LBW">LBW</option><option value="RUN_OUT">Run out</option><option value="STUMPED">Stumped</option></select></div>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;"><label for="editBallIsLegal" style="margin:0;">Legal delivery</label><input type="checkbox" id="editBallIsLegal"></div>
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;"><label for="editBallRotateStrike" style="margin:0;">Rotate strike</label><input type="checkbox" id="editBallRotateStrike"></div>
-      <div style="display:flex; gap:8px;"><button class="btn-primary" onclick="confirmEditBall()">Save Ball</button><button class="btn" style="background:#334155;" onclick="closeEditBallModal()">Cancel</button></div>
+      <div style="display:flex; gap:8px;"><button class="btn-primary" onclick="confirmEditBall()">Save Ball</button><button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="closeEditBallModal()">Cancel</button></div>
     </div>
   </div>
 
@@ -992,7 +1008,7 @@
       <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;"><label for="tourneyRuleUnequal" style="margin:0;">Unequal teams</label><input type="checkbox" id="tourneyRuleUnequal"></div>
       <div style="display:flex; gap:8px; margin-top:16px;">
         <button class="btn-primary" id="tournamentModalSubmitBtn" onclick="handleCreateTournament()">Create Series</button>
-        <button class="btn" style="background:#334155;" onclick="closeTournamentModal()">Cancel</button>
+        <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="closeTournamentModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -1038,7 +1054,7 @@
 
       <div style="display:flex; gap:8px; margin-top:16px;">
         <button class="btn-primary" onclick="handleCreateTeam()">Create Team</button>
-        <button class="btn" style="background:#334155;" onclick="closeTeamModal()">Cancel</button>
+        <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="closeTeamModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -1070,7 +1086,7 @@
       </div>
       <div style="display:flex; gap:8px; margin-top:16px;">
         <button class="btn-primary" onclick="handleSavePlayer()">Save Player</button>
-        <button class="btn" style="background:#334155;" onclick="closePlayerModal()">Cancel</button>
+        <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); border-color:var(--color-border);" onclick="closePlayerModal()">Cancel</button>
       </div>
     </div>
   </div>

@@ -198,6 +198,8 @@ body {
 .screen { display: none; }
 .screen.active { display: block; }
 html.session-restoring #screenLanding { display: none !important; }
+html.has-app-session #landingAuthEntry { display: none !important; }
+html.has-app-session #homeDashboard { display: block !important; }
 
 .edit-player-btn {
   background: var(--color-surface-muted);
@@ -237,7 +239,7 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .score-card {
   text-align: center;
-  background: linear-gradient(180deg, #ffffff 0%, var(--color-background) 100%);
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-background) 100%);
   border-color: var(--color-info-soft);
   position: relative;
 }
@@ -419,13 +421,13 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .role-btn.active-c {
   background: var(--primary-color);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   border-color: var(--primary-dark);
 }
 
 .role-btn.active-vc {
   background: var(--accent-color);
-  color: #000000;
+  color: var(--color-primary-deep);
   border-color: var(--color-warning);
 }
 
@@ -452,7 +454,7 @@ html.session-restoring #screenLanding { display: none !important; }
   font-weight: 700;
   border-radius: 8px;
   background: var(--primary-color);
-  color: #fff;
+  color: var(--color-text-on-dark);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -517,7 +519,7 @@ html.session-restoring #screenLanding { display: none !important; }
 /* Marketing Quality Home Hero */
 .cric-home-hero {
   background: var(--color-surface-dark);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   padding: 32px 20px 28px;
   border-radius: 24px;
   box-shadow: 0 16px 36px rgba(7, 27, 51, 0.22);
@@ -572,7 +574,7 @@ html.session-restoring #screenLanding { display: none !important; }
   font-weight: 900;
   line-height: 1.08;
   letter-spacing: -0.02em;
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   margin-bottom: 14px;
 }
 
@@ -617,7 +619,7 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .cric-btn-primary {
   background: var(--color-green);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   box-shadow: 0 4px 14px rgba(19, 169, 104, 0.35);
 }
 
@@ -626,7 +628,7 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .cric-btn-secondary {
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
@@ -715,7 +717,7 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .how-card {
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 16px;
   padding: 16px 12px;
@@ -756,7 +758,7 @@ html.session-restoring #screenLanding { display: none !important; }
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 16px;
   padding: 12px 16px;
@@ -799,7 +801,7 @@ html.session-restoring #screenLanding { display: none !important; }
   border-radius: 20px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
   padding: 16px;
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   animation: slideDownFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -831,7 +833,7 @@ html.session-restoring #screenLanding { display: none !important; }
   line-height: 1;
 }
 
-.features-close-btn:hover { color: #ffffff; }
+.features-close-btn:hover { color: var(--color-text-on-dark); }
 
 .features-dropdown-grid {
   display: grid;
@@ -848,7 +850,7 @@ html.session-restoring #screenLanding { display: none !important; }
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
   border-radius: 12px;
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   text-align: left;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -875,8 +877,8 @@ html.session-restoring #screenLanding { display: none !important; }
 .feature-icon.bg-teal { background: rgba(19, 169, 104, 0.2); color: var(--color-electric); }
 .feature-icon.bg-amber { background: rgba(245, 158, 11, 0.2); color: var(--color-warning); }
 .feature-icon.bg-blue { background: rgba(56, 189, 248, 0.2); color: var(--color-info); }
-.feature-icon.bg-purple { background: rgba(73, 232, 120, 0.18); color: var(--color-electric); }
-.feature-icon.bg-indigo { background: rgba(56, 189, 248, 0.18); color: var(--color-info); }
+.feature-icon.bg-accent { background: rgba(73, 232, 120, 0.18); color: var(--color-electric); }
+.feature-icon.bg-info { background: rgba(56, 189, 248, 0.18); color: var(--color-info); }
 .feature-icon.bg-slate { background: rgba(148, 163, 184, 0.2); color: var(--color-border); }
 
 .feature-info {
@@ -888,7 +890,7 @@ html.session-restoring #screenLanding { display: none !important; }
 .feature-info strong {
   font-size: 13px;
   font-weight: 750;
-  color: #ffffff;
+  color: var(--color-text-on-dark);
 }
 
 .feature-info small {
@@ -921,7 +923,7 @@ html.session-restoring #screenLanding { display: none !important; }
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--color-surface);
   border: 2px solid var(--color-border);
   color: var(--color-text-muted);
   font-weight: 800;
@@ -941,7 +943,7 @@ html.session-restoring #screenLanding { display: none !important; }
 .wizard-step.active .step-num {
   background: var(--color-green);
   border-color: var(--color-green);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   box-shadow: 0 0 0 4px rgba(73, 232, 120, 0.18);
 }
 
@@ -952,7 +954,7 @@ html.session-restoring #screenLanding { display: none !important; }
 .wizard-step.complete .step-num {
   background: var(--color-success);
   border-color: var(--color-success);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
 }
 
 .wizard-step.complete .step-label {
@@ -967,7 +969,7 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .wizard-card {
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 24px;
   padding: 28px 24px;
@@ -1027,7 +1029,7 @@ html.session-restoring #screenLanding { display: none !important; }
   width: 100%;
   min-height: 52px;
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   border: none;
   border-radius: 999px;
   font-size: 15px;
@@ -1064,7 +1066,7 @@ html.session-restoring #screenLanding { display: none !important; }
   height: 56px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   border: none;
   font-size: 24px;
   font-weight: 800;
@@ -1098,7 +1100,7 @@ html.session-restoring #screenLanding { display: none !important; }
   min-width: 48px;
   height: 42px;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1.5px solid var(--color-border);
   color: var(--color-primary);
   font-size: 14px;
@@ -1111,7 +1113,7 @@ html.session-restoring #screenLanding { display: none !important; }
 .overs-pill.active {
   background: var(--color-green);
   border-color: var(--color-green);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   box-shadow: 0 4px 12px rgba(73, 232, 120, 0.25);
 }
 
@@ -1184,7 +1186,7 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .toss-call-btn.active {
   background: var(--color-green);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   box-shadow: 0 2px 8px rgba(73, 232, 120, 0.25);
 }
 
@@ -1214,13 +1216,13 @@ html.session-restoring #screenLanding { display: none !important; }
 
 .toss-call-choice-btn.btn-heads {
   background: var(--color-green);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   box-shadow: 0 4px 12px rgba(73, 232, 120, 0.25);
 }
 
 .toss-call-choice-btn.btn-tails {
   background: var(--color-warning);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
@@ -1257,7 +1259,7 @@ html.session-restoring #screenLanding { display: none !important; }
   min-height: 48px;
   border-radius: 999px;
   border: 1.5px solid var(--color-border);
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-primary);
   font-size: 14px;
   font-weight: 800;
@@ -1267,7 +1269,7 @@ html.session-restoring #screenLanding { display: none !important; }
 .toss-decision-btn.active {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-text-on-dark);
 }
 
 .home-dashboard {
@@ -1334,7 +1336,7 @@ html.session-restoring #screenLanding { display: none !important; }
 }
 
 .home-action-primary {
-  color: #fff;
+  color: var(--color-text-on-dark);
   background: var(--primary-color);
   border-color: var(--primary-color);
 }
@@ -1522,7 +1524,7 @@ button.quick-match-progress-step { cursor: pointer; }
 .quick-match-progress-step.is-current { color: var(--primary-color); }
 .quick-match-progress-step.is-current > span,
 .quick-match-progress-step.is-complete > span {
-  color: #fff;
+  color: var(--color-text-on-dark);
   background: var(--primary-color);
   border-color: var(--primary-color);
 }
@@ -1731,7 +1733,7 @@ button.quick-match-progress-step { cursor: pointer; }
 }
 
 .toss-choice-button:hover { border-color: var(--primary-color); }
-.toss-winner-choice.is-selected { color: #fff; background: var(--primary-color); border-color: var(--primary-color); }
+.toss-winner-choice.is-selected { color: var(--color-text-on-dark); background: var(--primary-color); border-color: var(--primary-color); }
 .toss-decision-choice.is-selected { color: var(--color-warning); background: var(--color-warning-soft); border-color: var(--color-warning); }
 
 .toss-actions {
@@ -1952,7 +1954,7 @@ button.quick-match-progress-step { cursor: pointer; }
 .keypad-grid .btn-wicket {
   grid-column: 1 / -1;
   min-height: 62px;
-  color: #fff;
+  color: var(--color-text-on-dark);
   font-size: 20px;
   letter-spacing: .04em;
   background: var(--color-error);
@@ -2433,13 +2435,6 @@ button:disabled,
 @media (max-width: 420px) {
   .app-header .status-badge { display: none; }
   .app-header .app-header-actions { min-width: 0; }
-}
-
-/* Existing modal markup keeps these secondary controls inline. */
-.modal .btn[style*="background:#334155"] {
-  color: var(--color-text) !important;
-  background: var(--color-surface-soft) !important;
-  border-color: var(--color-border) !important;
 }
 
 @media (prefers-color-scheme: dark) {
