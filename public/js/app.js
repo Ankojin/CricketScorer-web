@@ -68,16 +68,14 @@ function updateBottomNavContext(screenId) {
     screenNewMatch: 'navHome',
     screenMatchList: 'navMatches',
     screenPlayers: 'navPlayers',
+    screenTournaments: 'navTournaments',
     screenStats: 'navStats',
     screenLiveScoring: 'navLive',
     screenScorecard: 'navScorecard',
-    screenOvers: 'navOvers',
-    screenTournaments: 'navMore'
+    screenOvers: 'navOvers'
   };
   const currentNavId = screenNavIds[screenId];
   if (currentNavId) updateNavState(currentNavId);
-  const tourneyLink = document.getElementById('navTournaments');
-  if (tourneyLink) tourneyLink.classList.toggle('active', screenId === 'screenTournaments');
 }
 
 function toggleBottomNavMoreMenu() {
@@ -1242,15 +1240,18 @@ function normalizePowerplayOvers(powerplayOvers, oversPerInnings) {
   return Math.min(pp, overs);
 }
 
-async function showNewMatchScreen() {
+async function showNewMatchScreen(mode = 'QUICK') {
+  currentScoringMode = mode || 'QUICK';
   showScreen('screenNewMatch');
   setQuickMatchStep(0);
 
   matchSquadA = [];
   matchSquadB = [];
 
-  document.getElementById('teamAName').value = '';
-  document.getElementById('teamBName').value = '';
+  const teamAInput = document.getElementById('teamAName');
+  const teamBInput = document.getElementById('teamBName');
+  if (teamAInput) teamAInput.value = '';
+  if (teamBInput) teamBInput.value = '';
 
   const defaults = getTournamentDefaults(activeTournament);
   const matchOversInput = document.getElementById('matchOvers');
@@ -1411,6 +1412,7 @@ async function handleCreateMatch() {
 
   activeMatch = {
     id: 'match_' + Date.now(),
+    scoringMode: currentScoringMode || 'QUICK',
     tournamentId: activeTournament?.id || null,
     tournamentName: activeTournament?.name || null,
     teamA,
@@ -1931,6 +1933,22 @@ function renderLiveScoring() {
     lastSavedTag.innerText = `Saved ${timeStr}`;
   }
 
+  // Toggle UI elements for QUICK mode vs FULL mode during live scoring
+  const isQuickMode = (m.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK');
+  const battersCard = document.getElementById('liveBattersCard');
+  const bowlerCard = document.getElementById('liveBowlerCard');
+  const matchTabsNav = document.querySelector('.match-view-tabs');
+
+  if (isQuickMode && activeScreen === 'screenLiveScoring') {
+    if (battersCard) battersCard.style.display = 'none';
+    if (bowlerCard) bowlerCard.style.display = 'none';
+    if (matchTabsNav) matchTabsNav.style.display = 'none';
+  } else {
+    if (battersCard) battersCard.style.display = '';
+    if (bowlerCard) bowlerCard.style.display = '';
+    if (matchTabsNav) matchTabsNav.style.display = '';
+  }
+
   // Completed Match Summary Card
   const completedCard = document.getElementById('completedMatchCard');
   if (m.status === 'COMPLETED' || m.status === 'ABANDONED') {
@@ -1943,10 +1961,17 @@ function renderLiveScoring() {
 
       // Calculate Man of the Match
       const motm = window.ScoringEngine.calculateMotm(m);
-      const motmHtml = motm ? `<div style="font-size:13px; color:#fde047; font-weight:800; margin-top:8px;">🌟 MAN OF THE MATCH: ${motm.player.name.toUpperCase()} (Impact: ${motm.impactScore} pts)</div>` : '';
+      const motmHtml = motm ? `<div style="font-size:13px; color:#f59e0b; font-weight:800; margin-top:8px;">🌟 MAN OF THE MATCH: ${motm.player.name.toUpperCase()} (Impact: ${motm.impactScore} pts)</div>` : '';
 
       document.getElementById('winnerTitle').innerText = resultStr;
-      document.getElementById('marginText').innerHTML = `Match Completed | ${m.currentInnings === 2 ? 'Target Reached / Innings Ended' : 'Innings Completed'}${motmHtml}`;
+      document.getElementById('marginText').innerHTML = `
+        <div>Match Completed | ${m.currentInnings === 2 ? 'Target Reached / Innings Ended' : 'Innings Completed'}</div>
+        ${motmHtml}
+        <div style="margin-top:16px; display:flex; gap:10px; justify-content:center;">
+          <button class="cric-btn cric-btn-primary" style="padding:10px 20px; font-size:13px; min-height:42px;" onclick="showLandingScreen()">Done / Home</button>
+          <button class="cric-btn cric-btn-secondary" style="padding:10px 20px; font-size:13px; min-height:42px;" onclick="showScorecardScreen()">View Scorecard</button>
+        </div>
+      `;
     }
   } else {
     completedCard.style.display = 'none';
@@ -4062,35 +4087,78 @@ async function deleteSeries(id) {
   }
 }
 
-// Global Players & Teams Directory
+// Saved Teams & Squad Directory
 async function renderPlayers() {
   const container = document.getElementById('playersContainer');
-  const players = (await window.CricStorage.listGlobalPlayers())
+  if (!container) return;
+
+  const teams = (await window.CricStorage.listTeams())
     .slice()
     .sort((a, b) => (a.name || '').localeCompare((b.name || ''), undefined, { sensitivity: 'base' }));
+
   container.innerHTML = '';
 
-  if (!players || players.length === 0) {
-    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No players in global roster. Click "+ Add Player" above!</div>';
+  if (!teams || teams.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--color-surface-muted); border-radius:12px; border:1px solid var(--color-border);">
+        <div style="font-size:36px; margin-bottom:8px;">👥</div>
+        <div style="font-size:15px; font-weight:800; color:var(--color-text); margin-bottom:4px;">No saved teams yet</div>
+        <p style="font-size:12px; margin-bottom:16px;">Create a new team or start a match to build your squad roster.</p>
+        <button class="btn-primary" style="width:auto; padding:10px 20px; font-size:13px;" onclick="openNewTeamModal()">+ Create New Team</button>
+      </div>
+    `;
     return;
   }
 
-  players.forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'over-card-row';
+  teams.forEach(t => {
+    const pCount = (t.players || []).length;
+    const card = document.createElement('div');
+    card.className = 'team-card-item';
+    card.style.cssText = 'background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow-card);';
 
-    item.innerHTML = `
-      <div>
-        <div style="font-size:14px; font-weight:700; color:#fff;">👤 ${p.name}</div>
-        <div style="font-size:11px; color:var(--text-muted);">${p.role || 'Batter'} | ${p.style || 'RHB'}</div>
+    const playerListHtml = (t.players || []).map((p, idx) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--color-border-muted, #efece4); font-size:13px;">
+        <span style="font-weight:700; color:var(--color-text);">${idx + 1}. ${p.name || 'Player'}</span>
+        <span style="font-size:11px; color:var(--text-muted);">${p.role || 'Batter'}</span>
       </div>
-      <div style="display:flex; gap:6px;">
-        <button class="btn" style="background:#334155; padding:4px 8px; font-size:11px;" onclick="openEditPlayerModal('${p.id}', '${p.name}', '${p.role}', '${p.style}')">✏️ Edit</button>
-        <button class="btn" style="background:#7f1d1d; color:#fca5a5; padding:4px 8px; font-size:11px;" onclick="deletePlayer('${p.id}')">🗑️ Delete</button>
+    `).join('');
+
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="width:16px; height:16px; border-radius:50%; background:${t.colorHex || '#16a34a'}; display:inline-block;"></span>
+          <div>
+            <div style="font-size:16px; font-weight:800; color:var(--color-text);">${t.name}</div>
+            <div style="font-size:12px; color:var(--text-muted);">${pCount} player${pCount !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" style="background:var(--color-surface-muted); padding:6px 12px; font-size:12px; border-color:var(--color-border);" onclick="toggleTeamSquadView('${t.id}')">📋 Players</button>
+          <button class="btn" style="background:var(--color-danger-soft); color:#991b1b; border-color:#fca5a5; padding:6px 10px; font-size:12px;" onclick="deleteSavedTeam('${t.id}')">🗑️ Delete</button>
+        </div>
+      </div>
+      <div id="teamSquad_${t.id}" hidden style="margin-top:14px; padding-top:10px; border-top:1px solid var(--color-border);">
+        <div style="font-size:11px; font-weight:800; color:var(--color-primary); letter-spacing:0.05em; text-transform:uppercase; margin-bottom:8px;">Squad Roster</div>
+        ${playerListHtml || '<div style="font-size:12px; color:var(--text-muted);">No players in this team squad.</div>'}
       </div>
     `;
-    container.appendChild(item);
+    container.appendChild(card);
   });
+}
+
+function toggleTeamSquadView(teamId) {
+  const squadEl = document.getElementById(`teamSquad_${teamId}`);
+  if (squadEl) {
+    squadEl.hidden = !squadEl.hidden;
+  }
+}
+
+async function deleteSavedTeam(teamId) {
+  if (confirm('Are you sure you want to delete this saved team?')) {
+    await window.CricStorage.deleteTeam(teamId);
+    showToast('Team deleted successfully', 'info');
+    renderPlayers();
+  }
 }
 
 async function handleQuickAddPlayer() {
@@ -5016,14 +5084,20 @@ function setTossDecisionChoice(decision) {
 }
 
 async function finishWizardAndStartMatch() {
+  currentScoringMode = 'QUICK';
   await handleCreateMatch();
 
   // Trigger toss confirm
   selectedTossDecision = tossDecisionChoice;
   if (activeMatch) {
-    if (selectedTossWinnerId === 'TEAM_A') {
-      activeMatch.tossWinnerId = activeMatch.teamA.id;
-    } else if (selectedTossWinnerId === 'TEAM_B') {
+    const teamAName = document.getElementById('teamAName')?.value?.trim() || activeMatch.teamA.name;
+    const teamBName = document.getElementById('teamBName')?.value?.trim() || activeMatch.teamB.name;
+    activeMatch.teamA.name = teamAName;
+    activeMatch.teamB.name = teamBName;
+
+    activeMatch.scoringMode = 'QUICK';
+
+    if (selectedTossWinnerId === 'TEAM_B') {
       activeMatch.tossWinnerId = activeMatch.teamB.id;
     } else {
       activeMatch.tossWinnerId = activeMatch.teamA.id;
@@ -5031,6 +5105,27 @@ async function finishWizardAndStartMatch() {
 
     activeMatch.tossDecision = selectedTossDecision;
     activeMatch.status = 'LIVE';
+
+    // Set batting & bowling teams based on toss
+    const tossWinnerIsA = activeMatch.tossWinnerId === activeMatch.teamA.id;
+    const isBattingA = (tossWinnerIsA && selectedTossDecision === 'BAT') || (!tossWinnerIsA && selectedTossDecision === 'BOWL');
+    const battingTeam = isBattingA ? activeMatch.teamA : activeMatch.teamB;
+    const bowlingTeam = isBattingA ? activeMatch.teamB : activeMatch.teamA;
+
+    activeMatch.battingTeamId = battingTeam.id;
+    activeMatch.bowlingTeamId = bowlingTeam.id;
+
+    // Auto-set striker, non-striker, and bowler if missing
+    if (!activeMatch.currentStrikerId) {
+      activeMatch.currentStrikerId = battingTeam.players[0]?.id || null;
+    }
+    if (!activeMatch.currentNonStrikerId) {
+      activeMatch.currentNonStrikerId = battingTeam.players[1]?.id || null;
+    }
+    if (!activeMatch.currentBowlerId) {
+      activeMatch.currentBowlerId = bowlingTeam.players[0]?.id || null;
+    }
+
     activeMatch.pendingAction = 'NONE';
     activeMatch.updatedAt = new Date().toISOString();
 

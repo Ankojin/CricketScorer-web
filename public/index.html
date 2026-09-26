@@ -428,7 +428,7 @@
         </div>
 
         <!-- Active Batters Card -->
-        <div class="card live-data-card" style="padding:12px 16px;">
+        <div id="liveBattersCard" class="card live-data-card" style="padding:12px 16px;">
           <div id="battingCardTitle" style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Batting</div>
           <table class="stats-table">
             <thead>
@@ -448,7 +448,7 @@
         </div>
 
         <!-- Active Bowler Card -->
-        <div class="card live-data-card" style="padding:12px 16px;">
+        <div id="liveBowlerCard" class="card live-data-card" style="padding:12px 16px;">
           <div id="bowlingCardTitle" style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Bowling</div>
           <table class="stats-table">
             <thead>
@@ -557,29 +557,13 @@
       </div>
     </div>
 
-    <!-- Screen 7: Global Players & Teams Directory -->
+    <!-- Screen 7: Saved Teams & Squad Directory -->
     <div id="screenPlayers" class="screen">
       <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <h3>Teams & Global Players</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="font-size:18px; font-weight:800; color:var(--color-text);">Saved Teams & Roster Directory</h3>
           <div>
-            <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; margin-right:4px;" onclick="openNewTeamModal()">+ New Team</button>
-            <button class="btn-primary" style="width:auto; padding:6px 10px; font-size:12px; background:#10b981;" onclick="openNewPlayerModal()">+ Add Player</button>
-          </div>
-        </div>
-
-        <!-- Prominent Quick Add Player Box -->
-        <div style="background:#0f172a; padding:12px; border-radius:10px; border:1px solid var(--card-border); margin-bottom:16px;">
-          <label for="quickPlayerNameInput" style="font-size:12px; color:var(--text-muted); font-weight:700; display:block; margin-bottom:6px;">👤 Quick Add Player to Directory</label>
-          <div style="display:flex; gap:6px;">
-            <input type="text" id="quickPlayerNameInput" aria-label="Quick Add Player Name" class="form-control" placeholder="e.g. Rahul Sharma" onkeydown="if(event.key==='Enter'){event.preventDefault();handleQuickAddPlayer();}">
-            <select id="quickPlayerRoleInput" aria-label="Quick Add Player Role" class="form-control" style="width:120px;">
-              <option value="Batter">Batter</option>
-              <option value="Bowler">Bowler</option>
-              <option value="All-Rounder">All-Rounder</option>
-              <option value="Wicket-Keeper">WK</option>
-            </select>
-            <button class="btn-primary" style="width:auto; padding:8px 14px; font-size:13px; background:#10b981; flex-shrink:0;" onclick="handleQuickAddPlayer()">+ Add</button>
+            <button class="btn-primary" style="width:auto; padding:8px 14px; font-size:12px;" onclick="openNewTeamModal()">+ Create Team</button>
           </div>
         </div>
 
@@ -1020,6 +1004,9 @@
     <button class="bottom-nav-item" id="navPlayers" data-nav-context="general" type="button" onclick="showPlayersScreen()">
       <span class="bottom-nav-icon" aria-hidden="true">👥</span><span>Teams</span>
     </button>
+    <button class="bottom-nav-item" id="navTournaments" data-nav-context="general" type="button" onclick="showTournamentsScreen()">
+      <span class="bottom-nav-icon" aria-hidden="true">🏆</span><span>Series</span>
+    </button>
     <button class="bottom-nav-item" id="navStats" data-nav-context="general" type="button" onclick="showStatsScreen()">
       <span class="bottom-nav-icon" aria-hidden="true">📈</span><span>Stats</span>
     </button>
@@ -1032,20 +1019,6 @@
     <button class="bottom-nav-item" id="navOvers" data-nav-context="match" type="button" onclick="showOversScreen()">
       <span class="bottom-nav-icon" aria-hidden="true">⚾</span><span>Overs</span>
     </button>
-    <div class="bottom-nav-more-wrap">
-      <button class="bottom-nav-item" id="navMore" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="bottomNavMoreMenu" onclick="toggleBottomNavMoreMenu()">
-        <span class="bottom-nav-icon" aria-hidden="true">•••</span><span>More</span>
-      </button>
-      <div id="bottomNavMoreMenu" class="bottom-nav-more-menu" hidden>
-        <button class="more-menu-action" id="navTournaments" type="button" onclick="closeBottomNavMoreMenu(); showTournamentsScreen()">🏆 <span>Tournaments</span></button>
-        <button class="more-menu-action" data-nav-more-link type="button" onclick="closeBottomNavMoreMenu(); showLandingScreen()">⌂ <span>Home</span></button>
-        <button class="more-menu-action" data-nav-more-link type="button" onclick="closeBottomNavMoreMenu(); loadMatchListScreen()">📋 <span>Matches</span></button>
-        <button class="more-menu-action" data-nav-more-link type="button" onclick="closeBottomNavMoreMenu(); showPlayersScreen()">👥 <span>Teams & players</span></button>
-        <button class="more-menu-action" data-nav-more-link type="button" onclick="closeBottomNavMoreMenu(); showStatsScreen()">📈 <span>Match stats</span></button>
-        <button class="more-menu-action" type="button" onclick="closeBottomNavMoreMenu(); openAuthModal()">🔑 <span>Account</span></button>
-        <button class="more-menu-action" type="button" onclick="closeBottomNavMoreMenu(); openMatchSettingsModal()">⚙️ <span>Settings</span></button>
-      </div>
-    </div>
   </nav>
 
   <!-- API Endpoint Switch -->

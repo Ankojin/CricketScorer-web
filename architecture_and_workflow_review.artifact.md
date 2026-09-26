@@ -1,7 +1,8 @@
-# Comprehensive Architecture & User Workflow Review
+# Comprehensive Architecture & User Workflow Reference
+
 **Application:** CricScore Pro Web (PWA)
 **Version:** 2.33.28
-**Repository:** [CricketScorer-web](https://github.com/Ankojin/CricketScorer-web)
+**Repository:** [https://github.com/Ankojin/CricketScorer-web](https://github.com/Ankojin/CricketScorer-web)
 **Date:** 2026-09-25
 
 ---
@@ -10,11 +11,26 @@
 
 CricScore Pro Web is a serverless, progressive web application (PWA) designed for offline-first cricket scoring with background AWS cloud synchronization.
 
-The application strictly separates its **Presentation Layer**, **Application Controller**, **Scoring Engine Core**, and **Persistence Core**. This architectural boundary guarantees that UI modernizations or presentation changes never corrupt cricket rules, persisted match records, or cloud synchronization.
+The application strictly separates its **Presentation Layer**, **Application Controller**, **Scoring Engine Core**, and **Persistence Core**. This architectural boundary guarantees that UI modernizations, home redesigns, or presentation changes never corrupt cricket rules, persisted match records, or cloud synchronization.
 
 ---
 
-## 1. System Architecture Overview
+## 1. Implementation & Feature Status Matrix
+
+| Component / Feature | Product Requirement | Implementation Status | Notes / Location |
+| :--- | :--- | :---: | :--- |
+| **Home Redesign** | Guest CTAs (`Quick Match` + `Sign in`) vs Registered CTAs (`Full Match` + `Quick Match`) | **DONE** | Wired dynamically in `renderHomeDashboard()` (`app.js`) based on `cric_user_mode` and auth session. |
+| **Color System** | Single unified Forest (`#0b2213`) + Emerald (`#16a34a` / `#22c55e`) + Cream (`#f4f1ea`) palette | **DONE** | Applied via CSS tokens in `:root` (`styles.css`). |
+| **Webscore Removal** | Remove "Web Scorer / Webscore" user-facing branding from Home & Features menu | **DONE** | Merged into Quick Match. Features menu clean without duplicate Webscore entry (`index.html`). |
+| **Scoring Mode CTAs** | `startQuickMatch()` sets `scoringMode = 'QUICK'`; `startFullMatch()` sets `scoringMode = 'FULL'` | **DONE** | Invokes `showNewMatchScreen(mode)` with explicit mode parameter (`app.js`). |
+| **Match Object Persistence** | Store `activeMatch.scoringMode = 'QUICK' \| 'FULL'` on match creation | **DONE** | Saved in `handleCreateMatch()` and persisted to `cric_matches` (`storage.js`). |
+| **QUICK Simple Panel** | Live scoring hides full batters table, bowler table & match tabs in QUICK mode | **DONE** | Evaluated in `renderLiveScoring()`. Full UI remains active for FULL mode (`app.js`). |
+| **Auto Player Assignment** | Auto-seed 11 players & auto-assign striker/NS/bowler for QUICK start | **DONE** | Set in `finishWizardAndStartMatch()`. No selection modals pop up at match start. |
+| **QUICK Complete Summary** | Result card with Man of the Match, `Done / Home` & `View Scorecard` CTAs | **DONE** | Rendered in `#completedMatchCard` (`app.js` & `index.html`). |
+
+---
+
+## 2. System Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -40,21 +56,21 @@ The application strictly separates its **Presentation Layer**, **Application Con
 └──────────────────────────────────────┘
 ```
 
-### 1.1 Architectural Layer Responsibilities
+### 2.1 Architectural Layer Responsibilities
 
 | Layer | Primary Files | Responsibilities | Key Design Principles |
 | :--- | :--- | :--- | :--- |
 | **Presentation** | `index.html`<br>`styles.css` | DOM structure, semantic HTML5 modal overlays, responsive CSS layout, design tokens. | Mobile-first (~44px touch targets), single unified Forest + Emerald + Cream design system. |
-| **App Controller** | `app.js` | SPA screen routing, session management, UI event wiring, wizard step progression, modal state gates. | High performance, zero framework overhead, strict null-guards on DOM operations. |
+| **App Controller** | `app.js` | SPA screen routing, session management, UI event wiring, wizard step progression, modal state gates. | High performance, zero framework overhead, strict null-guards on DOM operations. Signature: `showNewMatchScreen(mode = 'QUICK')`. |
 | **Scoring Engine** | `src/engine/ScoringEngine.ts`<br>`public/js/scoring-engine.js` | Cricket rules, ball event replay, run rates (CRR/RRR), wicket attribution, bowler limits, NRR. | **Immutable & Isolated**. Compiled via `tsc` + `build-engine.js`. Never hand-edited in bundle form. |
 | **Persistence** | `storage.js` | LocalStorage caching, guest vs registered user isolation, background AWS API Gateway / DynamoDB sync. | **Offline-first**. Offline actions succeed locally and automatically sync when online. |
 | **PWA Shell** | `sw.js`<br>`manifest.json` | Offline asset caching, PWA installation, standalone app display mode. | Zero network latency for cached SPA assets. |
 
 ---
 
-## 2. Core State Machine & Event Replay Engine
+## 3. Core State Machine & Event Replay Engine
 
-### 2.1 Event-Sourced Deterministic Replay Model
+### 3.1 Event-Sourced Deterministic Replay Model
 Cricket scoring state is maintained as an **immutable event stream of balls** (`ballHistory`).
 
 When a ball is recorded, edited, or undone:
@@ -80,8 +96,8 @@ ScoringEngine.recalculateMatch() Replay Loop
 Updated UI State & Persistence Save
 ```
 
-### 2.2 Pending Action Gating Mechanism
-To prevent invalid cricket states (e.g. scoring a ball without a bowler or striker selected), the application enforces a strict `pendingAction` state machine:
+### 3.2 Pending Action Gating Mechanism
+*(Note: Simplified conceptual view. The actual application handles additional gates including `SELECT_RUNS_WICKET`, `DROPPED_CATCH_RUNS`, `RUN_OUT_RUNS`, `TOSS_REQUIRED`, `SELECT_BOWLER`, `SELECT_STRIKER`, `SELECT_NON_STRIKER`, `FIRST_INNINGS_END`, `KEEPER_REQUIRED`, etc.)*
 
 ```
 [ NONE ] ──► (Wicket) ──► [ WICKET_REQUIRED / SELECT_STRIKER ]
@@ -96,9 +112,11 @@ To prevent invalid cricket states (e.g. scoring a ball without a bowler or strik
 
 ---
 
-### 2.3 End-to-End Technical Execution Flow (`HTML` → `app.js` → `ScoringEngine` → `storage.js` → `HTML`)
+### 3.3 End-to-End Technical Execution Flow (`HTML` → `app.js` → `ScoringEngine` → `storage.js` → `HTML`)
 
-The end-to-end data and execution flow for a user action (such as tapping a run button or recording a wicket) follows a strict unidirectional data pipeline:
+The end-to-end data and execution flow for a user action (such as tapping a run button or recording a wicket) follows a strict unidirectional data pipeline.
+
+*(Note: Schema fields below are aligned to actual `app.js` and `ScoringEngine.ts` types)*
 
 ```mermaid
 sequenceDiagram
@@ -132,59 +150,34 @@ sequenceDiagram
     end
 
     App->>DOM: renderLiveScoring()
-    Note over DOM: • Update Main Score (Runs/Wickets, Overs)<br/>• Update Batters & Bowler Tables<br/>• Render Current Over Ball Chips<br/>• Update Action Banner if pendingAction
+    Note over DOM: • Update Main Score (Runs/Wickets, Overs)<br/>• Update Batters & Bowler Tables (if FULL mode)<br/>• Render Current Over Ball Chips<br/>• Update Action Banner if pendingAction
     DOM-->>Scorer: Visual UI Updated Immediately (<16ms)
 ```
 
-#### Detailed Execution Steps:
-1. **User Action on HTML DOM (`index.html`)**:
-   - The user taps a keypad control, e.g., `<button onclick="addBall(4)">4</button>`.
-   - The browser dispatches a DOM click event directly to `app.js`.
-
-2. **Controller Processing & Guard Checks (`app.js`)**:
-   - `addBall(runs)` receives the user input.
-   - Evaluates guards: `if (!activeMatch || isReadOnlySpectator || !ensureMatchLiveForScoring()) return;`.
-   - Evaluates pending action state: if bowler or striker selection is needed, opens modal overlay and pauses scoring.
-   - Constructs a structured, immutable ball event:
-     ```javascript
-     const ballEvent = {
-       ballNumber: activeMatch.totalBalls + 1,
-       runs: runs,
-       extraType: 'NONE',
-       extraRuns: 0,
-       isWicket: false,
-       strikerId: activeMatch.currentStrikerId,
-       nonStrikerId: activeMatch.currentNonStrikerId,
-       bowlerId: activeMatch.currentBowlerId,
-       timestamp: new Date().toISOString()
-     };
-     ```
-   - Appends `ballEvent` to `activeMatch.ballHistory`.
-
-3. **Deterministic State Recalculation (`ScoringEngine.ts` / `scoring-engine.js`)**:
-   - `app.js` invokes `activeMatch = window.ScoringEngine.recalculateMatch(activeMatch)`.
-   - `ScoringEngine` replays the entire `ballHistory` sequentially from ball #1.
-   - Re-evaluates runs, wickets, legal ball counts, dot balls, extras, striker rotations, over completions, bowler quota caps, and target chase conditions.
-   - Returns the updated, fully consistent `activeMatch` data structure.
-
-4. **Persistence & Background Cloud Sync (`storage.js`)**:
-   - `app.js` calls `await window.CricStorage.saveMatch(activeMatch)`.
-   - `storage.js` updates LocalStorage cache (`cric_matches`).
-   - If user is in **Registered User Mode** and online, `storage.js` dispatches an asynchronous HTTP request to AWS API Gateway → AWS Lambda → DynamoDB.
-   - If offline or guest, data remains safely cached in LocalStorage with zero UI blocking.
-
-5. **DOM UI Re-rendering (`app.js` → `index.html`)**:
-   - `app.js` calls `renderLiveScoring()`.
-   - Updates score hero elements (`#scoreMain`, `#oversText`, `#crrText`, `#rrrText`, `#targetBanner`).
-   - Renders current over ball chips (`#recentBalls`).
-   - Updates batting and bowling tables (`#battersTable`, `#bowlerTable`).
-   - Screen updates instantly (<16ms) for a seamless native-app feel.
+#### Illustrative Ball Event Object Schema (`app.js` / `ScoringEngine.ts`):
+```javascript
+const ballEvent = {
+  ballNumber: activeMatch.totalBalls + 1,
+  runs: 4,                        // Bat runs (0, 1, 2, 3, 4, 6)
+  extrasType: 'NONE',             // 'NONE' | 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE' | 'GRANTED'
+  extraRuns: 0,                   // Additional extra runs
+  isAdjustment: false,            // True for SWAP adjustment events
+  isWicket: false,                // True if wicket fell on this ball
+  wicketType: 'NONE',             // 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' | etc.
+  dismissedPlayerId: null,        // ID of dismissed batter
+  fielderId: null,                // ID of catching / run-out / stumping fielder
+  strikerId: 'pla_123',           // ID of striker
+  nonStrikerId: 'pla_456',        // ID of non-striker
+  bowlerId: 'plb_789',            // ID of current bowler
+  timestamp: '2026-09-25T12:00:00.000Z'
+};
+```
 
 ---
 
-## 3. Comprehensive User App Workflows
+## 4. Comprehensive User App Workflows
 
-### Workflow A: Guest Mode Flow (Simple & Fast)
+### Workflow A: Guest Mode Flow (Quick Match First)
 ```
 Landing Screen (Register / Sign In | Continue as Guest)
        │
@@ -194,24 +187,24 @@ Home Dashboard (Guest Mode)
        │  • Secondary CTA: [ 🔑 Sign in to Save ]
        │
        ▼
-Quick Match Wizard (4-Step Streamlined Flow)
+Quick Match Wizard (4-Step Fast Path)
        │
        ├──► Step 1: TEAMS  ── (Inputs Team A & Team B names; auto-seeds 11 squad players if empty)
        ├──► Step 2: OVERS  ── (Stepper − 6 ＋ and quick pills: 6, 10, 20, 35, 50)
        ├──► Step 3: TOSS   ── (Coin flip animation, call selection, winner & Bat/Bowl decision)
-       └──► Step 4: SCORE  ── (Launches Live Scoring Panel directly)
+       └──► Step 4: SCORE  ── (Launches Quick Live Scoring Panel directly)
        │
        ▼
-Live Scoring Panel
+Quick Live Scoring Panel (`scoringMode === 'QUICK'`)
        │  • Dominant score hero (0/0 · 0.0 overs)
-       │  • Current over ball chips
-       │  • Primary Keypad (0–6, WD, NB, WICKET, UNDO)
-       │  • Both Innings 1 and Innings 2 support
+       │  • Current over ball chips & primary keypad
+       │  • Auto-assigned striker, non-striker & bowler (no start modals)
+       │  • Full tables & match tabs hidden for clean, simple scoring
        │
        ▼
 Completed Match Summary
-       • Winner & margin display
-       • Option to view scorecard, overs, or sign in to save permanently to cloud
+       • Winner, margin & Man of the Match display
+       • Actions: [ Done / Home ] and [ View Scorecard ]
 ```
 
 ---
@@ -226,17 +219,17 @@ Home Dashboard (Registered Mode)
        │  • Secondary CTA: [ 🏏 Quick Match ]
        │
        ▼
-Full Match Builder (Squad & Series Setup)
+Full Match Builder (`showNewMatchScreen('FULL')`)
        │
        ├──► Squad Builder: Load saved teams or create custom rosters (Captains & Vice-Captains)
        ├──► Match Settings: Overs per innings, max bowler overs, powerplay overs, Gully rules
        └──► Toss & Innings Start
        │
        ▼
-Full Live Scoring & Match Hub
+Full Live Scoring & Match Hub (`scoringMode === 'FULL'`)
        │  • Match Hub Tabs: [ Summary ] | [ Scorecard ] | [ Overs ] | [ Stats ]
-       │  • Advanced ball edits (edit historical ball from overs timeline)
-       │  • 1G / 1D granted runs, retired hurt, swap batsmen
+       │  • Full Batters & Bowler tables with player replacement buttons
+       │  • Advanced ball edits from overs timeline
        │
        ▼
 Cloud Synchronization & Export
@@ -264,15 +257,15 @@ Live Score Refresh
 
 ---
 
-## 4. Strengths, Risk Analysis & Architectural Recommendations
+## 5. Strengths & Architectural Recommendations
 
-### 4.1 Key System Strengths
+### 5.1 Key System Strengths
 1. **Strict Engine Isolation:** Rebuilding the scoring engine via `npm run build` (`tsc && scripts/build-engine.js`) ensures zero hand-editing bugs in the production browser bundle.
 2. **Offline Resilience:** LocalStorage caching ensures that matches can be created and scored completely offline, with cloud sync catching up when connectivity resumes.
 3. **High Performance:** Vanilla JS execution with zero heavy virtual DOM or bundle bloat delivers instant response times on mobile devices.
 4. **Cohesive Design System:** Unified Forest Green (`#0b2213`), Emerald (`#16a34a` / `#22c55e`), and Cream (`#f4f1ea`) palette ensures consistent visual hierarchy without copyright risks.
 
-### 4.2 Recommendations for Future Evolution
+### 5.2 Recommendations for Future Evolution
 
 | Target Area | Recommendation | Rationale |
 | :--- | :--- | :--- |
@@ -282,8 +275,10 @@ Live Score Refresh
 
 ---
 
-## 5. Verification Status
+## 6. Footer & Reference Information
 
-- **TypeScript Engine Build:** ✅ `npm run build` (Clean)
-- **Unit Test Suite:** ✅ `npm test` (**27 / 27 Passed**)
-- **Playwright E2E Suite:** ✅ `npx playwright test` (**4 / 4 Passed**)
+- **Repository:** [https://github.com/Ankojin/CricketScorer-web](https://github.com/Ankojin/CricketScorer-web)
+- **Version:** `2.33.28` (`package.json`)
+- **Date:** 2026-09-25
+- **Engine Bundle Status:** Verified generated via `npm run build`
+- **Test Suite Status:** 27/27 Node Unit Tests Passed, 4/4 Playwright E2E Tests Passed
