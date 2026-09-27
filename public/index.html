@@ -48,15 +48,7 @@
       <button class="features-close-btn" type="button" onclick="closeFeaturesMenu()">&times;</button>
     </div>
     <div class="features-dropdown-grid">
-      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showQuickMatchLandingScreen();">
-        <span class="feature-icon bg-green">🏏</span>
-        <div class="feature-info">
-          <strong>Quick Match</strong>
-          <small>Score a game in seconds</small>
-        </div>
-      </button>
-
-      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showWebScoreLandingScreen();">
+      <button id="featureWebScoreBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showWebScoreLandingScreen();">
         <span class="feature-icon bg-accent">⚡</span>
         <div class="feature-info">
           <strong>WebScore</strong>
@@ -64,7 +56,7 @@
         </div>
       </button>
 
-      <button id="featureFullMatchBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showFullMatchLandingScreen();">
+      <button id="featureFullMatchBtn" class="feature-item" type="button" hidden onclick="closeFeaturesMenu(); showFullMatchLandingScreen();">
         <span class="feature-icon bg-emerald">📋</span>
         <div class="feature-info">
           <strong>Full Match</strong>
@@ -135,28 +127,19 @@
             </h1>
 
             <p class="cric-hero-subline">
-              Score live in the browser. Guest for a quick game — sign in to save matches and stats.
+              Use Web Score for a free browser match — sign in to save matches and stats.
             </p>
 
             <!-- Dynamic CTAs based on session state (Guest vs Signed-In) -->
             <div id="homeGuestCtas" class="cric-hero-actions">
-              <button class="cric-btn cric-btn-primary" type="button" onclick="startQuickMatch()">
-                🏏 Quick Match →
-              </button>
-              <button class="cric-btn cric-btn-secondary" type="button" onclick="openAuthModal()">
-                🔑 Sign in to Save
-              </button>
-              <button class="cric-btn cric-btn-outline home-web-score-cta" type="button" onclick="showWebScoreLandingScreen()">
-                ⚡ Web Score
+              <button class="cric-btn cric-btn-primary" type="button" onclick="showWebScoreLandingScreen()">
+                ⚡ Web Score →
               </button>
             </div>
 
             <div id="homeRegisteredCtas" class="cric-hero-actions" hidden>
               <button class="cric-btn cric-btn-primary" type="button" onclick="startFullMatch()">
                 📋 Full Match →
-              </button>
-              <button class="cric-btn cric-btn-secondary" type="button" onclick="startQuickMatch()">
-                🏏 Quick Match
               </button>
               <button class="cric-btn cric-btn-outline home-web-score-cta" type="button" onclick="showWebScoreLandingScreen()">
                 ⚡ Web Score
@@ -230,49 +213,19 @@
       </section>
     </div>
 
-    <!-- Screen 0.4: Quick Match Landing (/quick-match) -->
-    <div id="screenQuickMatchLanding" class="screen">
-      <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-primary); font-weight:700; cursor:pointer; padding:0;">Home</button>
-        <span>›</span>
-        <span>Features</span>
-        <span>›</span>
-        <span style="color:var(--text-color);">Quick Match</span>
-      </div>
-
-      <div class="cric-hero">
-        <div class="cric-hero-content">
-          <div class="cric-hero-badge">
-            <span class="badge-dot"></span> FREE · WEB & PWA
-          </div>
-
-          <h1 class="cric-hero-title">
-            QUICK <span class="highlight-green">MATCH</span>
-          </h1>
-
-          <p class="cric-hero-summary" style="max-width:620px; font-size:15px; line-height:1.6;">
-            The fastest way to score gully cricket. Two team names, pick the overs, toss the coin — and you’re scoring ball-by-ball before the field is even set. No player setup, no login, works offline.
-          </p>
-
-          <div class="cric-hero-actions" style="margin-top:24px;">
-            <button class="cric-btn cric-btn-primary" type="button" onclick="startWebScorerWizard()">
-              🏏 Start Quick Match Now →
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Screen 0.45: WebScore Landing (/web-score) -->
     <div id="screenWebScoreLanding" class="screen">
-      <div class="cric-hero">
-        <div class="cric-hero-content">
+      <div class="cric-hero web-score-home-hero">
+        <div class="cric-hero-content web-score-home-content">
           <div class="cric-hero-badge"><span class="badge-dot"></span> FREE WEB SCORER</div>
-          <h1 class="cric-hero-title">SCORE FREE.<br><span class="highlight-green">IN YOUR BROWSER.</span></h1>
-          <p class="cric-hero-summary">Enter team names and colors, set overs, toss, then score every ball. No player or bowler selection required.</p>
-          <div class="cric-hero-actions" style="margin-top:24px;">
-            <button class="cric-btn cric-btn-primary" type="button" onclick="startWebScore()">⚡ Start WebScore →</button>
+          <h1 class="cric-hero-title web-score-home-title">Score a live match ball-by-ball, right here in your browser — team names, players, overs, toss, first ball. No login, no download, no ads.</h1>
+          <div class="web-score-benefits" aria-label="Web Score benefits">
+            <span>FREE FOREVER</span><span>NO LOGIN</span><span>NO ADS</span><span>BALL-BY-BALL</span>
           </div>
+          <div class="cric-hero-actions web-score-home-actions">
+            <button class="cric-btn cric-btn-primary" type="button" onclick="startWebScore()">⚡ Start Scoring</button>
+          </div>
+          <p class="web-score-signin-prompt" id="webScoreSignInPrompt">Want saved matches &amp; player stats? <button type="button" onclick="openAuthModal('LOGIN')">Sign In.</button></p>
         </div>
       </div>
     </div>
@@ -779,11 +732,11 @@
   <div id="tossModal" class="modal-overlay">
     <div class="modal toss-modal">
       <div class="toss-heading">
-        <p class="home-eyebrow">QUICK MATCH · STEP 4 OF 5</p>
+        <p class="home-eyebrow">MATCH SETUP · STEP 4 OF 5</p>
         <h3>🪙 Toss</h3>
         <p>Choose who won, then decide whether to bat or bowl first.</p>
       </div>
-      <div class="quick-match-progress quick-match-progress-compact" aria-label="Quick Match progress">
+      <div class="quick-match-progress quick-match-progress-compact" aria-label="Match setup progress">
         <div class="quick-match-progress-step" data-quick-match-progress="0"><span>1</span><small>Teams</small></div>
         <div class="quick-match-progress-step" data-quick-match-progress="1"><span>2</span><small>Players</small></div>
         <div class="quick-match-progress-step" data-quick-match-progress="2"><span>3</span><small>Settings</small></div>

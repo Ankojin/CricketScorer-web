@@ -61,10 +61,9 @@ function updateBottomNavVisibility(screenId) {
 
   const isQuickMode = (activeMatch?.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK') || isWebScoreMatch();
 
-  // Hide bottom navigation bar on Home Page, Landing views, Quick Match wizard, and Quick Match live scoring
+  // Hide bottom navigation bar on Home Page, mode landing views, and match setup.
   const hideNavScreens = [
     'screenLanding',
-    'screenQuickMatchLanding',
     'screenWebScoreLanding',
     'screenFullMatchLanding',
     'screenNewMatch'
@@ -242,23 +241,29 @@ function isWebScoreMatch(match = activeMatch) {
   return match?.scoringMode === 'WEBSCORE' || currentScoringMode === 'WEBSCORE';
 }
 
-function startQuickMatch() {
-  currentScoringMode = 'QUICK';
-  closeFeaturesMenu();
-  startWebScorerWizard();
+function isRegisteredScoringUser() {
+  return Boolean(window.CricStorage.getCurrentUser()) || localStorage.getItem('cric_user_mode') === 'REGISTERED';
+}
+
+function updateScoringModeAccess(isRegistered = isRegisteredScoringUser()) {
+  const fullMatchButton = document.getElementById('featureFullMatchBtn');
+  const signInPrompt = document.getElementById('webScoreSignInPrompt');
+  if (fullMatchButton) fullMatchButton.hidden = !isRegistered;
+  if (signInPrompt) signInPrompt.hidden = isRegistered;
+}
+
+function requireRegisteredScoringMode(modeName) {
+  if (isRegisteredScoringUser()) return true;
+  navigateToRoute('/');
+  showLandingScreen();
+  showToast(`Sign in or Register to access ${modeName}`, 'info');
+  openAuthModal('LOGIN');
+  return false;
 }
 
 function startFullMatch() {
   closeFeaturesMenu();
-  const user = window.CricStorage.getCurrentUser();
-  const userMode = localStorage.getItem('cric_user_mode');
-  const isRegistered = Boolean(user) || userMode === 'REGISTERED';
-
-  if (!isRegistered) {
-    showToast('Sign in or Register to access Full Match Mode', 'info');
-    openAuthModal('REGISTER');
-    return;
-  }
+  if (!requireRegisteredScoringMode('Full Match')) return;
 
   currentScoringMode = 'FULL';
   showNewMatchScreen('FULL');
@@ -275,6 +280,7 @@ async function renderHomeDashboard() {
   const isRegistered = Boolean(user) || userMode === 'REGISTERED';
   const hasAppSession = isRegistered || userMode === 'GUEST';
   document.documentElement.classList.toggle('has-app-session', hasAppSession);
+  updateScoringModeAccess(isRegistered);
 
   if (hasAppSession) {
     entry.hidden = true;
@@ -311,12 +317,9 @@ async function renderHomeDashboard() {
       registeredCtas.style.display = 'none';
     }
   }
-  // Ensure Features menu Full Match button is always accessible
+  // Guest mode is limited to Web Score; Full Match requires a signed-in account.
   const featureFullMatchBtn = document.getElementById('featureFullMatchBtn');
-  if (featureFullMatchBtn) {
-    featureFullMatchBtn.hidden = false;
-    featureFullMatchBtn.removeAttribute('hidden');
-  }
+  if (featureFullMatchBtn) featureFullMatchBtn.hidden = !isRegistered;
 
   recentList.replaceChildren();
   try {
@@ -327,7 +330,7 @@ async function renderHomeDashboard() {
     if (!recentMatches.length) {
       const empty = document.createElement('div');
       empty.className = 'home-recent-empty';
-      empty.textContent = 'No saved matches yet. Start a Quick Match to see it here.';
+      empty.textContent = 'No saved matches yet. Start a Full Match to see it here.';
       recentList.appendChild(empty);
       return;
     }
@@ -432,6 +435,7 @@ async function handleAuthSubmit() {
 
 function updateAuthUI() {
   const user = window.CricStorage.getCurrentUser();
+  updateScoringModeAccess(Boolean(user) || localStorage.getItem('cric_user_mode') === 'REGISTERED');
   const btn = document.getElementById('authBtn');
   const syncBadge = document.getElementById('syncBadge');
 
@@ -1318,8 +1322,8 @@ function normalizePowerplayOvers(powerplayOvers, oversPerInnings) {
   return Math.min(pp, overs);
 }
 
-async function showNewMatchScreen(mode = 'QUICK') {
-  currentScoringMode = mode || 'QUICK';
+async function showNewMatchScreen(mode = 'FULL') {
+  currentScoringMode = mode || 'FULL';
   const isFullMatch = currentScoringMode === 'FULL';
   const isWebScore = currentScoringMode === 'WEBSCORE';
   document.getElementById('fullMatchSetupIntro')?.toggleAttribute('hidden', !isFullMatch);
@@ -4144,7 +4148,7 @@ async function renderTournaments() {
       ${activeTourneySubTab === 'MATCHES' ? `
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Series Matches</div>
-          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="showNewMatchScreen()">+ Start Match</button>
+          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="showNewMatchScreen('FULL')">+ Start Match</button>
         </div>
       ` : ''}
 
@@ -5157,7 +5161,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Check URL routing for separate navigation pages (/quick-match, /web-score, /full-match, /coin-toss, /settings-gully-rules)
+  // Check URL routing for separate navigation pages (/web-score, /full-match, /coin-toss, /settings-gully-rules)
   const isRouted = handleUrlRouting();
 
   // Check URL query parameters for Spectator Live View Mode (?matchId=match_123)
@@ -5256,12 +5260,6 @@ function updateWizardStepUI(stepIndex) {
   document.querySelectorAll('.wizard-step-panel').forEach((panel, idx) => {
     panel.hidden = idx !== stepIndex;
   });
-}
-
-function startWebScorerWizard() {
-  closeFeaturesMenu();
-  showNewMatchScreen('QUICK');
-  updateWizardStepUI(0);
 }
 
 function getWebScorePlayerCount(side) {
@@ -5601,12 +5599,6 @@ function navigateToRoute(routePath) {
   }
 }
 
-function showQuickMatchLandingScreen() {
-  closeFeaturesMenu();
-  navigateToRoute('/quick-match');
-  showScreen('screenQuickMatchLanding');
-}
-
 function showWebScoreLandingScreen() {
   closeFeaturesMenu();
   navigateToRoute('/web-score');
@@ -5614,13 +5606,12 @@ function showWebScoreLandingScreen() {
 }
 
 function showFullMatchLandingScreen() {
+  if (!requireRegisteredScoringMode('Full Match')) return;
   closeFeaturesMenu();
   navigateToRoute('/full-match');
 
   const btn = document.getElementById('fullMatchLandingBtn');
-  const user = window.CricStorage.getCurrentUser();
-  const userMode = localStorage.getItem('cric_user_mode');
-  const isRegistered = Boolean(user) || userMode === 'REGISTERED';
+  const isRegistered = isRegisteredScoringUser();
 
   if (btn) {
     btn.innerText = isRegistered ? '📋 Start Full Match Now →' : '🔑 Sign In / Register to Start Full Match →';
@@ -5635,7 +5626,7 @@ function handleUrlRouting() {
   const hash = window.location.hash.toLowerCase();
 
   if (path.includes('/quick-match') || search.includes('quick-match') || hash.includes('quick-match')) {
-    showQuickMatchLandingScreen();
+    showFullMatchLandingScreen();
     return true;
   } else if (path.includes('/web-score') || search.includes('web-score') || hash.includes('web-score')) {
     showWebScoreLandingScreen();
@@ -5656,16 +5647,13 @@ function handleUrlRouting() {
 // Window Exports for QA Automation & UI Actions
 window.toggleFeaturesMenu = toggleFeaturesMenu;
 window.closeFeaturesMenu = closeFeaturesMenu;
-window.showQuickMatchLandingScreen = showQuickMatchLandingScreen;
 window.showWebScoreLandingScreen = showWebScoreLandingScreen;
 window.showFullMatchLandingScreen = showFullMatchLandingScreen;
 window.navigateToRoute = navigateToRoute;
 window.handleUrlRouting = handleUrlRouting;
-window.startQuickMatch = startQuickMatch;
 window.startWebScore = startWebScore;
 window.startFullMatch = startFullMatch;
 window.viewAllMatches = viewAllMatches;
-window.startWebScorerWizard = startWebScorerWizard;
 window.goToWizardTeamsStep = goToWizardTeamsStep;
 window.goToWizardOversStep = goToWizardOversStep;
 window.adjustMatchOvers = adjustMatchOvers;

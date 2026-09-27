@@ -593,6 +593,88 @@ html.has-app-session #homeDashboard { display: block !important; }
   color: var(--color-electric);
 }
 
+/* Web Score marketing page: navy structure with electric green action accents. */
+.web-score-home-hero {
+  position: relative;
+  overflow: hidden;
+  max-width: 960px;
+  margin: 24px auto;
+  padding: clamp(28px, 6vw, 64px) clamp(18px, 5vw, 56px);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  background: var(--color-primary);
+  color: var(--color-text);
+  text-align: center;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .22);
+}
+
+.web-score-home-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0, rgba(73, 232, 120, .13), transparent 62%);
+  pointer-events: none;
+}
+
+.web-score-home-content { position: relative; max-width: 790px; margin: 0 auto; }
+
+.web-score-home-title {
+  max-width: 780px;
+  margin: 0 auto 24px;
+  color: var(--color-text);
+  font-size: clamp(26px, 4.2vw, 42px);
+  line-height: 1.2;
+  letter-spacing: -.025em;
+  text-wrap: balance;
+}
+
+.web-score-benefits {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 24px;
+}
+
+.web-score-benefits span {
+  padding: 7px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .055em;
+}
+
+.web-score-home-actions { margin: 0 0 14px; }
+.web-score-home-actions .cric-btn { min-width: 190px; }
+
+.web-score-signin-prompt {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.web-score-signin-prompt button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-electric);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.web-score-signin-prompt button:focus-visible {
+  outline: 2px solid var(--color-electric);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
 .cric-hero-subline {
   font-size: 14px;
   line-height: 1.5;
