@@ -23,7 +23,7 @@
   <link rel="icon" href="img/app-icon.png" type="image/png">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0b2213">
+  <meta name="theme-color" content="#041326">
 </head>
 <body>
 
@@ -121,7 +121,7 @@
       </div>
 
       <section id="homeDashboard" class="home-dashboard" hidden aria-labelledby="homeHeading">
-        <!-- Marketing Quality Home Hero (Forest #0b2213, Emerald #22c55e, Cream #f4f1ea) -->
+        <!-- Marketing home hero uses the shared Navy and Electric Green theme. -->
         <div class="cric-home-hero">
           <div class="cric-hero-content">
             <div class="cric-hero-badge">
@@ -183,7 +183,7 @@
           </div>
         </div>
 
-        <!-- How It Works (3 Steps on Cream #f4f1ea) -->
+        <!-- How It Works uses the shared Navy surface hierarchy. -->
         <section class="how-it-works-section">
           <h2 class="section-title">How it works</h2>
           <div class="how-it-works-grid">
@@ -314,7 +314,7 @@
 
         <!-- Filter Sub-Tabs Bar -->
         <div style="display:flex; gap:6px; background:var(--color-primary); padding:4px; border-radius:10px; margin-bottom:14px; border:1px solid var(--card-border);">
-          <button id="matchFilterAll" class="btn" style="flex:1; padding:8px; font-size:12px; background:var(--primary-color); color:#fff;" onclick="setMatchFilter('ALL')">ALL</button>
+          <button id="matchFilterAll" class="btn" style="flex:1; padding:8px; font-size:12px; background:var(--primary-color); color:var(--color-text-on-dark);" onclick="setMatchFilter('ALL')">ALL</button>
           <button id="matchFilterLive" class="btn" style="flex:1; padding:8px; font-size:12px; background:transparent; color:var(--text-muted);" onclick="setMatchFilter('LIVE')">🔴 LIVE</button>
           <button id="matchFilterCompleted" class="btn" style="flex:1; padding:8px; font-size:12px; background:transparent; color:var(--text-muted);" onclick="setMatchFilter('COMPLETED')">🏆 COMPLETED</button>
         </div>
@@ -358,7 +358,7 @@
           <div class="team-input-group">
             <label class="team-input-label" for="teamAName">TEAM A</label>
             <div class="team-input-row">
-              <input type="color" id="teamAColor" class="team-color-picker" value="#2563eb" title="Team A Color" onchange="syncTeamColorDot('A')">
+              <input type="color" id="teamAColor" class="team-color-picker" value="#13a968" title="Team A Color" onchange="syncTeamColorDot('A')">
               <input type="text" id="teamAName" class="form-control team-name-input" value="Team A" placeholder="Team A Name" oninput="syncTeamNamesToTossUI()">
             </div>
           </div>
@@ -368,7 +368,7 @@
           <div class="team-input-group">
             <label class="team-input-label" for="teamBName">TEAM B</label>
             <div class="team-input-row">
-              <input type="color" id="teamBColor" class="team-color-picker" value="#0284c7" title="Team B Color" onchange="syncTeamColorDot('B')">
+              <input type="color" id="teamBColor" class="team-color-picker" value="#38bdf8" title="Team B Color" onchange="syncTeamColorDot('B')">
               <input type="text" id="teamBName" class="form-control team-name-input" value="Team B" placeholder="Team B Name" oninput="syncTeamNamesToTossUI()">
             </div>
           </div>
@@ -695,7 +695,7 @@
   <div id="authModal" class="modal-overlay">
     <div class="modal">
       <!-- Full Match Mode Info Banner -->
-      <div id="authFullMatchBanner" style="background:var(--color-surface-dark); color:#ffffff; border-radius:14px; padding:16px; margin-bottom:16px; border:1px solid var(--color-border-dark); text-align:center;">
+      <div id="authFullMatchBanner" style="background:var(--color-surface-dark); color:var(--color-text-on-dark); border-radius:14px; padding:16px; margin-bottom:16px; border:1px solid var(--color-border-dark); text-align:center;">
         <div style="font-size:10px; font-weight:800; color:var(--color-electric); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">FULL MATCH MODE</div>
         <p style="font-size:12px; color:rgba(255,255,255,0.88); line-height:1.5; margin:0;">
           Player-level scoring for matches that matter — professional games, tournaments, box leagues, and your weekend gully. Build your squad once, pick your team sheets, and score every ball against real named players — who’s on strike, who bowled it, who took the catch. Real scorecards, real career stats, and gully rules built in.
@@ -1073,7 +1073,7 @@
       </div>
       <div class="form-group">
         <label for="newTeamColor">Team Color</label>
-        <input type="color" id="newTeamColor" class="form-control" value="#2196F3">
+        <input type="color" id="newTeamColor" class="form-control" value="#38bdf8">
       </div>
 
       <!-- Multi-Player Checkbox Picker from Global Directory -->

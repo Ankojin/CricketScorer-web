@@ -629,27 +629,27 @@ html.has-app-session #homeDashboard { display: block !important; }
 }
 
 .cric-btn-primary {
-  background: #16a34a !important;
-  color: #ffffff !important;
-  font-weight: 800 !important;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4);
+  background: var(--color-green);
+  color: var(--color-text-on-dark);
+  font-weight: 800;
+  box-shadow: 0 4px 14px var(--color-success-soft);
 }
 
 .cric-btn-primary:hover {
-  background: #15803d !important;
+  background: var(--color-green-dark);
 }
 
 .cric-btn-secondary {
-  background: #ffffff !important;
-  color: #0b2213 !important;
-  font-weight: 800 !important;
-  border: 1px solid #ffffff !important;
+  background: var(--color-text-on-dark);
+  color: var(--color-primary) !important;
+  font-weight: 800;
+  border: 1px solid var(--color-text-on-dark);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .cric-btn-secondary:hover {
-  background: #efece4 !important;
-  color: #16a34a !important;
+  background: var(--color-text-muted);
+  color: var(--color-primary) !important;
 }
 
 /* Mobile Screenshot Placeholder Frames */
@@ -665,8 +665,8 @@ html.has-app-session #homeDashboard { display: block !important; }
 .home-shot-frame {
   flex: 0 0 110px;
   height: 170px;
-  background: #0d2818;
-  border: 2px solid #1f482b;
+  background: var(--color-primary);
+  border: 2px solid var(--color-border);
   border-radius: 18px;
   padding: 6px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
@@ -676,7 +676,7 @@ html.has-app-session #homeDashboard { display: block !important; }
 .phone-screen {
   width: 100%;
   height: 100%;
-  background: #0b2213;
+  background: var(--color-background);
   border-radius: 12px;
   overflow: hidden;
   display: flex;
@@ -684,7 +684,7 @@ html.has-app-session #homeDashboard { display: block !important; }
   align-items: center;
   justify-content: center;
   position: relative;
-  border: 1px solid #1f482b;
+  border: 1px solid var(--color-border);
 }
 
 .shot-img {
@@ -710,7 +710,7 @@ html.has-app-session #homeDashboard { display: block !important; }
 .shot-caption {
   font-size: 10px;
   font-weight: 800;
-  color: var(--color-electric);
+  color: var(--color-text);
   letter-spacing: 0.02em;
 }
 
@@ -722,7 +722,7 @@ html.has-app-session #homeDashboard { display: block !important; }
 .section-title {
   font-size: 18px;
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--color-text);
   margin-bottom: 12px;
 }
 
@@ -757,7 +757,7 @@ html.has-app-session #homeDashboard { display: block !important; }
 .how-card h3 {
   font-size: 14px;
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--color-text);
   margin-bottom: 4px;
 }
 
@@ -785,7 +785,7 @@ html.has-app-session #homeDashboard { display: block !important; }
 .strip-item {
   font-size: 12px;
   font-weight: 750;
-  color: var(--color-primary);
+  color: var(--color-text);
 }
 
 @media (max-width: 580px) {
@@ -1209,7 +1209,7 @@ html.has-app-session #homeDashboard { display: block !important; }
 .toss-caller-msg {
   font-size: 13px;
   font-weight: 750;
-  color: var(--color-primary);
+  color: var(--color-text);
   margin-top: 12px;
 }
 
@@ -1658,7 +1658,7 @@ button.quick-match-progress-step { cursor: pointer; }
   height: 100%;
   border-radius: 50%;
   object-fit: contain;
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+  box-shadow: 0 4px 12px var(--color-warning-soft);
   transition: transform 0.8s ease-in-out;
 }
 
@@ -1819,7 +1819,7 @@ button.quick-match-progress-step { cursor: pointer; }
   color: var(--color-warning);
   font-weight: 800;
   text-align: center;
-  box-shadow: 0 0 0 1px rgba(180, 83, 9, 0.12) inset;
+  box-shadow: 0 0 0 1px var(--color-warning-soft) inset;
 }
 
 .scorecard-batter-name {
@@ -1867,14 +1867,14 @@ button.quick-match-progress-step { cursor: pointer; }
 
 .ball-chip.wicket {
   background: var(--chip-w);
-  color: var(--color-error);
+  color: var(--color-text-on-dark);
   font-weight: 900;
   box-shadow: 0 1px 5px rgba(220, 38, 38, 0.2);
 }
 
 .ball-chip.extra {
   background: var(--chip-extra);
-  color: var(--color-warning);
+  color: var(--color-primary-deep);
   font-weight: 900;
   box-shadow: 0 1px 5px rgba(180, 83, 9, 0.2);
 }
@@ -2184,11 +2184,11 @@ button.quick-match-progress-step { cursor: pointer; }
   border-color: var(--color-electric);
   box-shadow: 0 0 0 3px rgba(73, 232, 120, 0.15);
 }
-.form-control::placeholder { color: var(--color-text-subtle); }
+.form-control::placeholder { color: var(--color-text-muted); opacity: 1; }
 
 input[type="checkbox"],
 input[type="radio"] {
-  accent-color: var(--color-primary);
+  accent-color: var(--color-green);
 }
 
 button:disabled,
@@ -2201,7 +2201,7 @@ button:disabled,
 .toast.success {
   border-color: var(--color-green);
   background: var(--color-success-soft);
-  color: var(--color-green-dark);
+  color: var(--color-text);
 }
 
 .toast.warning {
@@ -2263,7 +2263,7 @@ button:disabled,
 
 .action-modal-heading h3 { margin: 0; font-size: 20px; line-height: 1.25; }
 .action-modal-heading-between { justify-content: space-between; }
-.action-modal-kicker { margin: 0 0 4px; color: var(--color-primary); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.action-modal-kicker { margin: 0 0 4px; color: var(--color-electric); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
 .action-modal-icon { display: grid; place-items: center; flex: 0 0 46px; width: 46px; height: 46px; border-radius: 14px; background: var(--color-green-soft); font-size: 22px; }
 .action-modal-close { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; color: var(--text-muted); background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 12px; font-size: 18px; cursor: pointer; }
 .action-modal-description { margin: -10px 0 18px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
@@ -2294,7 +2294,7 @@ button:disabled,
 .match-hub-header[hidden] { display: none; }
 .match-hub-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 16px 13px; }
 .match-hub-teams { min-width: 0; }
-.match-hub-kicker { display: block; margin-bottom: 4px; color: var(--color-primary); font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+.match-hub-kicker { display: block; margin-bottom: 4px; color: var(--color-electric); font-size: 9px; font-weight: 800; letter-spacing: .12em; }
 .match-hub-teams h2 { overflow: hidden; margin: 0; font-size: clamp(15px, 4vw, 19px); line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .match-hub-score { flex: 0 0 auto; text-align: right; }
 .match-hub-score strong { display: block; font-size: 22px; font-weight: 850; line-height: 1.05; font-variant-numeric: tabular-nums; }
@@ -2459,22 +2459,6 @@ button:disabled,
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --color-background: #041326;
-    --color-surface: #071B33;
-    --color-surface-raised: #0D2A4A;
-    --color-surface-soft: #0D2A4A;
-    --color-text: #F8FAFC;
-    --color-text-muted: #B5C4D5;
-    --color-text-subtle: #94A3B8;
-    --color-border: #29415B;
-    --color-success-soft: rgba(19, 169, 104, .2);
-    --color-danger-soft: rgba(217, 45, 32, .2);
-    --color-warning-soft: rgba(245, 158, 11, .2);
-    --color-info-soft: rgba(56, 189, 248, .2);
-  }
-
   .bottom-nav { background: rgba(7, 27, 51, .98); }
   .score-card { background: var(--color-primary-soft); }
 }
@@ -2513,7 +2497,7 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .team-name-input {
   min-height: var(--touch-target);
   color: var(--color-text);
-  background: var(--color-surface);
+  background: var(--color-surface-raised);
 }
 
 .btn-primary,
@@ -2542,7 +2526,7 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 
 /* Electric Green is reserved for actions and live emphasis; body copy retains contrast. */
-.overs-main { color: var(--color-green-dark); }
+.overs-main { color: var(--color-electric); }
 .target-banner,
 .pending-action-banner,
 .toss-result,
@@ -2593,6 +2577,24 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .toast {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
+}
+
+/* Navy labels keep compact text on the primary green fill at WCAG AA contrast. */
+.btn-primary,
+.cric-btn-primary,
+.squad-add-btn,
+.overs-pill:hover,
+.overs-pill.active,
+.toss-call-btn.active,
+.toss-call-choice-btn.btn-heads,
+.live-score-hero .ball-chip.four {
+  color: var(--color-primary);
+}
+
+.btn-primary:hover,
+.cric-btn-primary:hover,
+.squad-add-btn:hover {
+  color: var(--color-text-on-dark);
 }
 
 @media (min-width: 768px) {

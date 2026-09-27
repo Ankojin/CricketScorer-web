@@ -4,8 +4,8 @@
   "description": "Serverless Cricket Scorer for Intune Managed Browsers",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#0d47a1",
+  "background_color": "#041326",
+  "theme_color": "#041326",
   "icons": [
     {
       "src": "icon-192.png",

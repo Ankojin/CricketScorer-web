@@ -809,8 +809,8 @@ async function loadMatchListScreen() {
     const item = document.createElement('div');
     item.className = 'match-card-item';
 
-    const teamAColor = m.teamA?.colorHex || '#FF5722';
-    const teamBColor = m.teamB?.colorHex || '#2196F3';
+    const teamAColor = m.teamA?.colorHex || '#13a968';
+    const teamBColor = m.teamB?.colorHex || '#38bdf8';
     const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
     const statusColor = m.status === 'COMPLETED' ? 'var(--color-success)' : (m.status === 'ABANDONED' ? 'var(--color-warning)' : 'var(--color-info)');
 
@@ -1247,7 +1247,7 @@ function loadTeamIntoSquad(side, team) {
   if (!team) return;
   if (side === 'A') {
     document.getElementById('teamAName').value = team.name || '';
-    document.getElementById('teamAColor').value = team.colorHex || '#FF5722';
+    document.getElementById('teamAColor').value = team.colorHex || '#13a968';
     matchSquadA = (team.players || []).map((p, idx) => ({
       id: p.id || `pa_${Date.now()}_${idx}`,
       name: typeof p === 'string' ? p : p.name,
@@ -1257,7 +1257,7 @@ function loadTeamIntoSquad(side, team) {
     renderSquadList('A');
   } else {
     document.getElementById('teamBName').value = team.name || '';
-    document.getElementById('teamBColor').value = team.colorHex || '#2196F3';
+    document.getElementById('teamBColor').value = team.colorHex || '#38bdf8';
     matchSquadB = (team.players || []).map((p, idx) => ({
       id: p.id || `pb_${Date.now()}_${idx}`,
       name: typeof p === 'string' ? p : p.name,
@@ -1401,10 +1401,10 @@ async function onSelectTeamBChange() {
 async function handleCreateMatch() {
   try {
     const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
-    const teamAColor = document.getElementById('teamAColor')?.value || '#2563eb';
+    const teamAColor = document.getElementById('teamAColor')?.value || '#13a968';
 
     const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
-    const teamBColor = document.getElementById('teamBColor')?.value || '#0284c7';
+    const teamBColor = document.getElementById('teamBColor')?.value || '#38bdf8';
 
     // Auto-seed 11 placeholder players per team if matchSquadA / matchSquadB empty
     if (!matchSquadA || matchSquadA.length < 1) {
@@ -1961,8 +1961,8 @@ function renderLiveScoring() {
   const battingTeam = isBattingA ? m.teamA : m.teamB;
   const bowlingTeam = isBattingA ? m.teamB : m.teamA;
 
-  const teamAColor = m.teamA?.colorHex || '#FF5722';
-  const teamBColor = m.teamB?.colorHex || '#2196F3';
+  const teamAColor = m.teamA?.colorHex || '#13a968';
+  const teamBColor = m.teamB?.colorHex || '#38bdf8';
   const battingTeamColor = battingTeam?.colorHex || (isBattingA ? teamAColor : teamBColor);
   const bowlingTeamColor = bowlingTeam?.colorHex || (isBattingA ? teamBColor : teamAColor);
 
@@ -3954,7 +3954,7 @@ async function renderTournaments() {
     const teamsListHtml = (t.teams || []).map(tm => `
       <div style="display:flex; justify-content:space-between; align-items:center; background:var(--color-surface-soft); padding:8px 12px; border-radius:8px; margin-top:6px;">
         <div style="font-weight:700; font-size:13px; color:var(--color-text);">
-          <span class="team-badge" style="background:${tm.colorHex||'#2196F3'}"></span>${tm.name} (${(tm.players||[]).length} Players)
+          <span class="team-badge" style="background:${tm.colorHex||'#38bdf8'}"></span>${tm.name} (${(tm.players||[]).length} Players)
         </div>
       </div>
     `).join('');
@@ -4235,7 +4235,7 @@ async function renderPlayers() {
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div style="display:flex; align-items:center; gap:10px;">
-          <span style="width:16px; height:16px; border-radius:50%; background:${t.colorHex || '#16a34a'}; display:inline-block;"></span>
+          <span style="width:16px; height:16px; border-radius:50%; background:${t.colorHex || '#13a968'}; display:inline-block;"></span>
           <div>
             <div style="font-size:16px; font-weight:800; color:var(--color-text);">${t.name}</div>
             <div style="font-size:12px; color:var(--text-muted);">${pCount} player${pCount !== 1 ? 's' : ''}</div>
@@ -4717,13 +4717,13 @@ async function renderStats() {
       <h4 style="font-size:13px; color:var(--primary-color); font-weight:900; text-transform:uppercase; margin-bottom:10px;">🔮 MATCH FORECASTER</h4>
 
       <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; margin-bottom:4px;">
-        <span style="color:${teamA.colorHex||'#FF5722'}">${teamA.name.toUpperCase()} (${fc.teamAWin}%)</span>
-        <span style="color:${teamB.colorHex||'#2196F3'}">${teamB.name.toUpperCase()} (${fc.teamBWin}%)</span>
+        <span style="color:${teamA.colorHex||'#13a968'}">${teamA.name.toUpperCase()} (${fc.teamAWin}%)</span>
+        <span style="color:${teamB.colorHex||'#38bdf8'}">${teamB.name.toUpperCase()} (${fc.teamBWin}%)</span>
       </div>
 
       <div style="height:10px; background:var(--color-surface-soft); border-radius:6px; overflow:hidden; display:flex;">
-        <div style="width:${fc.teamAWin}%; background:${teamA.colorHex||'#FF5722'}; transition:width 0.5s ease;"></div>
-        <div style="width:${fc.teamBWin}%; background:${teamB.colorHex||'#2196F3'}; transition:width 0.5s ease;"></div>
+        <div style="width:${fc.teamAWin}%; background:${teamA.colorHex||'#13a968'}; transition:width 0.5s ease;"></div>
+        <div style="width:${fc.teamBWin}%; background:${teamB.colorHex||'#38bdf8'}; transition:width 0.5s ease;"></div>
       </div>
 
       <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-top:10px; border-top:1px solid var(--card-border); padding-top:8px;">
@@ -4784,8 +4784,8 @@ async function renderStats() {
 
   // Draw Interactive Canvas Charts
   setTimeout(() => {
-    drawProgressCanvasChart(m, i1Balls, i2Balls, teamA.colorHex || '#FF5722', teamB.colorHex || '#2196F3');
-    drawOverByOverCanvasChart(m, i1Balls, i2Balls, teamA.colorHex || '#FF5722', teamB.colorHex || '#2196F3');
+    drawProgressCanvasChart(m, i1Balls, i2Balls, teamA.colorHex || '#13a968', teamB.colorHex || '#38bdf8');
+    drawOverByOverCanvasChart(m, i1Balls, i2Balls, teamA.colorHex || '#13a968', teamB.colorHex || '#38bdf8');
   }, 50);
 }
 
