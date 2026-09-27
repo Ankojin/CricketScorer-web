@@ -1,5 +1,41 @@
+# Dependencies
 node_modules/
+aws/lambda/node_modules/
+
+# Build outputs
 dist/
+*.tsbuildinfo
+
+# AWS SAM
 .aws-sam/
-*.log
+
+# Env / secrets
 .env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Tests / Playwright
+playwright-report/
+test-results/
+coverage/
+blob-report/
+playwright/.cache/
+
+# IDE
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Optional local tooling
+*.local
