@@ -378,7 +378,6 @@
               <input type="text" id="teamBName" class="form-control team-name-input" value="Team B" placeholder="Team B Name" oninput="syncTeamNamesToTossUI()">
             </div>
           </div>
-          </div>
 
           <div id="fullMatchSquadBuilder" hidden style="margin-top:20px;">
             <div class="team-builder-block">
@@ -454,12 +453,14 @@
             <div id="tossCallerMessage" class="toss-caller-msg">Team A calls it in the air</div>
           </div>
 
-          <div id="tossCallActions" class="toss-action-btns">
-            <button class="toss-call-choice-btn btn-heads" type="button" onclick="flipCoinChoice('HEADS')">Heads</button>
-            <button class="toss-call-choice-btn btn-tails" type="button" onclick="flipCoinChoice('TAILS')">Tails</button>
+          <div class="toss-calls-label">CALL THE TOSS</div>
+          <div id="tossCallActions" class="toss-action-btns" role="group" aria-label="Choose heads or tails">
+            <button id="tossCallHeads" class="toss-call-choice-btn btn-heads active" type="button" aria-pressed="true" onclick="selectTossCallChoice('HEADS')">Heads</button>
+            <button id="tossCallTails" class="toss-call-choice-btn btn-tails" type="button" aria-pressed="false" onclick="selectTossCallChoice('TAILS')">Tails</button>
           </div>
+          <button class="btn toss-flip-button web-score-flip-button" type="button" aria-busy="false" onclick="flipCoinChoice(tossCallChoice)"><span aria-hidden="true">🪙</span> <span id="webScoreFlipLabel">Flip Coin</span></button>
 
-          <div id="tossWinnerDecisionSection" class="toss-decision-box" hidden>
+          <div id="tossWinnerDecisionSection" class="toss-decision-box" hidden aria-live="polite">
             <div id="tossWinnerText" class="toss-winner-heading">TEAM A WON THE TOSS</div>
             <p id="tossWinnerSubtext" class="toss-winner-sub">It landed on heads. What will they do?</p>
 

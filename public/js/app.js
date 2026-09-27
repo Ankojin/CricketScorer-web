@@ -5072,6 +5072,7 @@ document.addEventListener('click', (e) => {
 // Streamlined 4-Step Web Score Wizard Handlers
 let currentWizardStep = 0;
 let tossCallerTeam = 'A'; // 'A' or 'B'
+let tossCallChoice = 'HEADS';
 let tossDecisionChoice = 'BAT'; // 'BAT' or 'BOWL'
 
 function updateWizardStepUI(stepIndex) {
@@ -5185,8 +5186,39 @@ function goToWizardTossStep() {
   if (btnA) btnA.innerText = teamAName;
   if (btnB) btnB.innerText = teamBName;
 
+  selectTossCallChoice('HEADS');
+  setTossDecisionChoice('BAT');
+  const decisionBox = document.getElementById('tossWinnerDecisionSection');
+  if (decisionBox) decisionBox.hidden = true;
+  const coinImg = document.getElementById('coinImg');
+  if (coinImg) coinImg.src = 'img/coin_heads.png';
+  const flipButton = document.querySelector('.web-score-flip-button');
+  const flipLabel = document.getElementById('webScoreFlipLabel');
+  if (flipButton) {
+    flipButton.disabled = false;
+    flipButton.setAttribute('aria-busy', 'false');
+  }
+  if (flipLabel) flipLabel.textContent = 'Flip Coin';
   selectTossCaller('A');
   updateWizardStepUI(2);
+}
+
+function selectTossCallChoice(choice) {
+  tossCallChoice = choice === 'TAILS' ? 'TAILS' : 'HEADS';
+  const headsButton = document.getElementById('tossCallHeads');
+  const tailsButton = document.getElementById('tossCallTails');
+  if (headsButton) {
+    const selected = tossCallChoice === 'HEADS';
+    headsButton.classList.toggle('active', selected);
+    headsButton.setAttribute('aria-pressed', `${selected}`);
+  }
+  if (tailsButton) {
+    const selected = tossCallChoice === 'TAILS';
+    tailsButton.classList.toggle('active', selected);
+    tailsButton.setAttribute('aria-pressed', `${selected}`);
+  }
+  const decisionBox = document.getElementById('tossWinnerDecisionSection');
+  if (decisionBox) decisionBox.hidden = true;
 }
 
 function selectTossCaller(caller) {
@@ -5204,11 +5236,29 @@ function selectTossCaller(caller) {
     const callerName = caller === 'A' ? teamAName : teamBName;
     msg.innerText = `${callerName} calls it in the air`;
   }
+  const decisionBox = document.getElementById('tossWinnerDecisionSection');
+  if (decisionBox) decisionBox.hidden = true;
 }
 
 function flipCoinChoice(callChoice) {
   const coinImg = document.getElementById('coinImg');
+  const flipButton = document.querySelector('.web-score-flip-button');
+  const headsButton = document.getElementById('tossCallHeads');
+  const tailsButton = document.getElementById('tossCallTails');
+  const decisionBox = document.getElementById('tossWinnerDecisionSection');
+  if (flipButton?.disabled) return;
+  if (flipButton) {
+    flipButton.disabled = true;
+    flipButton.setAttribute('aria-busy', 'true');
+  }
+  const flipLabel = document.getElementById('webScoreFlipLabel');
+  if (flipLabel) flipLabel.textContent = 'Flipping…';
+  if (headsButton) headsButton.disabled = true;
+  if (tailsButton) tailsButton.disabled = true;
+  if (decisionBox) decisionBox.hidden = true;
   if (coinImg) {
+    coinImg.classList.remove('spinning');
+    void coinImg.offsetWidth;
     coinImg.classList.add('spinning');
   }
 
@@ -5219,6 +5269,17 @@ function flipCoinChoice(callChoice) {
     if (coinImg) coinImg.classList.remove('spinning');
     const isHeads = Math.random() < 0.5;
     const landedResult = isHeads ? 'HEADS' : 'TAILS';
+    if (coinImg) {
+      coinImg.src = isHeads ? 'img/coin_heads.png' : 'img/coin_tails.png';
+      coinImg.alt = `Coin landed on ${landedResult.toLowerCase()}`;
+    }
+    if (flipButton) {
+      flipButton.disabled = false;
+      flipButton.setAttribute('aria-busy', 'false');
+    }
+    if (flipLabel) flipLabel.textContent = 'Flip Again';
+    if (headsButton) headsButton.disabled = false;
+    if (tailsButton) tailsButton.disabled = false;
 
     const callerName = tossCallerTeam === 'A' ? teamAName : teamBName;
     const nonCallerName = tossCallerTeam === 'A' ? teamBName : teamAName;
@@ -5237,7 +5298,7 @@ function flipCoinChoice(callChoice) {
     // Preserve team identity even if both teams use the same display name.
     const winnerIsA = callerWon ? tossCallerTeam === 'A' : tossCallerTeam !== 'A';
     selectedTossWinnerId = winnerIsA ? 'TEAM_A' : 'TEAM_B';
-  }, 800);
+  }, 1200);
 }
 
 function setTossDecisionChoice(decision) {
