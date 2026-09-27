@@ -2514,6 +2514,150 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   background: var(--color-surface-raised);
 }
 
+.web-score-player-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0 0 48px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+.web-score-player-count label { min-width: 45px; }
+.web-score-player-count-input {
+  width: 72px;
+  min-height: 34px;
+  padding: 4px 8px;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+.web-score-player-count-input:focus-visible { outline: 2px solid var(--color-electric); outline-offset: 2px; }
+
+.web-score-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 6px;
+}
+
+.web-score-actions[hidden] { display: none; }
+.web-score-live-button {
+  min-width: 84px;
+  min-height: 34px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.web-score-live-button span { color: var(--color-primary-deep); font-size: 10px; }
+
+.web-score-compact #mainScoreCard {
+  gap: 2px;
+  padding: 10px 12px;
+  border-top-width: 3px;
+}
+.web-score-compact #mainScoreCard .score-main {
+  margin: 1px 0;
+  font-size: clamp(46px, 12vw, 58px);
+}
+.web-score-compact #mainScoreCard .overs-main { font-size: 14px; }
+.web-score-compact #mainScoreCard .rates-row { gap: 6px; margin-top: 2px; }
+.web-score-compact #mainScoreCard .rates-row span { padding: 3px 7px; font-size: 11px; }
+.web-score-compact #mainScoreCard .this-over-heading { margin-top: 5px; }
+.web-score-compact #mainScoreCard .recent-balls { min-height: 32px; padding: 2px 1px; }
+.web-score-compact #mainScoreCard #liveTickerText { margin-top: 3px !important; }
+.web-score-compact #scoringKeypad .btn { min-height: 50px; padding: 7px 4px; font-size: 19px; }
+.web-score-compact #scoringKeypad .btn-wicket,
+.web-score-compact #scoringKeypad .btn-undo { grid-column: span 2; min-height: 50px; margin-top: 0; }
+.web-score-compact #scoringKeypad .btn-wicket { font-size: 16px; }
+.web-score-compact #scoringKeypad .btn-undo { font-size: 13px; }
+
+.web-score-innings-break .first-innings-modal {
+  width: min(100% - 28px, 560px);
+  padding: 26px 20px 22px;
+  color: var(--color-text);
+  background: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+.web-score-innings-break .first-innings-modal h3[hidden],
+.web-score-innings-break #firstInningsIcon[hidden] { display: none; }
+.web-score-innings-break #firstInningsSummary { margin-bottom: 18px !important; }
+.web-score-innings-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin-bottom: 16px;
+  padding: 4px 14px;
+  color: var(--color-bright-green);
+  background: rgba(19, 169, 104, .18);
+  border: 1px solid rgba(73, 232, 120, .35);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.web-score-innings-team {
+  color: var(--color-text);
+  font-size: clamp(21px, 5vw, 28px);
+  font-weight: 850;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.web-score-innings-total {
+  margin-top: 4px;
+  color: var(--color-text);
+  font-size: clamp(48px, 13vw, 64px);
+  font-weight: 900;
+  letter-spacing: -.04em;
+  line-height: 1;
+}
+.web-score-innings-total strong { font: inherit; }
+.web-score-innings-total span { color: var(--color-text-muted); font-size: .72em; font-weight: 800; }
+.web-score-innings-overs {
+  margin-top: 5px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.web-score-target-panel {
+  display: grid;
+  gap: 3px;
+  margin: 22px 0 18px;
+  padding: 14px 12px;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  font-weight: 750;
+}
+.web-score-target-panel strong {
+  color: var(--color-electric);
+  font-size: 38px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.web-score-target-panel span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.web-score-innings-break #startSecondInningsBtn {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
 .toss-call-choice-btn.active {
   outline: 3px solid var(--color-electric);
   outline-offset: 2px;
@@ -2561,7 +2705,11 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   color: var(--color-primary);
 }
 
-.target-banner { border-color: var(--color-warning); }
+.target-banner {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border-color: var(--color-green);
+}
 .toast.info { color: var(--color-primary); }
 .toast.warning { border-color: var(--color-warning); }
 .toss-decision-choice.is-selected { border-color: var(--color-warning); }
@@ -2697,3 +2845,40 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .coin-flip-img.spinning { animation: flipCoinReduced 320ms ease-out both !important; }
 }
+
+/* Toasts use a solid navy surface and readable text across every semantic state. */
+.toast-container { pointer-events: none; }
+.toast {
+  gap: 12px;
+  padding: 13px 15px;
+  color: var(--color-text) !important;
+  background: var(--color-primary) !important;
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+  pointer-events: auto;
+}
+.toast.success { border-left-color: var(--color-success); }
+.toast.warning { border-left-color: var(--color-warning); }
+.toast.danger,
+.toast.error { border-left-color: var(--color-error); }
+.toast.info { border-left-color: var(--color-info); }
+.toast > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toast-close {
+  flex: 0 0 auto;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 2px 6px;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+.toast-close:hover,
+.toast-close:focus-visible { color: var(--color-text); background: var(--color-surface-raised); }
+.toast-close:focus-visible { outline: 2px solid var(--color-electric); outline-offset: 1px; }

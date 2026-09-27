@@ -367,6 +367,7 @@
               <input type="color" id="teamAColor" class="team-color-picker" value="#13a968" title="Team A Color" onchange="syncTeamColorDot('A')">
               <input type="text" id="teamAName" class="form-control team-name-input" value="Team A" placeholder="Team A Name" oninput="syncTeamNamesToTossUI()">
             </div>
+            <div class="web-score-player-count"><label for="teamAPlayerCount">Players</label><input id="teamAPlayerCount" class="web-score-player-count-input" type="number" inputmode="numeric" min="1" max="11" step="1" value="11" aria-label="Team A player count"></div>
           </div>
 
           <div class="team-input-divider"></div>
@@ -377,6 +378,7 @@
               <input type="color" id="teamBColor" class="team-color-picker" value="#38bdf8" title="Team B Color" onchange="syncTeamColorDot('B')">
               <input type="text" id="teamBName" class="form-control team-name-input" value="Team B" placeholder="Team B Name" oninput="syncTeamNamesToTossUI()">
             </div>
+            <div class="web-score-player-count"><label for="teamBPlayerCount">Players</label><input id="teamBPlayerCount" class="web-score-player-count-input" type="number" inputmode="numeric" min="1" max="11" step="1" value="11" aria-label="Team B player count"></div>
           </div>
 
           <div id="fullMatchSquadBuilder" hidden style="margin-top:20px;">
@@ -599,6 +601,10 @@
           </div>
         </details>
 
+        <div id="webScoreActions" class="web-score-actions" hidden>
+          <button class="cric-btn cric-btn-primary web-score-live-button" type="button" aria-label="Share live score" onclick="shareLiveScoreWhatsApp()"><span aria-hidden="true">●</span> LIVE</button>
+        </div>
+
         <!-- Primary live scoring keypad -->
         <div id="scoringKeypad" class="keypad-grid">
           <button class="btn btn-run" type="button" onclick="addBall(0)">0</button>
@@ -609,6 +615,8 @@
           <button class="btn btn-boundary" type="button" onclick="addBall(6)">6</button>
           <button class="btn btn-extra" type="button" onclick="addExtra('WIDE')">WD</button>
           <button class="btn btn-extra" type="button" onclick="addExtra('NO_BALL')">NB</button>
+          <button class="btn btn-extra web-score-run-extra" data-webscore-extra type="button" onclick="addExtra('BYE')">BYE</button>
+          <button class="btn btn-extra web-score-run-extra" data-webscore-extra type="button" onclick="addExtra('LEG_BYE')">LB</button>
           <button class="btn btn-wicket" type="button" onclick="openWicketModal()">WICKET</button>
           <button class="btn btn-undo" type="button" onclick="undoLastBall()">↩️ UNDO</button>
         </div>
@@ -895,11 +903,11 @@
 
   <!-- End of Over Summary -->
   <div id="firstInningsModal" class="modal-overlay">
-    <div class="modal" style="text-align:center;">
-      <div style="font-size:32px; margin-bottom:8px;">🏏</div>
+    <div class="modal first-innings-modal" style="text-align:center;">
+      <div id="firstInningsIcon" style="font-size:32px; margin-bottom:8px;">🏏</div>
       <h3 style="margin-bottom:12px;">First Innings Complete</h3>
       <div id="firstInningsSummary" style="margin-bottom:20px;"></div>
-      <button class="btn-primary" onclick="startSecondInnings()">Start Second Innings</button>
+      <button id="startSecondInningsBtn" class="btn-primary" onclick="startSecondInnings()">Start Second Innings</button>
     </div>
   </div>
 

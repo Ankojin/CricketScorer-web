@@ -34,7 +34,16 @@ function showToast(msg, type = 'info') {
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.innerHTML = `<span>${msg}</span><span style="cursor:pointer; margin-left:8px;" onclick="this.parentElement.remove()">✕</span>`;
+  toast.setAttribute('role', type === 'danger' || type === 'error' ? 'alert' : 'status');
+  const message = document.createElement('span');
+  message.textContent = msg;
+  const closeButton = document.createElement('button');
+  closeButton.className = 'toast-close';
+  closeButton.type = 'button';
+  closeButton.setAttribute('aria-label', 'Dismiss notification');
+  closeButton.textContent = '×';
+  closeButton.addEventListener('click', () => toast.remove());
+  toast.append(message, closeButton);
   container.appendChild(toast);
 
   setTimeout(() => toast.classList.add('show'), 10);
@@ -1316,6 +1325,7 @@ async function showNewMatchScreen(mode = 'QUICK') {
   document.getElementById('fullMatchSetupIntro')?.toggleAttribute('hidden', !isFullMatch);
   document.getElementById('fullMatchSquadBuilder')?.toggleAttribute('hidden', !isFullMatch);
   document.getElementById('webScoreColorControls')?.toggleAttribute('hidden', !isWebScore);
+  document.querySelectorAll('.web-score-player-count').forEach(el => { el.hidden = !isWebScore; });
   matchSquadA = [];
   matchSquadB = [];
 
@@ -1326,6 +1336,12 @@ async function showNewMatchScreen(mode = 'QUICK') {
   const teamBInput = document.getElementById('teamBName');
   if (teamAInput) teamAInput.value = '';
   if (teamBInput) teamBInput.value = '';
+  if (isWebScore) {
+    const playerCountA = document.getElementById('teamAPlayerCount');
+    const playerCountB = document.getElementById('teamBPlayerCount');
+    if (playerCountA) playerCountA.value = '11';
+    if (playerCountB) playerCountB.value = '11';
+  }
 
   renderSquadList('A');
   renderSquadList('B');
@@ -1409,10 +1425,11 @@ async function handleCreateMatch({ openToss = true } = {}) {
     const teamBName = document.getElementById('teamBName')?.value?.trim() || 'Team B';
     const teamBColor = document.getElementById('teamBColor')?.value || '#38bdf8';
 
-    // Auto-seed 11 placeholder players per team if matchSquadA / matchSquadB empty
+    // WebScore creates anonymous placeholder players from the selected team counts.
     if (!matchSquadA || matchSquadA.length < 1) {
       matchSquadA = [];
-      for (let i = 1; i <= 11; i++) {
+      const countA = currentScoringMode === 'WEBSCORE' ? getWebScorePlayerCount('A') : 11;
+      for (let i = 1; i <= countA; i++) {
         matchSquadA.push({
           id: `pla_web_${Date.now()}_${i}`,
           name: `${teamAName} Player ${i}`,
@@ -1423,7 +1440,8 @@ async function handleCreateMatch({ openToss = true } = {}) {
 
     if (!matchSquadB || matchSquadB.length < 1) {
       matchSquadB = [];
-      for (let i = 1; i <= 11; i++) {
+      const countB = currentScoringMode === 'WEBSCORE' ? getWebScorePlayerCount('B') : 11;
+      for (let i = 1; i <= countB; i++) {
         matchSquadB.push({
           id: `plb_web_${Date.now()}_${i}`,
           name: `${teamBName} Player ${i}`,
@@ -1812,7 +1830,13 @@ async function selectMatch(matchId) {
       return;
     }
 
+    currentScoringMode = activeMatch.scoringMode === 'WEBSCORE'
+      ? 'WEBSCORE'
+      : activeMatch.scoringMode === 'FULL' ? 'FULL' : 'QUICK';
     activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
+    if (activeMatch.scoringMode === 'WEBSCORE') {
+      await continueWebScoreParticipants();
+    }
 
     if (isReadOnlySpectator && activeMatch.status !== 'LIVE') {
       showToast('This live link has expired because the match has ended.', 'warning');
@@ -1963,6 +1987,10 @@ function renderLiveScoring() {
   const isBattingA = m.battingTeamId === m.teamA?.id;
   const battingTeam = isBattingA ? m.teamA : m.teamB;
   const bowlingTeam = isBattingA ? m.teamB : m.teamA;
+  if (isWebScoreMatch(m) && m.pendingAction === 'START_SECOND_INNINGS' && !isReadOnlySpectator) {
+    const firstInningsModal = document.getElementById('firstInningsModal');
+    if (firstInningsModal && !firstInningsModal.classList.contains('active')) showFirstInningsCompleteModal();
+  }
 
   const teamAColor = m.teamA?.colorHex || '#13a968';
   const teamBColor = m.teamB?.colorHex || '#38bdf8';
@@ -1981,6 +2009,8 @@ function renderLiveScoring() {
   const goLiveBtn = document.getElementById('goLiveBtn');
   const btnSwapBatsmen = document.getElementById('btnSwapBatsmen');
   const liveMoreMenu = document.getElementById('liveMoreMenu');
+  const webScoreActions = document.getElementById('webScoreActions');
+  const isWebScore = isWebScoreMatch(m);
   const isScoringLockedByStatus = m.status === 'COMPLETED' || m.status === 'ABANDONED';
   const isSingleSideBatting = Boolean(m.gullyRules?.singleSideBatting);
   document.querySelectorAll('[data-live-more-scoring]').forEach(button => {
@@ -1991,12 +2021,14 @@ function renderLiveScoring() {
     if (spectatorBanner) spectatorBanner.style.display = 'block';
     if (scoringKeypad) scoringKeypad.style.display = 'none';
     if (liveMoreMenu) liveMoreMenu.style.display = 'none';
+    if (webScoreActions) webScoreActions.hidden = true;
     if (goLiveBtn) goLiveBtn.style.display = 'none';
     if (btnSwapBatsmen) btnSwapBatsmen.style.display = 'none';
   } else {
     if (spectatorBanner) spectatorBanner.style.display = 'none';
     if (scoringKeypad) scoringKeypad.style.display = isScoringLockedByStatus ? 'none' : 'grid';
-    if (liveMoreMenu) liveMoreMenu.style.display = 'block';
+    if (liveMoreMenu) liveMoreMenu.style.display = isWebScore ? 'none' : 'block';
+    if (webScoreActions) webScoreActions.hidden = !isWebScore || isScoringLockedByStatus;
     if (goLiveBtn) goLiveBtn.style.display = 'block';
     if (btnSwapBatsmen) btnSwapBatsmen.style.display = (isScoringLockedByStatus || isSingleSideBatting) ? 'none' : 'flex';
   }
@@ -2021,6 +2053,11 @@ function renderLiveScoring() {
 
   // Toggle UI elements for QUICK mode vs FULL mode during live scoring
   const isQuickMode = (m.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK') || isWebScoreMatch(m);
+  const activeScoringContainer = document.getElementById('liveScoringActiveContainer');
+  if (activeScoringContainer) activeScoringContainer.classList.toggle('web-score-compact', isWebScore);
+  document.querySelectorAll('[data-webscore-extra]').forEach(button => {
+    button.style.display = isWebScore ? '' : 'none';
+  });
   const battersCard = document.getElementById('liveBattersCard');
   const bowlerCard = document.getElementById('liveBowlerCard');
   const matchTabsNav = document.querySelector('.match-view-tabs');
@@ -2341,15 +2378,27 @@ async function startSecondInnings() {
   if (modal) modal.classList.remove('active');
   if (activeMatch.currentInnings !== 2 || !activeMatch.innings1Data) return;
   activeMatch.isSecondInningsStarted = true;
-  activeMatch.pendingAction = 'SELECT_STRIKER';
+  if (isWebScoreMatch(activeMatch)) {
+    const battingTeam = activeMatch.battingTeamId === activeMatch.teamA?.id ? activeMatch.teamA : activeMatch.teamB;
+    const bowlingTeam = activeMatch.battingTeamId === activeMatch.teamA?.id ? activeMatch.teamB : activeMatch.teamA;
+    activeMatch.strikerId = battingTeam?.players?.[0]?.id || null;
+    activeMatch.nonStrikerId = battingTeam?.players?.[1]?.id || null;
+    activeMatch.currentBowlerId = chooseWebScoreBowler(activeMatch, bowlingTeam)?.id || bowlingTeam?.players?.[0]?.id || null;
+    activeMatch.pendingAction = 'NONE';
+  } else {
+    activeMatch.pendingAction = 'SELECT_STRIKER';
+  }
 
   activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
   activeMatch = await window.CricStorage.saveMatch(activeMatch);
-  showToast('Innings 2 Started! Please select 2nd Innings Striker', 'info');
+  showToast(isWebScoreMatch(activeMatch)
+    ? `Second innings started. Target: ${activeMatch.target} runs.`
+    : 'Innings 2 Started! Please select 2nd Innings Striker', 'info');
   renderLiveScoring();
 }
 
 function promptPendingAction(action) {
+  if (isWebScoreMatch() && isSelectionPendingAction(action)) return;
   if (action === 'START_SECOND_INNINGS') {
     const overEndModal = document.getElementById('overEndModal');
     if (overEndModal && overEndModal.classList.contains('active')) return;
@@ -2394,13 +2443,40 @@ function showFirstInningsCompleteModal() {
   const bowlingTeam = [activeMatch.teamA, activeMatch.teamB].find(team => team?.id !== first.teamId);
   const score = `${first.runs || 0}/${first.wickets || 0}`;
   const overs = `${Math.floor((first.balls || 0) / 6)}.${(first.balls || 0) % 6}`;
+  const isWebScore = activeMatch.scoringMode === 'WEBSCORE';
+  const modalOverlay = document.getElementById('firstInningsModal');
+  const icon = document.getElementById('firstInningsIcon');
+  const heading = modalOverlay?.querySelector('h3');
+  const startButton = document.getElementById('startSecondInningsBtn');
+  modalOverlay?.classList.toggle('web-score-innings-break', isWebScore);
+  if (icon) icon.hidden = isWebScore;
+  if (heading) heading.hidden = isWebScore;
+  if (startButton) startButton.textContent = isWebScore
+    ? `Start ${bowlingTeam?.name || 'Second Team'}’s innings`
+    : 'Start Second Innings';
+
   const summary = document.getElementById('firstInningsSummary');
   if (summary) {
-    summary.innerHTML = `
-      <div style="font-size:16px; font-weight:800; margin-bottom:8px;">${battingTeam?.name || 'Batting team'}: ${score} (${overs} overs)</div>
-      <div style="font-size:14px; color:var(--text-muted);">${bowlingTeam?.name || 'Chasing team'} need <strong style="color:var(--color-text-on-dark);">${activeMatch.target || (Number(first.runs || 0) + 1)}</strong> runs to win.</div>
-      <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Target: ${activeMatch.target || (Number(first.runs || 0) + 1)}</div>
-    `;
+    const target = activeMatch.target || (Number(first.runs || 0) + 1);
+    if (isWebScore) {
+      summary.innerHTML = `
+        <div class="web-score-innings-badge">INNINGS BREAK</div>
+        <div class="web-score-innings-team">${battingTeam?.name || 'Team A'} scored</div>
+        <div class="web-score-innings-total"><strong>${first.runs || 0}</strong><span>/${first.wickets || 0}</span></div>
+        <div class="web-score-innings-overs">in ${overs} overs</div>
+        <div class="web-score-target-panel">
+          <div>${bowlingTeam?.name || 'Team B'} need</div>
+          <strong>${target}</strong>
+          <span>to win off ${activeMatch.oversPerInnings || 20} overs</span>
+        </div>
+      `;
+    } else {
+      summary.innerHTML = `
+        <div style="font-size:16px; font-weight:800; margin-bottom:8px;">${battingTeam?.name || 'Batting team'}: ${score} (${overs} overs)</div>
+        <div style="font-size:14px; color:var(--text-muted);">${bowlingTeam?.name || 'Chasing team'} need <strong style="color:var(--color-text-on-dark);">${target}</strong> runs to win.</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Target: ${target}</div>
+      `;
+    }
   }
   openPrimaryActionModal('firstInningsModal');
 }
@@ -2766,6 +2842,49 @@ async function confirmPlayerSelection() {
   renderLiveScoring();
 }
 
+function chooseWebScoreBowler(match, bowlingTeam) {
+  const players = bowlingTeam?.players || [];
+  const eligible = players.find(player => getBowlerSelectionBlockers(match, player).length === 0);
+  if (eligible) return eligible;
+  return players.find(player => player.id !== match.lastBowlerId) || players[0] || null;
+}
+
+async function continueWebScoreParticipants() {
+  if (!activeMatch || isReadOnlySpectator || !isWebScoreMatch(activeMatch) || activeMatch.status !== 'LIVE') return;
+  if (activeMatch.pendingAction === 'START_SECOND_INNINGS') return;
+
+  const battingTeam = activeMatch.battingTeamId === activeMatch.teamA?.id ? activeMatch.teamA : activeMatch.teamB;
+  const bowlingTeam = activeMatch.battingTeamId === activeMatch.teamA?.id ? activeMatch.teamB : activeMatch.teamA;
+  const isAvailableBatter = player => player && player.battingStats?.isOut !== true && player.battingStats?.isRetiredHurt !== true;
+  const usedBatterIds = new Set([activeMatch.strikerId, activeMatch.nonStrikerId].filter(Boolean));
+  let changed = false;
+
+  if (!isAvailableBatter((battingTeam?.players || []).find(player => player.id === activeMatch.strikerId))) {
+    const replacement = (battingTeam?.players || []).find(player => isAvailableBatter(player) && player.id !== activeMatch.nonStrikerId);
+    activeMatch.strikerId = replacement?.id || null;
+    changed = true;
+  }
+  if (requiresNonStriker(activeMatch) && !isAvailableBatter((battingTeam?.players || []).find(player => player.id === activeMatch.nonStrikerId))) {
+    const replacement = (battingTeam?.players || []).find(player => isAvailableBatter(player) && player.id !== activeMatch.strikerId && !usedBatterIds.has(player.id));
+    activeMatch.nonStrikerId = replacement?.id || null;
+    changed = true;
+  }
+  if (!activeMatch.currentBowlerId) {
+    activeMatch.currentBowlerId = chooseWebScoreBowler(activeMatch, bowlingTeam)?.id || null;
+    changed = true;
+  }
+  if (changed) {
+    activeMatch.pendingAction = 'NONE';
+    activeMatch = await window.CricStorage.saveMatch(activeMatch);
+  }
+}
+
+async function addBallWithWebScoreFlow(ball) {
+  activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
+  return activeMatch;
+}
+
 async function addBall(runs) {
   if (!ensureScoringPlayersSelected()) return;
   const ball = {
@@ -2779,7 +2898,7 @@ async function addBall(runs) {
   };
 
   const prevBalls = activeMatch.totalBalls || 0;
-  activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  activeMatch = await addBallWithWebScoreFlow(ball);
 
   const newBalls = activeMatch.totalBalls || 0;
   if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
@@ -2896,6 +3015,7 @@ async function submitNoBallWithRuns(batRuns) {
 
   closeExtraRunsModal();
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
   renderLiveScoring();
 }
 
@@ -2916,6 +3036,7 @@ async function submitWideWithRuns(extraRunsTaken) {
 
   closeExtraRunsModal();
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
   renderLiveScoring();
 }
 
@@ -2936,6 +3057,7 @@ async function submitByesWithRuns(type, extraRuns) {
   closeExtraRunsModal();
   const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
 
   const newBalls = activeMatch.totalBalls || 0;
   if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
@@ -2964,6 +3086,7 @@ async function handleRetireBatter() {
       bowlerId: activeMatch.currentBowlerId
     };
     activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+    await continueWebScoreParticipants();
     showToast('Batter retired hurt', 'info');
     renderLiveScoring();
   }
@@ -3093,6 +3216,7 @@ async function submitDroppedCatchWithRuns(runs) {
 
   const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
 
   const newBalls = activeMatch.totalBalls || 0;
   if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
@@ -3119,6 +3243,7 @@ async function addGrantedRun() {
 
   const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
 
   const newBalls = activeMatch.totalBalls || 0;
   if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
@@ -3149,6 +3274,7 @@ function checkAndShowOverEndModal() {
     showFirstInningsCompleteModal();
     return;
   }
+  const isWebScore = activeMatch.scoringMode === 'WEBSCORE';
 
   const titleEl = document.getElementById('overEndTitle');
   const bodyEl = document.getElementById('overEndBody');
@@ -3158,7 +3284,15 @@ function checkAndShowOverEndModal() {
 
   if (!titleEl || !bodyEl) return;
 
-  const summaries = window.ScoringEngine.getOverSummaries(activeMatch);
+  let inningsBallHistory = activeMatch.ballHistory || [];
+  if (activeMatch.currentInnings === 2 && activeMatch.innings1Data) {
+    const firstInningsBallCount = Number(activeMatch.innings1Data.recordedBallsCount || 0);
+    inningsBallHistory = inningsBallHistory.slice(firstInningsBallCount);
+  }
+  const summaries = window.ScoringEngine.getOverSummaries({
+    ...activeMatch,
+    ballHistory: inningsBallHistory
+  });
   if (summaries.length === 0) return;
 
   const lastOver = summaries[summaries.length - 1];
@@ -3173,12 +3307,20 @@ function checkAndShowOverEndModal() {
     const teamRuns = lastOver.teamTotalRuns ?? activeMatch.totalRuns ?? 0;
     const teamWkts = lastOver.teamTotalWickets ?? activeMatch.totalWickets ?? 0;
     matchScoresEl.innerText = `${battingTeam?.name || 'Batting team'} ${teamRuns}/${teamWkts} (${lastOver.overNumber}.0 ov)`;
+    matchScoresEl.style.color = isWebScore ? 'var(--color-text)' : 'var(--color-primary)';
   }
 
-  bodyEl.innerText = `Runs in Over: ${lastOver.runs}`;
+  if (isWebScore) {
+    const wickets = Number(lastOver.wickets || 0);
+    const wicketText = wickets ? ` + ${wickets} wicket${wickets === 1 ? '' : 's'}` : '';
+    bodyEl.innerText = `${lastOver.runs} runs${wicketText} this over`;
+  } else {
+    bodyEl.innerText = `Runs in Over: ${lastOver.runs}`;
+  }
 
   // Extract dismissals in this over
   if (dismissalsEl) {
+    dismissalsEl.hidden = isWebScore;
     let dismissalTexts = [];
     (lastOver.balls || []).forEach(b => {
       if (b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT') {
@@ -3199,6 +3341,7 @@ function checkAndShowOverEndModal() {
   }
 
   if (statsEl) {
+    statsEl.hidden = isWebScore;
     if (lastBowler) {
       const stats = lastBowler.bowlingStats || { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
       statsEl.innerText = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts`;
@@ -3323,8 +3466,14 @@ async function confirmEditBall() {
 
 let pendingFielderWicketType = null;
 
-function openWicketModal() {
+async function openWicketModal() {
   if (!ensureScoringPlayersSelected()) return;
+  if (activeMatch?.scoringMode === 'WEBSCORE') {
+    const wicketTypeSelect = document.getElementById('wicketTypeSelect');
+    if (wicketTypeSelect) wicketTypeSelect.value = 'BOWLED';
+    await submitWicket();
+    return;
+  }
   openPrimaryActionModal('wicketModal');
 }
 
@@ -3379,6 +3528,7 @@ async function submitWicket() {
   closeWicketModal();
   const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
   if ((activeMatch.totalBalls || 0) > prevBalls && activeMatch.totalBalls % 6 === 0) checkAndShowOverEndModal();
   renderLiveScoring();
 }
@@ -3487,6 +3637,7 @@ async function confirmFielderWicket() {
   await window.CricStorage.saveMatch(activeMatch);
   const prevBalls = activeMatch.totalBalls || 0;
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
   if ((activeMatch.totalBalls || 0) > prevBalls && activeMatch.totalBalls % 6 === 0) checkAndShowOverEndModal();
   renderLiveScoring();
 }
@@ -3575,6 +3726,7 @@ async function confirmRunOutWicket() {
   const prevBalls = activeMatch.totalBalls || 0;
   await window.CricStorage.saveMatch(activeMatch);
   activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
+  await continueWebScoreParticipants();
 
   const newBalls = activeMatch.totalBalls || 0;
   if (newBalls > 0 && newBalls % 6 === 0 && newBalls !== prevBalls) {
@@ -5042,6 +5194,22 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!isRouted) {
     showLandingScreen();
   }
+
+  if (!sharedMatchId) {
+    const savedMatchId = localStorage.getItem('cric_active_match_id');
+    if (savedMatchId) {
+      try {
+        const savedMatch = await window.CricStorage.getMatch(savedMatchId);
+        if (savedMatch?.scoringMode === 'WEBSCORE' && savedMatch.status === 'LIVE') {
+          currentScoringMode = 'WEBSCORE';
+          await selectMatch(savedMatch.id);
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not restore active WebScore match:', err);
+      }
+    }
+  }
 });
 
 // Features Menu Dropdown & Quick Options Handlers
@@ -5096,6 +5264,14 @@ function startWebScorerWizard() {
   updateWizardStepUI(0);
 }
 
+function getWebScorePlayerCount(side) {
+  const input = document.getElementById(side === 'A' ? 'teamAPlayerCount' : 'teamBPlayerCount');
+  const parsed = Number.parseInt(input?.value, 10);
+  const count = Math.min(11, Math.max(1, Number.isFinite(parsed) ? parsed : 11));
+  if (input) input.value = String(count);
+  return count;
+}
+
 function goToWizardTeamsStep() {
   updateWizardStepUI(0);
 }
@@ -5113,8 +5289,8 @@ function goToWizardOversStep() {
     return;
   }
 
-  // Auto-populate default 11-player squads if empty
-  if (matchSquadA.length < 1) {
+  // Full/Quick modes keep default squads. WebScore generates the selected count at match creation.
+  if (currentScoringMode !== 'WEBSCORE' && matchSquadA.length < 1) {
     matchSquadA = [];
     for (let i = 1; i <= 11; i++) {
       matchSquadA.push({
@@ -5125,7 +5301,7 @@ function goToWizardOversStep() {
     }
   }
 
-  if (matchSquadB.length < 1) {
+  if (currentScoringMode !== 'WEBSCORE' && matchSquadB.length < 1) {
     matchSquadB = [];
     for (let i = 1; i <= 11; i++) {
       matchSquadB.push({
@@ -5342,15 +5518,9 @@ async function finishWizardAndStartMatch() {
     activeMatch.bowlingTeamId = bowlingTeam.id;
 
     // Auto-set striker, non-striker, and bowler if missing
-    if (!activeMatch.currentStrikerId) {
-      activeMatch.currentStrikerId = battingTeam.players[0]?.id || null;
-    }
-    if (!activeMatch.currentNonStrikerId) {
-      activeMatch.currentNonStrikerId = battingTeam.players[1]?.id || null;
-    }
-    if (!activeMatch.currentBowlerId) {
-      activeMatch.currentBowlerId = bowlingTeam.players[0]?.id || null;
-    }
+    activeMatch.strikerId = battingTeam.players[0]?.id || null;
+    activeMatch.nonStrikerId = battingTeam.players[1]?.id || null;
+    activeMatch.currentBowlerId = bowlingTeam.players[0]?.id || null;
 
     activeMatch.pendingAction = 'NONE';
     activeMatch.updatedAt = new Date().toISOString();
