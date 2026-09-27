@@ -22,7 +22,7 @@ flowchart TD
 
     subgraph API ["⚡ API & Compute Tier"]
         APIGW["🔌 API Gateway (HTTP API v2)"]
-        Lambda["⚡ AWS Lambda API Handler (Node.js 20.x)"]
+        Lambda["⚡ AWS Lambda API Handler (Node.js 22.x)"]
     end
 
     subgraph DB ["🗄️ Persistence Tier"]
@@ -129,5 +129,5 @@ flowchart TD
 | **Static Hosting** | S3 Bucket | Private + Block Public Access | 5.0 GB Storage | **$0.00** |
 | **Global CDN** | CloudFront | Origin Access Control (OAC) | 1.0 TB Data Transfer | **$0.00** |
 | **API Gateway** | HTTP API v2 | CORS Allowed (`*`) | 1.0 Million Requests | **$0.00** |
-| **Backend Compute**| AWS Lambda | Node.js 20.x (x86_64) | 1.0 Million Requests | **$0.00** |
+| **Backend Compute**| AWS Lambda | Node.js 22.x (x86_64) | 1.0 Million Requests | **$0.00** |
 | **Database** | DynamoDB | Table `CricMatches` (`PAY_PER_REQUEST`) | 25 GB Storage & 2.5M Reads | **$0.00** |

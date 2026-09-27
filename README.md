@@ -64,7 +64,7 @@ A high-performance, deterministic, event-sourced Progressive Web Application (PW
 | **CDN Distribution** | Amazon CloudFront | `E2FADRQRZIIFJQ` |
 | **HTTP API v2** | Amazon API Gateway | `https://zqa91yrypg.execute-api.us-east-1.amazonaws.com` |
 | **Database Table** | Amazon DynamoDB | `CricMatches` |
-| **Lambda Function** | AWS Lambda | `CricScoreApiLambda` (Node.js 20.x) |
+| **Lambda Function** | AWS Lambda | `CricScoreApiLambda` (Node.js 22.x) |
 
 ---
 

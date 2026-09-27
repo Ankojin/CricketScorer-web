@@ -66,7 +66,7 @@ Follow these exact steps to verify that data survives refreshes, browser restart
 | **S3 Bucket** | Amazon S3 | `cricscore-pro-web-112232725342-us-east-1` |
 | **CDN Distribution** | Amazon CloudFront | `E2FADRQRZIIFJQ` (OAC Secured) |
 | **API Gateway** | HTTP API v2 | `CricScoreHttpApi` (`https://zqa91yrypg.execute-api.us-east-1.amazonaws.com`) |
-| **Backend Compute** | AWS Lambda | `CricScoreApiLambda` (Node.js 20.x) |
+| **Backend Compute** | AWS Lambda | `CricScoreApiLambda` (Node.js 22.x) |
 | **CloudFormation Stack**| AWS SAM | `cricscore-pro-web` |
 
 ---
