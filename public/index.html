@@ -295,7 +295,7 @@
         <div class="wizard-step-line"></div>
         <div class="wizard-step" data-wizard-step="1" onclick="goToWizardOversStep()">
           <div class="step-num" id="stepNum1">2</div>
-          <div class="step-label">OVERS</div>
+          <div class="step-label">SETTINGS</div>
         </div>
         <div class="wizard-step-line"></div>
         <div class="wizard-step" data-wizard-step="2" onclick="goToWizardTossStep()">
@@ -312,7 +312,7 @@
       <div class="wizard-card">
         <div id="fullMatchSetupIntro" hidden style="margin-bottom:20px; padding:12px; background:var(--color-primary-soft); border:1px solid var(--color-border-dark); border-radius:12px;">
           <div style="font-size:12px; font-weight:800; color:var(--color-electric); text-transform:uppercase; letter-spacing:.06em;">Full Match setup</div>
-          <div style="font-size:12px; color:var(--color-text-on-dark); margin-top:4px;">Build named squads for detailed scorecards and player statistics.</div>
+          <div style="font-size:12px; color:var(--color-text-on-dark); margin-top:4px;">Create both teams, then add players directly or choose from your saved global player list.</div>
         </div>
 
         <!-- STEP 1: TEAMS -->
@@ -346,6 +346,14 @@
                 <button type="button" class="btn-primary" style="width:auto; padding:8px 12px;" onclick="addTypedPlayerToSquad('A')">Add</button>
               </div>
               <div id="teamASquadList" style="margin-top:10px;"></div>
+              <details class="global-player-picker">
+                <summary>Add from global player list</summary>
+                <input id="globalPlayerSearchA" class="form-control" type="search" aria-label="Search global players for Team A" placeholder="Search global players" oninput="filterGlobalPlayerOptions('A')">
+                <label class="team-input-label" for="selectGlobalPlayerA">Add one player</label>
+                <select id="selectGlobalPlayerA" class="form-control" onchange="onAddGlobalPlayer('A')"><option value="">-- Choose Existing Player --</option></select>
+                <div class="global-player-checklist" id="globalPlayerChecklistA"></div>
+                <button class="btn" type="button" onclick="addSelectedDirectoryPlayers('A')">Add selected players</button>
+              </details>
             </div>
             <div class="team-builder-block">
               <label class="team-input-label" for="selectTeamB">TEAM B SQUAD</label>
@@ -355,6 +363,14 @@
                 <button type="button" class="btn-primary" style="width:auto; padding:8px 12px;" onclick="addTypedPlayerToSquad('B')">Add</button>
               </div>
               <div id="teamBSquadList" style="margin-top:10px;"></div>
+              <details class="global-player-picker">
+                <summary>Add from global player list</summary>
+                <input id="globalPlayerSearchB" class="form-control" type="search" aria-label="Search global players for Team B" placeholder="Search global players" oninput="filterGlobalPlayerOptions('B')">
+                <label class="team-input-label" for="selectGlobalPlayerB">Add one player</label>
+                <select id="selectGlobalPlayerB" class="form-control" onchange="onAddGlobalPlayer('B')"><option value="">-- Choose Existing Player --</option></select>
+                <div class="global-player-checklist" id="globalPlayerChecklistB"></div>
+                <button class="btn" type="button" onclick="addSelectedDirectoryPlayers('B')">Add selected players</button>
+              </details>
             </div>
           </div>
 
@@ -365,7 +381,7 @@
 
         <!-- STEP 2: OVERS -->
         <div id="wizardPanelOvers" class="wizard-step-panel" data-step-panel="1" hidden>
-          <div class="overs-section-heading">OVERS</div>
+          <div class="overs-section-heading">OVERS PER INNINGS</div>
           <div class="overs-stepper-row">
             <button class="overs-stepper-btn" type="button" onclick="adjustMatchOvers(-1)">−</button>
             <div class="overs-display-num" id="oversValueDisplay">6</div>
@@ -380,9 +396,11 @@
             <button class="overs-pill" type="button" onclick="setQuickMatchOvers(50)">50</button>
           </div>
 
-          <!-- Hidden backing inputs for match configuration -->
           <input type="hidden" id="matchOvers" value="6">
-          <input type="hidden" id="maxBowlerOvers" value="2">
+          <div class="max-bowler-overs-field">
+            <label class="team-input-label" for="maxBowlerOvers">MAX OVERS PER BOWLER</label>
+            <input type="number" id="maxBowlerOvers" class="form-control" min="1" max="100" step="1" value="2" inputmode="numeric">
+          </div>
           <input type="checkbox" id="saveTeamsForReuse" checked style="display:none;">
 
           <button class="wizard-next-btn" type="button" onclick="goToWizardTossStep()">

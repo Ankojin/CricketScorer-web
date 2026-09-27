@@ -450,6 +450,7 @@ async function showNewMatchScreen(mode = 'FULL') {
 
   showScreen('screenNewMatch');
   setQuickMatchStep(0);
+  updateWizardStepUI(0);
 
   const teamAInput = document.getElementById('teamAName');
   const teamBInput = document.getElementById('teamBName');
@@ -473,6 +474,7 @@ async function showNewMatchScreen(mode = 'FULL') {
   }
   if (maxBowlerOversInput) {
     maxBowlerOversInput.value = `${defaults.maxOversPerBowler || 2}`;
+    maxBowlerOversInput.max = `${Number(matchOversInput?.value) || 100}`;
   }
   const powerplayInput = document.getElementById('matchPowerplayOvers');
   if (powerplayInput) {
@@ -861,6 +863,7 @@ function adjustMatchOvers(delta) {
   // Max bowler overs logic
   const maxBowlerInput = document.getElementById('maxBowlerOvers');
   if (maxBowlerInput) {
+    maxBowlerInput.max = `${val}`;
     maxBowlerInput.value = Math.max(1, Math.ceil(val / 5));
   }
 
@@ -879,6 +882,7 @@ function setQuickMatchOvers(num) {
 
   const maxBowlerInput = document.getElementById('maxBowlerOvers');
   if (maxBowlerInput) {
+    maxBowlerInput.max = `${num}`;
     maxBowlerInput.value = Math.max(1, Math.ceil(num / 5));
   }
 
