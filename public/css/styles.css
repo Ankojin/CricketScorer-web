@@ -603,9 +603,14 @@ html.has-app-session #homeDashboard { display: block !important; }
 
 .cric-hero-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
   margin-bottom: 24px;
+}
+
+.home-web-score-cta {
+  min-width: 140px;
 }
 
 .cric-hero-actions[hidden],
@@ -2610,6 +2615,8 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   .rates-row span { min-width: 0; }
   .action-modal-actions { flex-wrap: wrap; }
   .action-modal-actions > * { min-width: 0; }
+  .home-dashboard .cric-hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-dashboard .home-web-score-cta { grid-column: 1 / -1; justify-self: center; width: min(100%, 180px); }
 }
 
 @media (max-width: 600px) {

@@ -174,6 +174,9 @@ function initializeDialogAccessibility() {
 
 // Landing & Guest Mode Handlers
 function showLandingScreen() {
+  if (window.location.pathname !== '/') {
+    navigateToRoute('/');
+  }
   showScreen('screenLanding');
   renderHomeDashboard();
 }
@@ -1398,7 +1401,7 @@ async function onSelectTeamBChange() {
   }
 }
 
-async function handleCreateMatch() {
+async function handleCreateMatch({ openToss = true } = {}) {
   try {
     const teamAName = document.getElementById('teamAName')?.value?.trim() || 'Team A';
     const teamAColor = document.getElementById('teamAColor')?.value || '#13a968';
@@ -1516,7 +1519,7 @@ async function handleCreateMatch() {
       gullyRules: normalizeGullyRules(tourneyDefaults.gullyRules)
     };
 
-    openTossModal();
+    if (openToss) openTossModal();
   } catch (err) {
     console.error('Failed to create match:', err);
   }
@@ -4995,9 +4998,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateDeviceSyncStatus();
   window.addEventListener('online', updateDeviceSyncStatus);
   window.addEventListener('offline', updateDeviceSyncStatus);
-  window.addEventListener('popstate', handleUrlRouting);
+  window.addEventListener('popstate', () => {
+    if (!handleUrlRouting()) {
+      showScreen('screenLanding');
+      renderHomeDashboard();
+    }
+  });
 
-  // Check URL routing for separate navigation pages (/quick-match, /full-match, /coin-toss, /settings-gully-rules)
+  // Check URL routing for separate navigation pages (/quick-match, /web-score, /full-match, /coin-toss, /settings-gully-rules)
   const isRouted = handleUrlRouting();
 
   // Check URL query parameters for Spectator Live View Mode (?matchId=match_123)
@@ -5226,8 +5234,9 @@ function flipCoinChoice(callChoice) {
     if (winnerSub) winnerSub.innerText = `It landed on ${landedResult.toLowerCase()}. What will they do?`;
     if (decisionBox) decisionBox.hidden = false;
 
-    // Save selected winner team
-    selectedTossWinnerId = (winnerName === teamAName) ? 'TEAM_A' : 'TEAM_B';
+    // Preserve team identity even if both teams use the same display name.
+    const winnerIsA = callerWon ? tossCallerTeam === 'A' : tossCallerTeam !== 'A';
+    selectedTossWinnerId = winnerIsA ? 'TEAM_A' : 'TEAM_B';
   }, 800);
 }
 
@@ -5241,7 +5250,7 @@ function setTossDecisionChoice(decision) {
 }
 
 async function finishWizardAndStartMatch() {
-  await handleCreateMatch();
+  await handleCreateMatch({ openToss: false });
 
   // Trigger toss confirm
   selectedTossDecision = tossDecisionChoice;
