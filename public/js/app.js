@@ -25,6 +25,7 @@ let matchSquadB = []; // Array of { id, name, isCaptain, isViceCaptain }
 let matchGlobalPlayerCache = []; // Cached global players for Create Match directory filtering
 let activeMatchFilter = 'ALL';
 let activeQuickMatchStep = 0;
+let playersDirectoryTab = 'TEAMS';
 
 // Toast Notification System
 function showToast(msg, type = 'info') {
@@ -49,12 +50,13 @@ function updateBottomNavVisibility(screenId) {
   const bottomNav = document.getElementById('bottomNav');
   if (!bottomNav) return;
 
-  const isQuickMode = (activeMatch?.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK');
+  const isQuickMode = (activeMatch?.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK') || isWebScoreMatch();
 
   // Hide bottom navigation bar on Home Page, Landing views, Quick Match wizard, and Quick Match live scoring
   const hideNavScreens = [
     'screenLanding',
     'screenQuickMatchLanding',
+    'screenWebScoreLanding',
     'screenFullMatchLanding',
     'screenNewMatch'
   ];
@@ -224,6 +226,10 @@ function previousQuickMatchStep() {
 
 let currentScoringMode = 'QUICK'; // 'QUICK' | 'FULL'
 
+function isWebScoreMatch(match = activeMatch) {
+  return match?.scoringMode === 'WEBSCORE' || currentScoringMode === 'WEBSCORE';
+}
+
 function startQuickMatch() {
   currentScoringMode = 'QUICK';
   closeFeaturesMenu();
@@ -379,6 +385,8 @@ function switchAuthTab(tab) {
   authTab = tab;
   document.getElementById('authTabLogin').style.background = tab === 'LOGIN' ? 'var(--primary-color)' : 'transparent';
   document.getElementById('authTabRegister').style.background = tab === 'REGISTER' ? 'var(--primary-color)' : 'transparent';
+  document.getElementById('authTabLogin').style.color = 'var(--color-text-on-dark)';
+  document.getElementById('authTabRegister').style.color = 'var(--color-text-on-dark)';
   document.getElementById('authNameGroup').style.display = tab === 'REGISTER' ? 'block' : 'none';
 }
 
@@ -486,6 +494,13 @@ function hexToRgb(hex) {
   return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
+function startWebScore() {
+  currentScoringMode = 'WEBSCORE';
+  closeFeaturesMenu();
+  showNewMatchScreen('WEBSCORE');
+  updateWizardStepUI(0);
+}
+
 function uiColor(token) {
   return getComputedStyle(document.documentElement).getPropertyValue(token).trim();
 }
@@ -570,7 +585,8 @@ async function showTournamentsScreen() {
 async function showPlayersScreen() {
   updateNavState('navPlayers');
   showScreen('screenPlayers');
-  renderPlayers();
+  await Promise.all([renderPlayers(), renderGlobalPlayers()]);
+  setPlayersDirectoryTab(playersDirectoryTab);
 }
 
 function showStatsScreen() {
@@ -1292,6 +1308,11 @@ function normalizePowerplayOvers(powerplayOvers, oversPerInnings) {
 
 async function showNewMatchScreen(mode = 'QUICK') {
   currentScoringMode = mode || 'QUICK';
+  const isFullMatch = currentScoringMode === 'FULL';
+  const isWebScore = currentScoringMode === 'WEBSCORE';
+  document.getElementById('fullMatchSetupIntro')?.toggleAttribute('hidden', !isFullMatch);
+  document.getElementById('fullMatchSquadBuilder')?.toggleAttribute('hidden', !isFullMatch);
+  document.getElementById('webScoreColorControls')?.toggleAttribute('hidden', !isWebScore);
   matchSquadA = [];
   matchSquadB = [];
 
@@ -1996,7 +2017,7 @@ function renderLiveScoring() {
   }
 
   // Toggle UI elements for QUICK mode vs FULL mode during live scoring
-  const isQuickMode = (m.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK');
+  const isQuickMode = (m.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK') || isWebScoreMatch(m);
   const battersCard = document.getElementById('liveBattersCard');
   const bowlerCard = document.getElementById('liveBowlerCard');
   const matchTabsNav = document.querySelector('.match-view-tabs');
@@ -2272,7 +2293,7 @@ function renderLiveScoring() {
 
   // Action Prompt Banner
   const actionBanner = document.getElementById('actionBanner');
-  if (m.status === 'LIVE' && m.pendingAction && m.pendingAction !== 'NONE' && !isReadOnlySpectator) {
+  if (!isWebScoreMatch(m) && m.status === 'LIVE' && m.pendingAction && m.pendingAction !== 'NONE' && !isReadOnlySpectator) {
     actionBanner.style.display = 'block';
     actionBanner.innerText = `Pending Action: ${m.pendingAction.replace(/_/g, ' ')}`;
 
@@ -2539,6 +2560,11 @@ function openPlayerSelection(type) {
 function ensureScoringPlayersSelected() {
   if (!activeMatch || isReadOnlySpectator) return false;
   if (!ensureMatchLiveForScoring()) return false;
+
+  if (isWebScoreMatch()) {
+    activeMatch.pendingAction = 'NONE';
+    return true;
+  }
 
   if (activeMatch.pendingAction && activeMatch.pendingAction !== 'NONE') {
     showToast('Action required: ' + activeMatch.pendingAction.replace(/_/g, ' '), 'warning');
@@ -3120,51 +3146,72 @@ function checkAndShowOverEndModal() {
     showFirstInningsCompleteModal();
     return;
   }
+
   const titleEl = document.getElementById('overEndTitle');
   const bodyEl = document.getElementById('overEndBody');
+  const dismissalsEl = document.getElementById('overEndDismissals');
   const statsEl = document.getElementById('overEndBowlerStats');
-  if (!titleEl || !bodyEl || !statsEl) return;
+  const matchScoresEl = document.getElementById('overEndMatchScores');
+
+  if (!titleEl || !bodyEl) return;
 
   const summaries = window.ScoringEngine.getOverSummaries(activeMatch);
   if (summaries.length === 0) return;
 
   const lastOver = summaries[summaries.length - 1];
   const isBattingA = activeMatch.battingTeamId === activeMatch.teamA?.id;
+  const battingTeam = isBattingA ? activeMatch.teamA : activeMatch.teamB;
   const bowlingTeam = isBattingA ? activeMatch.teamB : activeMatch.teamA;
   const lastBowler = (bowlingTeam?.players || []).find(p => p.id === activeMatch.lastBowlerId);
 
   titleEl.innerText = `End of Over ${lastOver.overNumber}`;
-  bodyEl.innerText = `Runs in Over: ${lastOver.runs} | Wickets: ${lastOver.wickets}`;
 
-  const matchScoresEl = document.getElementById('overEndMatchScores');
   if (matchScoresEl) {
-    const battingTeam = [activeMatch.teamA, activeMatch.teamB].find(team => team?.id === activeMatch.battingTeamId);
-    matchScoresEl.innerText = `${battingTeam?.name || 'Batting team'}  ${activeMatch.totalRuns || 0}/${activeMatch.totalWickets || 0}`;
+    const teamRuns = lastOver.teamTotalRuns ?? activeMatch.totalRuns ?? 0;
+    const teamWkts = lastOver.teamTotalWickets ?? activeMatch.totalWickets ?? 0;
+    matchScoresEl.innerText = `${battingTeam?.name || 'Batting team'} ${teamRuns}/${teamWkts} (${lastOver.overNumber}.0 ov)`;
   }
 
-  if (lastBowler) {
-    const stats = lastBowler.bowlingStats || { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
-    statsEl.innerText = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts`;
-  } else {
-    statsEl.innerText = '';
+  bodyEl.innerText = `Runs in Over: ${lastOver.runs}`;
+
+  // Extract dismissals in this over
+  if (dismissalsEl) {
+    let dismissalTexts = [];
+    (lastOver.balls || []).forEach(b => {
+      if (b.wicketType && b.wicketType !== 'NONE' && b.wicketType !== 'RETIRED_HURT') {
+        const dismissedPlayer = (battingTeam?.players || []).find(p => p.id === b.dismissedPlayerId || p.id === b.strikerId);
+        const playerTitle = dismissedPlayer?.name || 'Batter';
+        const typeTitle = b.wicketType.replace(/_/g, ' ');
+        dismissalTexts.push(`${playerTitle} (${typeTitle})`);
+      }
+    });
+
+    if (dismissalTexts.length > 0) {
+      dismissalsEl.innerText = `Dismissal: ${dismissalTexts.join(', ')}`;
+      dismissalsEl.style.color = 'var(--color-danger)';
+    } else {
+      dismissalsEl.innerText = 'Dismissal: None';
+      dismissalsEl.style.color = 'var(--text-muted)';
+    }
+  }
+
+  if (statsEl) {
+    if (lastBowler) {
+      const stats = lastBowler.bowlingStats || { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
+      statsEl.innerText = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts`;
+    } else {
+      statsEl.innerText = '';
+    }
   }
 
   const continueBtn = document.getElementById('overEndContinueBtn');
   if (continueBtn) {
-    const action = activeMatch.pendingAction;
-    if (action === 'SELECT_BOWLER' || action === 'REPLACE_BOWLER') {
-      continueBtn.innerText = 'Select Next Bowler';
-    } else if (action === 'SELECT_STRIKER' || action === 'REPLACE_STRIKER' || action === 'SELECT_NON_STRIKER' || action === 'REPLACE_NON_STRIKER') {
-      continueBtn.innerText = 'Select Next Batter';
-    } else if (action === 'START_SECOND_INNINGS') {
-      continueBtn.innerText = 'Continue';
-    } else {
-      continueBtn.innerText = 'Continue';
-    }
+    continueBtn.innerText = 'Continue (Auto-closes in 5s)';
   }
 
   if (overEndDismissTimer) clearTimeout(overEndDismissTimer);
   openPrimaryActionModal('overEndModal');
+
   overEndDismissTimer = setTimeout(() => {
     overEndDismissTimer = null;
     closeOverEndModal();
@@ -4208,6 +4255,55 @@ async function renderPlayers() {
   });
 }
 
+async function renderGlobalPlayers() {
+  const container = document.getElementById('globalPlayersContainer');
+  if (!container) return;
+
+  const players = (await window.CricStorage.listGlobalPlayers())
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare((b.name || ''), undefined, { sensitivity: 'base' }));
+
+  container.replaceChildren();
+  if (!players.length) {
+    container.innerHTML = '<div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--color-surface-muted); border-radius:12px; border:1px solid var(--color-border);">No global players yet. Add a player to use them in Full Match squads.</div>';
+    return;
+  }
+
+  players.forEach(player => {
+    const card = document.createElement('div');
+    card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:12px; padding:12px; margin-bottom:8px;';
+    const details = document.createElement('div');
+    const name = document.createElement('div');
+    name.style.cssText = 'font-size:14px; font-weight:800; color:var(--color-text);';
+    name.textContent = player.name || 'Player';
+    const role = document.createElement('div');
+    role.style.cssText = 'font-size:11px; color:var(--text-muted); margin-top:2px;';
+    role.textContent = `${player.role || 'Batter'}${player.style ? ` · ${player.style}` : ''}`;
+    details.append(name, role);
+    const edit = document.createElement('button');
+    edit.className = 'btn';
+    edit.style.cssText = 'width:auto; padding:6px 10px; font-size:12px; background:var(--color-surface-muted); color:var(--color-text); border-color:var(--color-border);';
+    edit.textContent = 'Edit';
+    edit.addEventListener('click', () => editGlobalPlayer(player.id));
+    card.append(details, edit);
+    container.appendChild(card);
+  });
+}
+
+function setPlayersDirectoryTab(tab) {
+  if (!['TEAMS', 'GLOBAL'].includes(tab)) return;
+  playersDirectoryTab = tab;
+  const showGlobal = tab === 'GLOBAL';
+  document.getElementById('playersContainer').hidden = showGlobal;
+  document.getElementById('globalPlayersContainer').hidden = !showGlobal;
+  document.getElementById('playersCreateTeamBtn').hidden = showGlobal;
+  document.getElementById('playersAddGlobalBtn').hidden = !showGlobal;
+  const teamsTab = document.getElementById('playersTabTeams');
+  const globalTab = document.getElementById('playersTabGlobal');
+  if (teamsTab) teamsTab.style.background = showGlobal ? 'transparent' : 'var(--primary-color)';
+  if (globalTab) globalTab.style.background = showGlobal ? 'var(--primary-color)' : 'transparent';
+}
+
 function toggleTeamSquadView(teamId) {
   const squadEl = document.getElementById(`teamSquad_${teamId}`);
   if (squadEl) {
@@ -5145,7 +5241,6 @@ function setTossDecisionChoice(decision) {
 }
 
 async function finishWizardAndStartMatch() {
-  currentScoringMode = 'QUICK';
   await handleCreateMatch();
 
   // Trigger toss confirm
@@ -5156,7 +5251,7 @@ async function finishWizardAndStartMatch() {
     activeMatch.teamA.name = teamAName;
     activeMatch.teamB.name = teamBName;
 
-    activeMatch.scoringMode = 'QUICK';
+    activeMatch.scoringMode = currentScoringMode || 'QUICK';
 
     if (selectedTossWinnerId === 'TEAM_B') {
       activeMatch.tossWinnerId = activeMatch.teamB.id;
@@ -5272,6 +5367,12 @@ function showQuickMatchLandingScreen() {
   showScreen('screenQuickMatchLanding');
 }
 
+function showWebScoreLandingScreen() {
+  closeFeaturesMenu();
+  navigateToRoute('/web-score');
+  showScreen('screenWebScoreLanding');
+}
+
 function showFullMatchLandingScreen() {
   closeFeaturesMenu();
   navigateToRoute('/full-match');
@@ -5296,6 +5397,9 @@ function handleUrlRouting() {
   if (path.includes('/quick-match') || search.includes('quick-match') || hash.includes('quick-match')) {
     showQuickMatchLandingScreen();
     return true;
+  } else if (path.includes('/web-score') || search.includes('web-score') || hash.includes('web-score')) {
+    showWebScoreLandingScreen();
+    return true;
   } else if (path.includes('/full-match') || search.includes('full-match') || hash.includes('full-match')) {
     showFullMatchLandingScreen();
     return true;
@@ -5313,10 +5417,12 @@ function handleUrlRouting() {
 window.toggleFeaturesMenu = toggleFeaturesMenu;
 window.closeFeaturesMenu = closeFeaturesMenu;
 window.showQuickMatchLandingScreen = showQuickMatchLandingScreen;
+window.showWebScoreLandingScreen = showWebScoreLandingScreen;
 window.showFullMatchLandingScreen = showFullMatchLandingScreen;
 window.navigateToRoute = navigateToRoute;
 window.handleUrlRouting = handleUrlRouting;
 window.startQuickMatch = startQuickMatch;
+window.startWebScore = startWebScore;
 window.startFullMatch = startFullMatch;
 window.viewAllMatches = viewAllMatches;
 window.startWebScorerWizard = startWebScorerWizard;

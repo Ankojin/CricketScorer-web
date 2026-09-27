@@ -56,6 +56,14 @@
         </div>
       </button>
 
+      <button class="feature-item" type="button" onclick="closeFeaturesMenu(); showWebScoreLandingScreen();">
+        <span class="feature-icon bg-accent">⚡</span>
+        <div class="feature-info">
+          <strong>WebScore</strong>
+          <small>Score Free In your Browser</small>
+        </div>
+      </button>
+
       <button id="featureFullMatchBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showFullMatchLandingScreen();">
         <span class="feature-icon bg-emerald">📋</span>
         <div class="feature-info">
@@ -249,6 +257,20 @@
       </div>
     </div>
 
+    <!-- Screen 0.45: WebScore Landing (/web-score) -->
+    <div id="screenWebScoreLanding" class="screen">
+      <div class="cric-hero">
+        <div class="cric-hero-content">
+          <div class="cric-hero-badge"><span class="badge-dot"></span> FREE WEB SCORER</div>
+          <h1 class="cric-hero-title">SCORE FREE.<br><span class="highlight-green">IN YOUR BROWSER.</span></h1>
+          <p class="cric-hero-summary">Enter team names and colors, set overs, toss, then score every ball. No player or bowler selection required.</p>
+          <div class="cric-hero-actions" style="margin-top:24px;">
+            <button class="cric-btn cric-btn-primary" type="button" onclick="startWebScore()">⚡ Start WebScore →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Screen 0.5: Full Match Mode Landing (/full-match) -->
     <div id="screenFullMatchLanding" class="screen">
       <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
@@ -326,32 +348,52 @@
       </div>
 
       <div class="wizard-card">
+        <div id="fullMatchSetupIntro" hidden style="margin-bottom:20px; padding:12px; background:var(--color-primary-soft); border:1px solid var(--color-border-dark); border-radius:12px;">
+          <div style="font-size:12px; font-weight:800; color:var(--color-electric); text-transform:uppercase; letter-spacing:.06em;">Full Match setup</div>
+          <div style="font-size:12px; color:var(--color-text-on-dark); margin-top:4px;">Build named squads for detailed scorecards and player statistics.</div>
+        </div>
 
         <!-- STEP 1: TEAMS -->
         <div id="wizardPanelTeams" class="wizard-step-panel" data-step-panel="0">
           <div class="team-input-group">
-            <label class="team-input-label">TEAM A</label>
+            <label class="team-input-label" for="teamAName">TEAM A</label>
             <div class="team-input-row">
-              <span class="team-dot" style="background:#2563eb;"></span>
+              <input type="color" id="teamAColor" class="team-color-picker" value="#2563eb" title="Team A Color" onchange="syncTeamColorDot('A')">
               <input type="text" id="teamAName" class="form-control team-name-input" value="Team A" placeholder="Team A Name" oninput="syncTeamNamesToTossUI()">
-              <input type="color" id="teamAColor" value="#2563eb" style="display:none;">
             </div>
           </div>
 
           <div class="team-input-divider"></div>
 
           <div class="team-input-group">
-            <label class="team-input-label">TEAM B</label>
+            <label class="team-input-label" for="teamBName">TEAM B</label>
             <div class="team-input-row">
-              <span class="team-dot" style="background:#0284c7;"></span>
+              <input type="color" id="teamBColor" class="team-color-picker" value="#0284c7" title="Team B Color" onchange="syncTeamColorDot('B')">
               <input type="text" id="teamBName" class="form-control team-name-input" value="Team B" placeholder="Team B Name" oninput="syncTeamNamesToTossUI()">
-              <input type="color" id="teamBColor" value="#0284c7" style="display:none;">
             </div>
           </div>
+          </div>
 
-          <!-- Optional squad list backing inputs -->
-          <div id="teamASquadList" hidden></div>
-          <div id="teamBSquadList" hidden></div>
+          <div id="fullMatchSquadBuilder" hidden style="margin-top:20px;">
+            <div class="team-builder-block">
+              <label class="team-input-label" for="selectTeamA">TEAM A SQUAD</label>
+              <select id="selectTeamA" class="form-control" onchange="onSelectTeamAChange()"><option value="">-- Select saved Team A --</option></select>
+              <div style="display:flex; gap:8px; margin-top:8px;">
+                <input id="newPlayerInputA" class="form-control" placeholder="Add Team A player" onkeydown="if(event.key==='Enter'){event.preventDefault();addTypedPlayerToSquad('A');}">
+                <button type="button" class="btn-primary" style="width:auto; padding:8px 12px;" onclick="addTypedPlayerToSquad('A')">Add</button>
+              </div>
+              <div id="teamASquadList" style="margin-top:10px;"></div>
+            </div>
+            <div class="team-builder-block">
+              <label class="team-input-label" for="selectTeamB">TEAM B SQUAD</label>
+              <select id="selectTeamB" class="form-control" onchange="onSelectTeamBChange()"><option value="">-- Select saved Team B --</option></select>
+              <div style="display:flex; gap:8px; margin-top:8px;">
+                <input id="newPlayerInputB" class="form-control" placeholder="Add Team B player" onkeydown="if(event.key==='Enter'){event.preventDefault();addTypedPlayerToSquad('B');}">
+                <button type="button" class="btn-primary" style="width:auto; padding:8px 12px;" onclick="addTypedPlayerToSquad('B')">Add</button>
+              </div>
+              <div id="teamBSquadList" style="margin-top:10px;"></div>
+            </div>
+          </div>
 
           <button class="wizard-next-btn" type="button" onclick="goToWizardOversStep()">
             Next: overs →
@@ -619,13 +661,17 @@
     <div id="screenPlayers" class="screen">
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-          <h3 style="font-size:18px; font-weight:800; color:var(--color-text);">Saved Teams & Roster Directory</h3>
-          <div>
-            <button class="btn-primary" style="width:auto; padding:8px 14px; font-size:12px;" onclick="openNewTeamModal()">+ Create Team</button>
-          </div>
+          <h3 style="font-size:18px; font-weight:800; color:var(--color-text);">Teams & Player Directory</h3>
+          <button id="playersCreateTeamBtn" class="btn-primary" style="width:auto; padding:8px 14px; font-size:12px;" onclick="openNewTeamModal()">+ Create Team</button>
+          <button id="playersAddGlobalBtn" class="btn-primary" hidden style="width:auto; padding:8px 14px; font-size:12px;" onclick="openNewPlayerModal()">+ Add Player</button>
         </div>
 
+        <div style="display:flex; gap:6px; margin-bottom:14px; background:var(--color-primary); padding:4px; border-radius:10px; border:1px solid var(--card-border);">
+          <button id="playersTabTeams" class="btn" style="flex:1; padding:8px; font-size:12px; background:var(--primary-color); color:var(--color-text-on-dark);" onclick="setPlayersDirectoryTab('TEAMS')">Teams</button>
+          <button id="playersTabGlobal" class="btn" style="flex:1; padding:8px; font-size:12px; background:transparent; color:var(--color-text-on-dark);" onclick="setPlayersDirectoryTab('GLOBAL')">Global Players</button>
+        </div>
         <div id="playersContainer"></div>
+        <div id="globalPlayersContainer" hidden></div>
       </div>
     </div>
 
@@ -851,12 +897,14 @@
   </div>
 
   <div id="overEndModal" class="modal-overlay">
-    <div class="modal">
-      <h3 id="overEndTitle" style="margin-bottom:8px;">End of Over</h3>
-      <div id="overEndMatchScores" style="font-size:21px; font-weight:900; color:var(--color-primary); margin-bottom:10px;"></div>
-      <div id="overEndBody" style="font-size:15px; font-weight:700; margin-bottom:8px;">Runs in Over: 0 | Wickets: 0</div>
-      <div id="overEndBowlerStats" style="font-size:13px; color:var(--text-muted); margin-bottom:16px;"></div>
-      <button id="overEndContinueBtn" class="btn-primary" onclick="closeOverEndModal()">Continue</button>
+    <div class="modal" style="text-align:center; padding:24px 20px;">
+      <div style="font-size:36px; margin-bottom:6px;">⚾</div>
+      <h3 id="overEndTitle" style="margin-bottom:8px; font-size:22px; font-weight:800; color:var(--color-text);">End of Over 1</h3>
+      <div id="overEndMatchScores" style="font-size:22px; font-weight:900; color:var(--color-primary); margin-bottom:8px;">Team A 12/0 (1.0 ov)</div>
+      <div id="overEndBody" style="font-size:16px; font-weight:800; color:var(--color-text); margin-bottom:8px;">Runs in Over: 12</div>
+      <div id="overEndDismissals" style="font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:12px;">Dismissal: None</div>
+      <div id="overEndBowlerStats" style="font-size:12px; color:var(--text-muted); margin-bottom:20px;"></div>
+      <button id="overEndContinueBtn" class="btn-primary" onclick="closeOverEndModal()">Continue (Auto-closes in 5s)</button>
     </div>
   </div>
 

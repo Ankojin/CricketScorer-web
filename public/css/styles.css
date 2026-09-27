@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
   /* CricScore Pro — Navy + Electric Green */
   --color-primary: #071B33;
@@ -12,17 +12,17 @@
   --color-green-dark: #087A4A;
   --color-green-soft: #D1FAE5;
 
-  --color-background: #F4F7FA;
-  --color-surface: #FFFFFF;
-  --color-surface-soft: #EAF0F5;
-  --color-surface-raised: #FFFFFF;
+  --color-background: #041326;
+  --color-surface: #071B33;
+  --color-surface-soft: #0D2A4A;
+  --color-surface-raised: #0D2A4A;
 
-  --color-text: #122033;
-  --color-text-muted: #64748B;
+  --color-text: #F8FAFC;
+  --color-text-muted: #B5C4D5;
   --color-text-subtle: #94A3B8;
   --color-text-on-dark: #F8FAFC;
 
-  --color-border: #D7E0EA;
+  --color-border: #29415B;
   --color-border-dark: #29415B;
 
   --color-success: #13A968;
@@ -31,11 +31,11 @@
   --color-error: #D92D20;
   --color-info: #38BDF8;
 
-  --color-success-soft: #D1FAE5;
+  --color-success-soft: rgba(19, 169, 104, .2);
   --color-danger: var(--color-error);
-  --color-danger-soft: #FEE2E2;
-  --color-warning-soft: #FEF3C7;
-  --color-info-soft: #E0F2FE;
+  --color-danger-soft: rgba(217, 45, 32, .2);
+  --color-warning-soft: rgba(245, 158, 11, .2);
+  --color-info-soft: rgba(56, 189, 248, .2);
   --color-live-soft: rgba(57, 245, 122, 0.16);
 
   --radius-sm: 8px;
@@ -513,6 +513,17 @@ html.has-app-session #homeDashboard { display: block !important; }
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.team-color-picker {
+  width: 40px;
+  height: 40px;
+  padding: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 /* CricScore Pro Original Hero Section */
@@ -1084,7 +1095,7 @@ html.has-app-session #homeDashboard { display: block !important; }
 .overs-display-num {
   font-size: 56px;
   font-weight: 900;
-  color: var(--color-primary);
+  color: var(--color-electric);
   min-width: 80px;
   text-align: center;
 }
@@ -1100,9 +1111,9 @@ html.has-app-session #homeDashboard { display: block !important; }
   min-width: 48px;
   height: 42px;
   border-radius: 999px;
-  background: var(--color-surface);
-  border: 1.5px solid var(--color-border);
-  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border: 1.5px solid var(--color-border-dark);
+  color: var(--color-text-on-dark);
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
@@ -1258,9 +1269,9 @@ html.has-app-session #homeDashboard { display: block !important; }
 .toss-decision-btn {
   min-height: 48px;
   border-radius: 999px;
-  border: 1.5px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-primary);
+  border: 1.5px solid var(--color-border-dark);
+  background: var(--color-primary-soft);
+  color: var(--color-text-on-dark);
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
@@ -1926,6 +1937,11 @@ button.quick-match-progress-step { cursor: pointer; }
   font-weight: 800;
   cursor: pointer;
   text-align: center;
+}
+
+#authTabLogin,
+#authTabRegister {
+  color: var(--color-text-on-dark);
 }
 
 .btn:active {
