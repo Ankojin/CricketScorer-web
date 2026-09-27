@@ -226,7 +226,10 @@ function renderScorecardInnings(tab) {
   const battingTeam = isBattingA ? m.teamA : m.teamB;
   const bowlingTeam = isBattingA ? m.teamB : m.teamA;
 
-  let batHtml = (battingTeam?.players || []).map(p => {
+  let batHtml = (battingTeam?.players || []).filter(p => {
+    const s = p.battingStats || {};
+    return Number(s.balls || 0) > 0 || Number(s.runs || 0) > 0 || s.isOut || s.isRetiredHurt;
+  }).map(p => {
     const s = p.battingStats || { runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, wicketType: 'NONE' };
     const sr = s.balls > 0 ? ((s.runs / s.balls) * 100).toFixed(1) : '0.0';
     const status = formatDismissalText(s, bowlingTeam);
@@ -251,7 +254,11 @@ function renderScorecardInnings(tab) {
     `;
   }).join('');
 
-  let bowlHtml = (bowlingTeam?.players || []).map(p => {
+  let bowlHtml = (bowlingTeam?.players || []).filter(p => {
+    const s = p.bowlingStats || {};
+    return Number(s.overs || 0) > 0 || Number(s.balls || 0) > 0 || Number(s.maidens || 0) > 0
+      || Number(s.runsConceded || 0) > 0 || Number(s.wickets || 0) > 0;
+  }).map(p => {
     const s = p.bowlingStats || { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
     const totalOversDec = s.overs + (s.balls / 6);
     const eco = totalOversDec > 0 ? (s.runsConceded / totalOversDec).toFixed(2) : '0.00';
@@ -276,44 +283,7 @@ function renderScorecardInnings(tab) {
   }).join('');
 
   const history = m.wicketHistory || [];
-  const indexedOvers = getOverGroupsWithIndices(m);
   const statusColor = m.status === 'COMPLETED' ? 'var(--color-success)' : (m.status === 'ABANDONED' ? 'var(--color-warning)' : 'var(--color-info)');
-  const scorecardHistoryHtml = indexedOvers.length === 0
-    ? '<div style="font-size:12px; color:var(--text-muted);">No balls recorded yet.</div>'
-    : indexedOvers.slice().reverse().map(o => {
-      const chips = (o.balls || []).map(({ ball, index }) => {
-        let label = ball.runs;
-        let cls = 'ball-chip';
-        if (ball.isAdjustment && ball.adjustmentSlot === 'SWAP') { label = 'SWP'; cls += ' extra'; }
-        else if (ball.wicketType && ball.wicketType !== 'NONE') { label = ball.wicketType === 'RETIRED_HURT' ? 'RET' : 'W'; cls += ' wicket'; }
-        else if (ball.isDroppedCatch || ball.wasDroppedCatch) { label = `DC${ball.runs || 0}`; cls += ' extra'; }
-        else if (ball.runs === 4) cls += ' four';
-        else if (ball.runs === 6) cls += ' six';
-        else if (ball.runs === 1 && ball.rotateStrike === false) { label = '1G'; }
-        else if (ball.extrasType === 'GRANTED') { label = '1G'; cls += ' extra'; }
-        else if (ball.extrasType === 'WIDE') { label = `${ball.extraRuns ?? 1}WD`; cls += ' extra'; }
-        else if (ball.extrasType === 'NO_BALL') {
-          const total = (ball.runs || 0) + (ball.extraRuns || 1);
-          label = total > 1 ? `${total}NB` : 'NB';
-          cls += ' extra';
-        }
-        else if (ball.extrasType === 'BYE') { label = `${ball.extraRuns ?? 0}B`; cls += ' extra'; }
-        else if (ball.extrasType === 'LEG_BYE') { label = `${ball.extraRuns ?? 0}LB`; cls += ' extra'; }
-
-        const editAttr = (!isReadOnlySpectator && !ball.isAdjustment && !isInningsView)
-          ? ` onclick="openEditBallModal(${index})" title="Edit ball" style="cursor:pointer;"`
-          : '';
-        return `<div class="${cls}"${editAttr}>${label}</div>`;
-      }).join('');
-
-      return `
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-top:8px;">
-          <div style="font-size:12px; color:var(--color-text); font-weight:700; min-width:72px;">Over ${o.overNumber}${o.isPartial ? ' *' : ''}</div>
-          <div style="display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end;">${chips}</div>
-        </div>
-      `;
-    }).join('');
-
   content.innerHTML = `
     <div style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
       <b>View:</b> ${inningsLabel} | <b>Match Status:</b> <span style="color:${statusColor};">${baseMatch.status || 'LIVE'}</span> | <b>Score:</b> ${m.totalRuns}/${m.totalWickets} (${Math.floor((m.totalBalls||0)/6)}.${(m.totalBalls||0)%6} Ov)
@@ -334,9 +304,6 @@ function renderScorecardInnings(tab) {
       </thead>
       <tbody>${bowlHtml}</tbody>
     </table></div>
-
-    <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-top:16px;">Ball History ${(isReadOnlySpectator || isInningsView) ? '' : '(Tap to Edit)'}</h4>
-    <div style="background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:8px; padding:10px;">${scorecardHistoryHtml}</div>
 
     <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-top:16px;">Fall of Wickets</h4>
     <ul style="padding-left:18px; margin-top:6px; font-size:12px; line-height:1.6; color:var(--text-muted);">
@@ -372,6 +339,13 @@ function renderOvers() {
       balls: allHistory.slice(splitIdx),
       indexOffset: splitIdx
     });
+  }
+
+  // Switch to the new innings once at transition, while preserving manual tab selection afterward.
+  const currentInningsKey = `${activeMatch.currentInnings || 1}`;
+  if (container?.dataset.currentInnings !== currentInningsKey) {
+    activeOversInningsTab = currentInningsKey === '2' ? 'INNINGS2' : 'INNINGS1';
+    if (container) container.dataset.currentInnings = currentInningsKey;
   }
 
   const inningsHtml = innings.map(inningsView => {
@@ -423,8 +397,8 @@ function renderOvers() {
             <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">${chipsHtml}</div>
           </div>
           <div style="text-align:right; flex-shrink:0;">
-            <div style="font-size:16px; font-weight:800; color:var(--accent-color);">${over.runs} Runs</div>
-            <div style="font-size:11px; color:var(--text-muted);">Innings: ${over.teamTotalRuns}/${over.teamTotalWickets}</div>
+            <div style="font-size:15px; font-weight:800; color:var(--accent-color);">Over: ${over.runs} runs${over.wickets ? ` / ${over.wickets} wkts` : ''}</div>
+            <div style="font-size:11px; color:var(--text-muted);">${inningsView.label}: ${inningsView.battingTeam?.name || 'Team'} ${over.teamTotalRuns}/${over.teamTotalWickets}</div>
           </div>
         </div>
       `;

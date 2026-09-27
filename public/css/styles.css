@@ -2147,7 +2147,7 @@ button.quick-match-progress-step { cursor: pointer; }
 .live-score-hero .score-main {
   margin: 3px 0;
   color: var(--color-text-on-dark) !important;
-  font-size: clamp(58px, 15vw, 76px);
+  font-size: clamp(46px, 10vw, 60px);
   letter-spacing: -.045em;
   line-height: 1;
 }
@@ -2687,7 +2687,7 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 .web-score-compact #mainScoreCard .score-main {
   margin: 1px 0;
-  font-size: clamp(46px, 12vw, 58px);
+  font-size: clamp(40px, 9vw, 50px);
 }
 .web-score-compact #mainScoreCard .overs-main { font-size: 14px; }
 .web-score-compact #mainScoreCard .rates-row { gap: 6px; margin-top: 2px; }
@@ -2700,6 +2700,63 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .web-score-compact #scoringKeypad .btn-undo { grid-column: span 2; min-height: 50px; margin-top: 0; }
 .web-score-compact #scoringKeypad .btn-wicket { font-size: 16px; }
 .web-score-compact #scoringKeypad .btn-undo { font-size: 13px; }
+
+.score-header-live-button {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  margin: 7px auto 1px;
+  padding: 3px 13px;
+  color: var(--color-primary-deep);
+  background: var(--color-live);
+  border: 1px solid var(--color-electric);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+.score-header-live-button span { color: var(--color-primary-deep); font-size: 9px; }
+.score-header-live-button:hover { filter: brightness(1.04); }
+.live-score-team-row { flex-wrap: wrap; font-size: 14px !important; }
+.live-swap-button {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 34px;
+  margin-top: -7px;
+  color: var(--color-electric);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-green);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: .12em;
+  cursor: pointer;
+}
+.live-swap-button:hover { background: var(--color-primary-soft); }
+.scoring-extra-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  grid-column: 1 / -1;
+  margin-top: -7px;
+}
+.scoring-extra-actions .btn {
+  min-width: 0;
+  min-height: 38px;
+  padding: 5px 3px;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: normal;
+}
 
 .web-score-innings-break .first-innings-modal {
   width: min(100% - 28px, 560px);
@@ -2933,10 +2990,16 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   .form-control { font-size: 16px; }
   .container { width: 100%; padding-right: 10px; padding-left: 10px; }
   .live-score-hero { padding-right: 13px; padding-left: 13px; }
+  .live-score-hero { gap: 3px; padding-top: 11px; padding-bottom: 11px; }
+  .live-score-hero .score-main { font-size: clamp(42px, 13vw, 54px); }
+  .live-score-hero .overs-main { font-size: 14px; }
+  .live-score-team-row { gap: 5px !important; font-size: 12px !important; }
   .keypad-grid { gap: 7px; }
   .keypad-grid .btn { min-height: 56px; padding: 8px 3px; font-size: 20px; }
   .keypad-grid .btn-wicket { min-height: 58px; }
   .keypad-grid .btn-undo { min-height: 48px; }
+  .scoring-extra-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+  .scoring-extra-actions .btn { min-height: 36px; font-size: 10px; }
 }
 
 @media (max-width: 360px) {

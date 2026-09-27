@@ -224,43 +224,24 @@ function renderLiveScoring() {
   const scoringKeypad = document.getElementById('scoringKeypad');
   const goLiveBtn = document.getElementById('goLiveBtn');
   const btnSwapBatsmen = document.getElementById('btnSwapBatsmen');
-  const liveMoreMenu = document.getElementById('liveMoreMenu');
-  const webScoreActions = document.getElementById('webScoreActions');
+  const extraScoringActions = document.getElementById('scoringExtraActions');
   const isWebScore = isWebScoreMatch(m);
   const isScoringLockedByStatus = m.status === 'COMPLETED' || m.status === 'ABANDONED';
   const isSingleSideBatting = Boolean(m.gullyRules?.singleSideBatting);
-  document.querySelectorAll('[data-live-more-scoring]').forEach(button => {
-    button.style.display = isScoringLockedByStatus ? 'none' : '';
-  });
-
   if (isReadOnlySpectator) {
     if (spectatorBanner) spectatorBanner.style.display = 'block';
     if (scoringKeypad) scoringKeypad.style.display = 'none';
-    if (liveMoreMenu) liveMoreMenu.style.display = 'none';
-    if (webScoreActions) webScoreActions.hidden = true;
     if (goLiveBtn) goLiveBtn.style.display = 'none';
     if (btnSwapBatsmen) btnSwapBatsmen.style.display = 'none';
+    if (extraScoringActions) extraScoringActions.style.display = 'none';
   } else {
     if (spectatorBanner) spectatorBanner.style.display = 'none';
     if (scoringKeypad) scoringKeypad.style.display = isScoringLockedByStatus ? 'none' : 'grid';
-    if (liveMoreMenu) liveMoreMenu.style.display = isWebScore ? 'none' : 'block';
-    if (webScoreActions) webScoreActions.hidden = !isWebScore || isScoringLockedByStatus;
-    if (goLiveBtn) goLiveBtn.style.display = 'block';
-    if (btnSwapBatsmen) btnSwapBatsmen.style.display = (isScoringLockedByStatus || isSingleSideBatting) ? 'none' : 'flex';
+    if (goLiveBtn) goLiveBtn.style.display = isScoringLockedByStatus ? 'none' : 'flex';
+    if (extraScoringActions) extraScoringActions.style.display = isScoringLockedByStatus ? 'none' : 'grid';
   }
 
   // Last Saved Tag
-  const shareBtn = document.getElementById('shareWhatsAppBtn');
-  if (shareBtn) {
-    if (window.CricStorage && window.CricStorage.isGuestUser()) {
-      shareBtn.title = 'Sign in to share live scores across devices';
-      shareBtn.style.opacity = '0.7';
-    } else {
-      shareBtn.title = 'Share live spectator score link';
-      shareBtn.style.opacity = '1';
-    }
-  }
-
   const lastSavedTag = document.getElementById('lastSavedTag');
   if (lastSavedTag) {
     const timeStr = m.updatedAt ? new Date(m.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now';
@@ -269,6 +250,9 @@ function renderLiveScoring() {
 
   // Toggle UI elements for QUICK mode vs FULL mode during live scoring
   const isQuickMode = (m.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK') || isWebScoreMatch(m);
+  if (btnSwapBatsmen) {
+    btnSwapBatsmen.style.display = isScoringLockedByStatus || isSingleSideBatting || isQuickMode ? 'none' : 'flex';
+  }
   const activeScoringContainer = document.getElementById('liveScoringActiveContainer');
   if (activeScoringContainer) activeScoringContainer.classList.toggle('web-score-compact', isWebScore);
   document.querySelectorAll('[data-webscore-extra]').forEach(button => {
@@ -326,7 +310,7 @@ function renderLiveScoring() {
       <div style="margin-bottom:8px;">
         <span style="background:${battingTeamColor}; color:var(--color-text-on-dark); font-size:11px; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block; letter-spacing:0.5px; box-shadow:0 2px 8px rgba(0,0,0,0.3);">🏏 ${battingTeam?.name?.toUpperCase() || ''} BATTING</span>
       </div>
-      <div style="font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px;">
+      <div class="live-score-team-row" style="font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px;">
         <span style="color:${teamAColor}; border-bottom:2px solid ${teamAColor}; padding-bottom:1px; display:inline-flex; align-items:center; gap:4px;">
           <span class="team-badge" style="background:${teamAColor};"></span>${m.teamA?.name || 'Team A'}
         </span>
@@ -335,6 +319,7 @@ function renderLiveScoring() {
           <span class="team-badge" style="background:${teamBColor};"></span>${m.teamB?.name || 'Team B'}
         </span>
       </div>
+      <button id="goLiveBtn" class="score-header-live-button" type="button" onclick="goLiveShare()"><span aria-hidden="true">●</span> LIVE</button>
       <div style="font-size:12px; color:var(--text-muted); font-weight:600; margin-top:6px;">
         Batting: <span style="color:${battingTeamColor}; font-weight:800;">${battingTeam?.name || ''}</span>${tossStr}
       </div>
@@ -345,7 +330,7 @@ function renderLiveScoring() {
   const scoreMainEl = document.getElementById('scoreMain');
   if (scoreMainEl) {
     scoreMainEl.innerText = `${m.totalRuns || 0}/${m.totalWickets || 0}`;
-    scoreMainEl.style.color = battingTeamColor;
+    scoreMainEl.style.color = 'var(--color-text)';
   }
 
   const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;

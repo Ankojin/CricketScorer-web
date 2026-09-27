@@ -529,6 +529,7 @@
             </tbody>
           </table>
         </div>
+        <button id="btnSwapBatsmen" class="live-swap-button" type="button" onclick="swapBatsmen()" aria-label="Swap batter ends">SWAP</button>
 
         <!-- Active Bowler Card -->
         <div id="liveBowlerCard" class="card live-data-card" style="padding:12px 16px;">
@@ -555,30 +556,6 @@
           Pending Action
         </div>
 
-        <!-- Less frequent scoring and match actions -->
-        <details id="liveMoreMenu" class="live-more-menu">
-          <summary>More actions</summary>
-          <div class="live-more-grid">
-            <button class="live-more-action" data-live-more-scoring type="button" onclick="closeLiveMoreMenu(); addGrantedRun()">1G · Granted run</button>
-            <button id="btnSwapBatsmen" class="live-more-action" data-live-more-scoring type="button" onclick="closeLiveMoreMenu(); swapBatsmen()">SWAP · Change ends</button>
-            <button class="live-more-action" data-live-more-scoring type="button" onclick="closeLiveMoreMenu(); addExtra('BYE')">BYE</button>
-            <button class="live-more-action" data-live-more-scoring type="button" onclick="closeLiveMoreMenu(); addExtra('LEG_BYE')">LEG_BYE</button>
-            <button class="live-more-action" data-live-more-scoring type="button" onclick="closeLiveMoreMenu(); openOtherRunsModal()">OT · Other runs</button>
-            <button class="live-more-action" data-live-more-scoring type="button" onclick="closeLiveMoreMenu(); openDroppedCatchModal()">DROP · Dropped catch</button>
-            <button class="live-more-action" data-live-more-scoring type="button" onclick="closeLiveMoreMenu(); handleRetireBatter()">RETIRE · Retire striker</button>
-            <button id="goLiveBtn" class="live-more-action" type="button" onclick="closeLiveMoreMenu(); goLiveShare()">🔗 Live link</button>
-            <button id="shareWhatsAppBtn" class="live-more-action" type="button" onclick="closeLiveMoreMenu(); shareLiveScoreWhatsApp()">📲 Share live score</button>
-            <button class="live-more-action" type="button" onclick="closeLiveMoreMenu(); showScorecardScreen()">📊 Scorecard</button>
-            <button class="live-more-action" type="button" onclick="closeLiveMoreMenu(); showOversScreen()">⚾ Overs</button>
-            <button class="live-more-action" type="button" onclick="closeLiveMoreMenu(); openMatchSettingsModal()">⚙️ Settings</button>
-            <button id="deleteMatchBtn" class="live-more-action live-more-danger" type="button" onclick="closeLiveMoreMenu(); handleDeleteActiveMatch()">🗑️ Delete match</button>
-          </div>
-        </details>
-
-        <div id="webScoreActions" class="web-score-actions" hidden>
-          <button class="cric-btn cric-btn-primary web-score-live-button" type="button" aria-label="Share live score" onclick="shareLiveScoreWhatsApp()"><span aria-hidden="true">●</span> LIVE</button>
-        </div>
-
         <!-- Primary live scoring keypad -->
         <div id="scoringKeypad" class="keypad-grid">
           <button class="btn btn-run" type="button" onclick="addBall(0)">0</button>
@@ -589,10 +566,15 @@
           <button class="btn btn-boundary" type="button" onclick="addBall(6)">6</button>
           <button class="btn btn-extra" type="button" onclick="addExtra('WIDE')">WD</button>
           <button class="btn btn-extra" type="button" onclick="addExtra('NO_BALL')">NB</button>
-          <button class="btn btn-extra web-score-run-extra" data-webscore-extra type="button" onclick="addExtra('BYE')">BYE</button>
-          <button class="btn btn-extra web-score-run-extra" data-webscore-extra type="button" onclick="addExtra('LEG_BYE')">LB</button>
           <button class="btn btn-wicket" type="button" onclick="openWicketModal()">WICKET</button>
           <button class="btn btn-undo" type="button" onclick="undoLastBall()">↩️ UNDO</button>
+        </div>
+        <div id="scoringExtraActions" class="scoring-extra-actions" aria-label="Additional scoring actions">
+          <button class="btn btn-extra" type="button" onclick="addExtra('BYE')">Byes</button>
+          <button class="btn btn-extra" type="button" onclick="addExtra('LEG_BYE')">Leg Byes</button>
+          <button class="btn btn-extra" type="button" onclick="openOtherRunsModal()">Overthrows</button>
+          <button class="btn btn-extra" type="button" onclick="openDroppedCatchModal()">Drop Catch</button>
+          <button class="btn btn-extra" type="button" onclick="addGrantedRun()">1G</button>
         </div>
 
       </div>
