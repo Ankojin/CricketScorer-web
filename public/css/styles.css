@@ -657,6 +657,11 @@ html.has-app-session #homeDashboard { display: block !important; }
   line-height: 1.6;
 }
 
+.home-saved-matches-prompt {
+  margin: 24px auto 8px;
+  text-align: center;
+}
+
 .web-score-signin-prompt button {
   padding: 0;
   border: 0;

@@ -1,0 +1,753 @@
+// series UI module.
+async function exportTournamentSnapshot(tournamentId) {
+  if (!tournamentId) return;
+  await exportElementSnapshot(`tourneyCard_${tournamentId}`, `series_${tournamentId}`);
+}
+
+async function renderTournaments() {
+  const container = document.getElementById('tournamentsContainer');
+  const tourneys = await window.CricStorage.listTournaments();
+  const matches = await window.CricStorage.listMatches();
+  const canBuildPointsTable = !!window.ScoringEngine && typeof window.ScoringEngine.calculatePointsTable === 'function';
+
+  container.innerHTML = '';
+
+  if (!tourneys || tourneys.length === 0) {
+    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No tournament series created yet. Click "+ New Series" above!</div>';
+    return;
+  }
+
+  tourneys.forEach(t => {
+    activeTournament = t;
+    const card = document.createElement('div');
+    card.id = `tourneyCard_${t.id}`;
+    card.className = 'card';
+    const d = getTournamentDefaults(t);
+    const defaultsSummary = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">
+        Defaults: ${d.oversPerInnings || 5} ov | Max Bowler ${d.maxOversPerBowler || 2} ov${d.powerplayOvers ? ` | PP ${d.powerplayOvers} ov` : ''}${d.quotaBowlersCount ? ` | Quota Bowlers ${d.quotaBowlersCount}` : ''}${d.quotaMaxOvers ? ` | Quota Max ${d.quotaMaxOvers} ov` : ''}
+      </div>
+    `;
+
+    const pointsTable = canBuildPointsTable
+      ? window.ScoringEngine.calculatePointsTable(t.teams || [], matches)
+      : [];
+    const tableRows = pointsTable.map(p => `
+      <tr>
+        <td style="font-weight:700;"><span class="team-badge" style="background:${p.colorHex}"></span>${p.name}</td>
+        <td style="text-align:right">${p.played}</td>
+        <td style="text-align:right">${p.won}</td>
+        <td style="text-align:right">${p.lost}</td>
+        <td style="text-align:right">${p.tied || 0}</td>
+        <td style="text-align:right">${p.nrr || '+0.000'}</td>
+        <td style="text-align:right"><b>${p.points}</b></td>
+      </tr>
+    `).join('');
+
+    const teamsListHtml = (t.teams || []).map(tm => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--color-surface-soft); padding:8px 12px; border-radius:8px; margin-top:6px;">
+        <div style="font-weight:700; font-size:13px; color:var(--color-text);">
+          <span class="team-badge" style="background:${tm.colorHex||'#38bdf8'}"></span>${tm.name} (${(tm.players||[]).length} Players)
+        </div>
+      </div>
+    `).join('');
+
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h4 style="font-size:16px; font-weight:800; color:var(--color-primary);">🏆 ${t.name}</h4>
+        <div style="display:flex; gap:6px;">
+          <button class="btn" style="background:var(--color-primary); color:var(--color-text-on-dark); border-color:var(--color-primary); padding:4px 8px; font-size:11px;" onclick="exportTournamentSnapshot('${t.id}')">📸 Snapshot</button>
+          <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); padding:4px 8px; font-size:11px;" onclick="openEditTournamentModal('${t.id}')">✏️ Edit Defaults</button>
+          <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:4px 8px; font-size:11px;" onclick="deleteSeries('${t.id}')">🗑️ Delete</button>
+        </div>
+      </div>
+
+      ${defaultsSummary}
+
+      <!-- Sub-Tabs Bar for Tournament Details -->
+      <div style="display:flex; gap:6px; background:var(--color-surface-soft); padding:4px; border-radius:8px; margin-top:8px; margin-bottom:12px;">
+        <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='TEAMS'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('TEAMS')">TEAMS</button>
+        <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='MATCHES'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('MATCHES')">MATCHES</button>
+        <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='TABLE'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('TABLE')">TABLE</button>
+      </div>
+
+      ${activeTourneySubTab === 'TEAMS' ? `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Series Teams</div>
+          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="openNewTeamModal('${t.id}')">+ Add Team</button>
+        </div>
+        <div style="margin-top:6px;">${teamsListHtml || '<div style="font-size:12px; color:var(--text-muted);">No teams in this series yet.</div>'}</div>
+      ` : ''}
+
+      ${activeTourneySubTab === 'MATCHES' ? `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Series Matches</div>
+          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="showNewMatchScreen('FULL')">+ Start Match</button>
+        </div>
+      ` : ''}
+
+      ${activeTourneySubTab === 'TABLE' ? `
+        <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Points Table</div>
+        ${!canBuildPointsTable ? '<div style="font-size:11px; color:var(--color-warning); margin:6px 0;">Standings temporarily unavailable, but your series is saved.</div>' : ''}
+        <table class="stats-table">
+          <thead>
+            <tr><th>Team</th><th style="text-align:right">P</th><th style="text-align:right">W</th><th style="text-align:right">L</th><th style="text-align:right">T</th><th style="text-align:right">NRR</th><th style="text-align:right">PTS</th></tr>
+          </thead>
+          <tbody>${tableRows || '<tr><td colspan="7" style="text-align:center;">No completed matches</td></tr>'}</tbody>
+        </table>
+      ` : ''}
+    `;
+    container.appendChild(card);
+  });
+}
+
+function setTourneySubTab(tab) {
+  activeTourneySubTab = tab;
+  renderTournaments();
+}
+
+function populateTournamentDefaultsForm(tournament) {
+  const d = getTournamentDefaults(tournament);
+  const defaultOvers = document.getElementById('tourneyDefaultOvers');
+  const defaultMaxBowler = document.getElementById('tourneyDefaultMaxBowlerOvers');
+  const defaultPowerplay = document.getElementById('tourneyDefaultPowerplayOvers');
+  const defaultQuotaBowlers = document.getElementById('tourneyDefaultQuotaBowlersCount');
+  const defaultQuotaMax = document.getElementById('tourneyDefaultQuotaMaxOvers');
+  const ruleCommonPlayer = document.getElementById('tourneyRuleCommonPlayer');
+  const ruleJoinMidMatch = document.getElementById('tourneyRuleJoinMidMatch');
+  const ruleSwitchMidMatch = document.getElementById('tourneyRuleSwitchMidMatch');
+  const ruleNoExtras = document.getElementById('tourneyRuleNoExtras');
+  const ruleLms = document.getElementById('tourneyRuleLMS');
+  const ruleSingleSide = document.getElementById('tourneyRuleSingleSide');
+  const ruleUnequal = document.getElementById('tourneyRuleUnequal');
+
+  if (defaultOvers) defaultOvers.value = `${d.oversPerInnings || 5}`;
+  if (defaultMaxBowler) defaultMaxBowler.value = `${d.maxOversPerBowler || 2}`;
+  if (defaultPowerplay) defaultPowerplay.value = d.powerplayOvers ? `${d.powerplayOvers}` : '';
+  if (defaultQuotaBowlers) defaultQuotaBowlers.value = d.quotaBowlersCount ? `${d.quotaBowlersCount}` : '';
+  if (defaultQuotaMax) defaultQuotaMax.value = d.quotaMaxOvers ? `${d.quotaMaxOvers}` : '';
+  if (ruleCommonPlayer) ruleCommonPlayer.checked = !!d.gullyRules.commonPlayer;
+  if (ruleJoinMidMatch) ruleJoinMidMatch.checked = !!d.gullyRules.playersJoinMidMatch;
+  if (ruleSwitchMidMatch) ruleSwitchMidMatch.checked = !!d.gullyRules.playersSwitchMidMatch;
+  if (ruleNoExtras) ruleNoExtras.checked = !!d.gullyRules.noExtraRunsForWidesNoBalls;
+  if (ruleLms) ruleLms.checked = !!d.gullyRules.lastManStanding;
+  if (ruleSingleSide) ruleSingleSide.checked = !!d.gullyRules.singleSideBatting;
+  if (ruleUnequal) ruleUnequal.checked = !!d.gullyRules.unequalTeams;
+}
+
+function openNewTournamentModal() {
+  tournamentModalMode = 'CREATE';
+  editingTournamentId = null;
+
+  const title = document.getElementById('tournamentModalTitle');
+  const submit = document.getElementById('tournamentModalSubmitBtn');
+  if (title) title.textContent = 'Create Tournament Series';
+  if (submit) submit.textContent = 'Create Series';
+
+  const nameInput = document.getElementById('tourneyName');
+  if (nameInput) nameInput.value = 'Premier League 2025';
+
+  const defaultOvers = document.getElementById('tourneyDefaultOvers');
+  const defaultMaxBowler = document.getElementById('tourneyDefaultMaxBowlerOvers');
+  const defaultPowerplay = document.getElementById('tourneyDefaultPowerplayOvers');
+  const defaultQuotaBowlers = document.getElementById('tourneyDefaultQuotaBowlersCount');
+  const defaultQuotaMax = document.getElementById('tourneyDefaultQuotaMaxOvers');
+  const ruleCommonPlayer = document.getElementById('tourneyRuleCommonPlayer');
+  const ruleJoinMidMatch = document.getElementById('tourneyRuleJoinMidMatch');
+  const ruleSwitchMidMatch = document.getElementById('tourneyRuleSwitchMidMatch');
+  const ruleNoExtras = document.getElementById('tourneyRuleNoExtras');
+  const ruleLms = document.getElementById('tourneyRuleLMS');
+  const ruleSingleSide = document.getElementById('tourneyRuleSingleSide');
+  const ruleUnequal = document.getElementById('tourneyRuleUnequal');
+
+  if (defaultOvers) defaultOvers.value = '5';
+  if (defaultMaxBowler) defaultMaxBowler.value = '2';
+  if (defaultPowerplay) defaultPowerplay.value = '';
+  if (defaultQuotaBowlers) defaultQuotaBowlers.value = '';
+  if (defaultQuotaMax) defaultQuotaMax.value = '';
+  if (ruleCommonPlayer) ruleCommonPlayer.checked = false;
+  if (ruleJoinMidMatch) ruleJoinMidMatch.checked = false;
+  if (ruleSwitchMidMatch) ruleSwitchMidMatch.checked = false;
+  if (ruleNoExtras) ruleNoExtras.checked = false;
+  if (ruleLms) ruleLms.checked = false;
+  if (ruleSingleSide) ruleSingleSide.checked = false;
+  if (ruleUnequal) ruleUnequal.checked = false;
+
+  document.getElementById('tournamentModal').classList.add('active');
+}
+
+async function openEditTournamentModal(tournamentId) {
+  const tourneys = await window.CricStorage.listTournaments();
+  const target = (tourneys || []).find(t => t.id === tournamentId);
+  if (!target) {
+    showToast('Series not found', 'warning');
+    return;
+  }
+
+  tournamentModalMode = 'EDIT';
+  editingTournamentId = tournamentId;
+
+  const title = document.getElementById('tournamentModalTitle');
+  const submit = document.getElementById('tournamentModalSubmitBtn');
+  if (title) title.textContent = 'Edit Tournament Defaults';
+  if (submit) submit.textContent = 'Save Defaults';
+
+  const nameInput = document.getElementById('tourneyName');
+  if (nameInput) nameInput.value = target.name || '';
+
+  populateTournamentDefaultsForm(target);
+  document.getElementById('tournamentModal').classList.add('active');
+}
+
+function closeTournamentModal() {
+  document.getElementById('tournamentModal').classList.remove('active');
+}
+
+async function handleCreateTournament() {
+  const name = (document.getElementById('tourneyName').value || 'Premier League 2025').trim() || 'Premier League 2025';
+  const oversPerInnings = Math.max(1, parseInt(document.getElementById('tourneyDefaultOvers').value, 10) || 5);
+  const maxOversPerBowler = Math.max(1, parseInt(document.getElementById('tourneyDefaultMaxBowlerOvers').value, 10) || 2);
+  const powerplayOversRaw = parseInt(document.getElementById('tourneyDefaultPowerplayOvers').value, 10);
+  const quotaBowlersCountRaw = parseInt(document.getElementById('tourneyDefaultQuotaBowlersCount').value, 10);
+  const quotaMaxOversRaw = parseInt(document.getElementById('tourneyDefaultQuotaMaxOvers').value, 10);
+
+  const effectivePowerplay = Number.isNaN(powerplayOversRaw)
+    ? null
+    : normalizePowerplayOvers(powerplayOversRaw, oversPerInnings);
+
+  const defaultSettings = {
+    oversPerInnings,
+    maxOversPerBowler,
+    powerplayOvers: effectivePowerplay,
+    quotaBowlersCount: Number.isNaN(quotaBowlersCountRaw) ? null : Math.max(0, quotaBowlersCountRaw),
+    quotaMaxOvers: Number.isNaN(quotaMaxOversRaw) ? null : Math.max(0, quotaMaxOversRaw),
+    gullyRules: {
+      ...normalizeGullyRules(),
+      commonPlayer: document.getElementById('tourneyRuleCommonPlayer').checked,
+      playersJoinMidMatch: document.getElementById('tourneyRuleJoinMidMatch').checked,
+      playersSwitchMidMatch: document.getElementById('tourneyRuleSwitchMidMatch').checked,
+      noExtraRunsForWidesNoBalls: document.getElementById('tourneyRuleNoExtras').checked,
+      lastManStanding: document.getElementById('tourneyRuleLMS').checked,
+      singleSideBatting: document.getElementById('tourneyRuleSingleSide').checked,
+      unequalTeams: document.getElementById('tourneyRuleUnequal').checked
+    }
+  };
+
+  if (tournamentModalMode === 'EDIT' && editingTournamentId) {
+    const tourneys = await window.CricStorage.listTournaments();
+    const existing = (tourneys || []).find(t => t.id === editingTournamentId);
+    if (!existing) {
+      showToast('Series not found for update', 'warning');
+      return;
+    }
+
+    const updatedTournament = {
+      ...existing,
+      name,
+      defaultSettings: {
+        ...defaultSettings,
+        gullyRules: {
+          ...normalizeGullyRules(existing?.defaultSettings?.gullyRules),
+          commonPlayer: document.getElementById('tourneyRuleCommonPlayer').checked,
+          playersJoinMidMatch: document.getElementById('tourneyRuleJoinMidMatch').checked,
+          playersSwitchMidMatch: document.getElementById('tourneyRuleSwitchMidMatch').checked,
+          noExtraRunsForWidesNoBalls: document.getElementById('tourneyRuleNoExtras').checked,
+          lastManStanding: document.getElementById('tourneyRuleLMS').checked,
+          singleSideBatting: document.getElementById('tourneyRuleSingleSide').checked,
+          unequalTeams: document.getElementById('tourneyRuleUnequal').checked
+        }
+      }
+    };
+
+    await window.CricStorage.saveTournament(updatedTournament);
+    if (activeTournament && activeTournament.id === updatedTournament.id) {
+      activeTournament = updatedTournament;
+    }
+    closeTournamentModal();
+    showToast('Series defaults updated', 'success');
+    renderTournaments();
+    return;
+  }
+
+  const tourney = {
+    id: 'tourney_' + Date.now(),
+    name,
+    teams: [],
+    defaultSettings
+  };
+
+  await window.CricStorage.saveTournament(tourney);
+  closeTournamentModal();
+  showToast('Series created', 'success');
+  renderTournaments();
+}
+
+async function deleteSeries(id) {
+  if (confirm("Are you sure you want to delete this tournament series?")) {
+    await window.CricStorage.deleteTournament(id);
+    renderTournaments();
+  }
+}
+
+async function renderPlayers() {
+  const container = document.getElementById('playersContainer');
+  if (!container) return;
+
+  const teams = (await window.CricStorage.listTeams())
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare((b.name || ''), undefined, { sensitivity: 'base' }));
+
+  container.innerHTML = '';
+
+  if (!teams || teams.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--color-surface-muted); border-radius:12px; border:1px solid var(--color-border);">
+        <div style="font-size:36px; margin-bottom:8px;">👥</div>
+        <div style="font-size:15px; font-weight:800; color:var(--color-text); margin-bottom:4px;">No saved teams yet</div>
+        <p style="font-size:12px; margin-bottom:16px;">Create a new team or start a match to build your squad roster.</p>
+        <button class="btn-primary" style="width:auto; padding:10px 20px; font-size:13px;" onclick="openNewTeamModal()">+ Create New Team</button>
+      </div>
+    `;
+    return;
+  }
+
+  teams.forEach(t => {
+    const pCount = (t.players || []).length;
+    const card = document.createElement('div');
+    card.className = 'team-card-item';
+    card.style.cssText = 'background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow-card);';
+
+    const playerListHtml = (t.players || []).map((p, idx) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--color-border-muted); font-size:13px;">
+        <span style="font-weight:700; color:var(--color-text);">${idx + 1}. ${p.name || 'Player'}</span>
+        <span style="font-size:11px; color:var(--text-muted);">${p.role || 'Batter'}</span>
+      </div>
+    `).join('');
+
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="width:16px; height:16px; border-radius:50%; background:${t.colorHex || '#13a968'}; display:inline-block;"></span>
+          <div>
+            <div style="font-size:16px; font-weight:800; color:var(--color-text);">${t.name}</div>
+            <div style="font-size:12px; color:var(--text-muted);">${pCount} player${pCount !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" style="background:var(--color-surface-muted); padding:6px 12px; font-size:12px; border-color:var(--color-border);" onclick="toggleTeamSquadView('${t.id}')">📋 Players</button>
+          <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:6px 10px; font-size:12px;" onclick="deleteSavedTeam('${t.id}')">🗑️ Delete</button>
+        </div>
+      </div>
+      <div id="teamSquad_${t.id}" hidden style="margin-top:14px; padding-top:10px; border-top:1px solid var(--color-border);">
+        <div style="font-size:11px; font-weight:800; color:var(--color-primary); letter-spacing:0.05em; text-transform:uppercase; margin-bottom:8px;">Squad Roster</div>
+        ${playerListHtml || '<div style="font-size:12px; color:var(--text-muted);">No players in this team squad.</div>'}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+async function renderGlobalPlayers() {
+  const container = document.getElementById('globalPlayersContainer');
+  if (!container) return;
+
+  const players = (await window.CricStorage.listGlobalPlayers())
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare((b.name || ''), undefined, { sensitivity: 'base' }));
+
+  container.replaceChildren();
+  if (!players.length) {
+    container.innerHTML = '<div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--color-surface-muted); border-radius:12px; border:1px solid var(--color-border);">No global players yet. Add a player to use them in Full Match squads.</div>';
+    return;
+  }
+
+  players.forEach(player => {
+    const card = document.createElement('div');
+    card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:12px; padding:12px; margin-bottom:8px;';
+    const details = document.createElement('div');
+    const name = document.createElement('div');
+    name.style.cssText = 'font-size:14px; font-weight:800; color:var(--color-text);';
+    name.textContent = player.name || 'Player';
+    const role = document.createElement('div');
+    role.style.cssText = 'font-size:11px; color:var(--text-muted); margin-top:2px;';
+    role.textContent = `${player.role || 'Batter'}${player.style ? ` · ${player.style}` : ''}`;
+    details.append(name, role);
+    const edit = document.createElement('button');
+    edit.className = 'btn';
+    edit.style.cssText = 'width:auto; padding:6px 10px; font-size:12px; background:var(--color-surface-muted); color:var(--color-text); border-color:var(--color-border);';
+    edit.textContent = 'Edit';
+    edit.addEventListener('click', () => editGlobalPlayer(player.id));
+    card.append(details, edit);
+    container.appendChild(card);
+  });
+}
+
+function setPlayersDirectoryTab(tab) {
+  if (!['TEAMS', 'GLOBAL'].includes(tab)) return;
+  playersDirectoryTab = tab;
+  const showGlobal = tab === 'GLOBAL';
+  document.getElementById('playersContainer').hidden = showGlobal;
+  document.getElementById('globalPlayersContainer').hidden = !showGlobal;
+  document.getElementById('playersCreateTeamBtn').hidden = showGlobal;
+  document.getElementById('playersAddGlobalBtn').hidden = !showGlobal;
+  const teamsTab = document.getElementById('playersTabTeams');
+  const globalTab = document.getElementById('playersTabGlobal');
+  if (teamsTab) teamsTab.style.background = showGlobal ? 'transparent' : 'var(--primary-color)';
+  if (globalTab) globalTab.style.background = showGlobal ? 'var(--primary-color)' : 'transparent';
+}
+
+function toggleTeamSquadView(teamId) {
+  const squadEl = document.getElementById(`teamSquad_${teamId}`);
+  if (squadEl) {
+    squadEl.hidden = !squadEl.hidden;
+  }
+}
+
+async function deleteSavedTeam(teamId) {
+  if (confirm('Are you sure you want to delete this saved team?')) {
+    await window.CricStorage.deleteTeam(teamId);
+    showToast('Team deleted successfully', 'info');
+    renderPlayers();
+  }
+}
+
+async function handleQuickAddPlayer() {
+  const nameInput = document.getElementById('quickPlayerNameInput');
+  const roleInput = document.getElementById('quickPlayerRoleInput');
+  if (!nameInput) return;
+
+  const rawName = nameInput.value.trim();
+  if (!rawName) {
+    showToast('Please enter a player name', 'warning');
+    return;
+  }
+
+  const role = roleInput ? roleInput.value : 'Batter';
+  const newPlayer = {
+    id: 'gp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+    name: rawName,
+    role: role,
+    style: 'RHB'
+  };
+
+  await window.CricStorage.addGlobalPlayer(newPlayer);
+  nameInput.value = '';
+  showToast(`Added "${rawName}" to player directory`, 'success');
+  renderPlayers();
+  await refreshPlayerPickOptions();
+}
+
+function renderSeriesTeamSelectedPlayers() {
+  const listEl = document.getElementById('seriesTeamSelectedPlayers');
+  if (!listEl) return;
+
+  if (!seriesTeamSelectedPlayers.length) {
+    listEl.innerHTML = '<div style="font-size:11px; color:var(--text-muted);">No players selected from directory yet.</div>';
+    return;
+  }
+
+  const sortedSelected = [...seriesTeamSelectedPlayers].sort((a, b) =>
+    (a.name || '').localeCompare((b.name || ''), undefined, { sensitivity: 'base' })
+  );
+
+  listEl.innerHTML = sortedSelected.map(p => `
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:8px; padding:6px 8px; margin-top:6px;">
+      <span style="font-size:12px; color:var(--color-text);">${p.name}</span>
+      <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); width:auto; padding:2px 8px; font-size:11px;" onclick="removeSeriesTeamPlayer('${p.id}')">Remove</button>
+    </div>
+  `).join('');
+}
+
+async function populateSeriesTeamPlayerPicker() {
+  const pickEl = document.getElementById('seriesTeamPlayerPick');
+  const checklistEl = document.getElementById('seriesTeamPlayerChecklist');
+  const searchEl = document.getElementById('seriesTeamPlayerSearch');
+
+  const players = await window.CricStorage.listGlobalPlayers();
+  seriesTeamGlobalPlayerCache = (Array.isArray(players) ? players : [])
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare((b.name || ''), undefined, { sensitivity: 'base' }));
+
+  filterSeriesTeamPlayerPicker();
+}
+
+function getPlayerSeriesTeamStatus(player, currentModalTeamName = '') {
+  if (seriesTeamSelectedPlayers.some(sp => sp.id === player.id || sp.name.toLowerCase() === player.name.toLowerCase())) {
+    const labelName = currentModalTeamName ? `In ${currentModalTeamName}` : 'Already Added';
+    return { label: labelName, color: 'var(--color-success)' };
+  }
+
+  if (activeTournament && Array.isArray(activeTournament.teams)) {
+    for (const team of activeTournament.teams) {
+      if ((team.players || []).some(p => p.id === player.id || p.name.toLowerCase() === player.name.toLowerCase())) {
+        return { label: `In ${team.name}`, color: 'var(--color-info)' };
+      }
+    }
+  }
+
+  return { label: 'Unassigned', color: 'var(--color-text-subtle)' };
+}
+
+function filterSeriesTeamPlayerPicker() {
+  const pickEl = document.getElementById('seriesTeamPlayerPick');
+  const checklistEl = document.getElementById('seriesTeamPlayerChecklist');
+  const searchEl = document.getElementById('seriesTeamPlayerSearch');
+  if (!pickEl || !checklistEl) return;
+
+  const searchQuery = (searchEl?.value || '').trim().toLowerCase();
+  const filteredPlayers = searchQuery
+    ? seriesTeamGlobalPlayerCache.filter(p => (p.name || '').toLowerCase().includes(searchQuery))
+    : seriesTeamGlobalPlayerCache;
+
+  if (!filteredPlayers.length) {
+    pickEl.innerHTML = '<option value="">No matching players</option>';
+    pickEl.disabled = true;
+    checklistEl.innerHTML = '<div style="font-size:11px; color:var(--text-muted);">No matching players</div>';
+    return;
+  }
+
+  const currentModalTeamName = document.getElementById('newTeamName')?.value.trim() || 'This Team';
+
+  pickEl.disabled = false;
+  pickEl.innerHTML = '<option value="">Select player from directory</option>' +
+    filteredPlayers.map(p => {
+      const status = getPlayerSeriesTeamStatus(p, currentModalTeamName);
+      return `<option value="${p.id}">${p.name} (${p.role || 'Batter'}) • [${status.label}]</option>`;
+    }).join('');
+
+  checklistEl.innerHTML = filteredPlayers.map((p, idx) => {
+    const isAlreadySelected = seriesTeamSelectedPlayers.some(sp => sp.id === p.id || sp.name.toLowerCase() === p.name.toLowerCase());
+    const status = getPlayerSeriesTeamStatus(p, currentModalTeamName);
+    const inputId = `chk_series_${idx}`;
+
+    return `
+      <label for="${inputId}" style="display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12px; color:var(--color-text); cursor:pointer; border-bottom:1px solid var(--color-border);">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <input id="${inputId}" type="checkbox" value="${p.id}" ${isAlreadySelected ? 'checked disabled' : ''} style="accent-color:var(--primary-color);">
+          <span style="font-weight:600;">${p.name}</span>
+          <span style="font-size:10px; color:var(--text-muted);">(${p.role || 'Batter'})</span>
+        </div>
+        <span style="font-size:10px; font-weight:800; color:${status.color}; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">${status.label}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+function addCheckedSeriesTeamPlayers() {
+  const checklistEl = document.getElementById('seriesTeamPlayerChecklist');
+  if (!checklistEl) return;
+
+  const checkedInputs = Array.from(checklistEl.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)'));
+  if (!checkedInputs.length) {
+    showToast('Select at least one player to add', 'warning');
+    return;
+  }
+
+  let addedCount = 0;
+  checkedInputs.forEach(input => {
+    const pId = input.value;
+    const selected = seriesTeamGlobalPlayerCache.find(p => p.id === pId);
+    if (selected && !seriesTeamSelectedPlayers.some(sp => sp.id === selected.id)) {
+      seriesTeamSelectedPlayers.push({
+        id: selected.id,
+        name: selected.name,
+        role: selected.role || 'Batter',
+        style: selected.style || 'RHB'
+      });
+      addedCount++;
+    }
+  });
+
+  renderSeriesTeamSelectedPlayers();
+  filterSeriesTeamPlayerPicker();
+
+  if (addedCount > 0) {
+    showToast(`Added ${addedCount} player${addedCount > 1 ? 's' : ''} to squad`, 'success');
+  }
+}
+
+function removeSeriesTeamPlayer(playerId) {
+  seriesTeamSelectedPlayers = seriesTeamSelectedPlayers.filter(p => p.id !== playerId);
+  renderSeriesTeamSelectedPlayers();
+  filterSeriesTeamPlayerPicker();
+}
+
+async function addSeriesTeamPlayerFromPicker() {
+  const pickEl = document.getElementById('seriesTeamPlayerPick');
+  if (!pickEl) return;
+
+  const playerId = pickEl.value;
+  if (!playerId) return;
+
+  const selected = seriesTeamGlobalPlayerCache.find(p => p.id === playerId);
+  if (!selected) return;
+
+  const alreadyExists = seriesTeamSelectedPlayers.some(p => p.id === selected.id);
+  if (!alreadyExists) {
+    seriesTeamSelectedPlayers.push({
+      id: selected.id,
+      name: selected.name,
+      role: selected.role || 'Batter',
+      style: selected.style || 'RHB'
+    });
+  }
+
+  pickEl.value = '';
+  renderSeriesTeamSelectedPlayers();
+  filterSeriesTeamPlayerPicker();
+}
+
+async function openNewTeamModal(tournamentId = null) {
+  if (tournamentId) {
+    const tourneys = await window.CricStorage.listTournaments();
+    const target = (tourneys || []).find(t => t.id === tournamentId);
+    if (target) {
+      activeTournament = target;
+    }
+  }
+
+  const contextEl = document.getElementById('teamModalContext');
+  if (contextEl) {
+    contextEl.innerText = activeTournament?.name
+      ? `Series = team attached to tournament standings (${activeTournament.name}).`
+      : 'Live/New Match = team for current match (optionally reusable).';
+  }
+
+  const manualPlayersEl = document.getElementById('newTeamPlayers');
+  if (manualPlayersEl) manualPlayersEl.value = '';
+  const searchEl = document.getElementById('seriesTeamPlayerSearch');
+  if (searchEl) searchEl.value = '';
+
+  seriesTeamSelectedPlayers = [];
+  await populateSeriesTeamPlayerPicker();
+  renderSeriesTeamSelectedPlayers();
+  document.getElementById('teamModal').classList.add('active');
+}
+
+function closeTeamModal() {
+  seriesTeamSelectedPlayers = [];
+  seriesTeamGlobalPlayerCache = [];
+  const searchEl = document.getElementById('seriesTeamPlayerSearch');
+  if (searchEl) searchEl.value = '';
+  document.getElementById('teamModal').classList.remove('active');
+}
+
+async function handleCreateTeam() {
+  const name = document.getElementById('newTeamName').value;
+  const color = document.getElementById('newTeamColor').value;
+  const playersStr = (document.getElementById('newTeamPlayers').value || '').trim();
+  if (!name) return;
+
+  const manualNames = playersStr
+    .split(',')
+    .map(pName => pName.trim())
+    .filter(Boolean);
+
+  const mergedPlayersMap = new Map();
+
+  seriesTeamSelectedPlayers.forEach(p => {
+    const key = (p.name || '').trim().toLowerCase();
+    if (!key) return;
+    mergedPlayersMap.set(key, {
+      id: p.id,
+      name: p.name,
+      role: p.role || 'Batter',
+      style: p.style || 'RHB'
+    });
+  });
+
+  manualNames.forEach((playerName, idx) => {
+    const key = playerName.toLowerCase();
+    if (mergedPlayersMap.has(key)) return;
+    mergedPlayersMap.set(key, {
+      id: `tp_${idx}_${Date.now()}`,
+      name: playerName,
+      role: 'Batter',
+      style: 'RHB'
+    });
+  });
+
+  const finalPlayers = Array.from(mergedPlayersMap.values());
+  if (!finalPlayers.length) {
+    showToast('Add at least one player from directory or manual input', 'warning');
+    return;
+  }
+
+  const newTeam = {
+    id: 'team_' + Date.now(),
+    name,
+    colorHex: color,
+    players: finalPlayers
+  };
+
+  if (activeTournament) {
+    activeTournament.teams = [...(activeTournament.teams || []), newTeam];
+    await window.CricStorage.saveTournament(activeTournament);
+  }
+
+  await window.CricStorage.saveTeam(newTeam);
+
+  for (const p of newTeam.players) {
+    await window.CricStorage.addGlobalPlayer(p);
+  }
+
+  closeTeamModal();
+  renderTournaments();
+}
+
+function openNewPlayerModal() {
+  document.getElementById('editPlayerId').value = '';
+  document.getElementById('newPlayerName').value = '';
+  document.getElementById('playerModalTitle').innerText = 'Add Global Player';
+  document.getElementById('playerModal').classList.add('active');
+}
+
+function openEditPlayerModal(id, name, role, style) {
+  document.getElementById('editPlayerId').value = id;
+  document.getElementById('newPlayerName').value = name;
+  document.getElementById('newPlayerRole').value = role || 'Batter';
+  document.getElementById('newPlayerStyle').value = style || 'RHB';
+  document.getElementById('playerModalTitle').innerText = 'Edit Player Details';
+  document.getElementById('playerModal').classList.add('active');
+}
+
+function closePlayerModal() {
+  document.getElementById('playerModal').classList.remove('active');
+}
+
+async function handleSavePlayer() {
+  const id = document.getElementById('editPlayerId').value;
+  const nameInput = document.getElementById('newPlayerName');
+  const roleSelect = document.getElementById('newPlayerRole');
+  const styleSelect = document.getElementById('newPlayerStyle');
+
+  const rawName = nameInput ? nameInput.value.trim() : '';
+  if (!rawName) {
+    showToast('Player name is required', 'warning');
+    return;
+  }
+
+  const role = roleSelect ? roleSelect.value : 'Batter';
+  const style = styleSelect ? styleSelect.value : 'RHB';
+
+  await window.CricStorage.addGlobalPlayer({
+    id: id || ('gp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+    name: rawName,
+    role,
+    style
+  });
+
+  closePlayerModal();
+  showToast(`Saved player "${rawName}"`, 'success');
+  renderPlayers();
+  await refreshPlayerPickOptions();
+}
+
+async function deletePlayer(id) {
+  if (confirm("Are you sure you want to delete this player from the global directory?")) {
+    await window.CricStorage.deleteGlobalPlayer(id);
+    showToast("Player deleted", "info");
+    renderPlayers();
+    await refreshPlayerPickOptions();
+  }
+}

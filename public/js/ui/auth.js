@@ -1,0 +1,107 @@
+// auth UI module.
+function continueAsGuest() {
+  const currentUser = window.CricStorage.getCurrentUser();
+  const token = localStorage.getItem('cric_auth_token');
+  const hasRegisteredSession = currentUser || (token && !token.startsWith('token_local'));
+
+  if (hasRegisteredSession) {
+    activeMatch = null;
+    window.CricStorage.logout();
+  }
+
+  localStorage.setItem('cric_user_mode', 'GUEST');
+  updateAuthUI();
+  showToast('Entered Guest Mode (Temporary Local Scoring)', 'info');
+  showLandingScreen();
+}
+
+function openAuthModal(defaultTab = 'LOGIN') {
+  const user = window.CricStorage.getCurrentUser();
+  if (user) {
+    if (confirm(`Logged in as ${user.email}. Do you want to sign out?`)) {
+      activeMatch = null;
+      window.CricStorage.logout();
+      localStorage.removeItem('cric_user_mode');
+      updateAuthUI();
+      showToast('Signed out successfully', 'info');
+      showLandingScreen();
+    }
+  } else {
+    switchAuthTab(defaultTab);
+    document.getElementById('authModal').classList.add('active');
+  }
+}
+
+function closeAuthModal() {
+  document.getElementById('authModal').classList.remove('active');
+}
+
+function switchAuthTab(tab) {
+  authTab = tab;
+  document.getElementById('authTabLogin').style.background = tab === 'LOGIN' ? 'var(--primary-color)' : 'transparent';
+  document.getElementById('authTabRegister').style.background = tab === 'REGISTER' ? 'var(--primary-color)' : 'transparent';
+  document.getElementById('authTabLogin').style.color = 'var(--color-text-on-dark)';
+  document.getElementById('authTabRegister').style.color = 'var(--color-text-on-dark)';
+  document.getElementById('authNameGroup').style.display = tab === 'REGISTER' ? 'block' : 'none';
+}
+
+async function handleAuthSubmit() {
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const name = document.getElementById('authName').value;
+
+  if (!email || !password) {
+    showToast('Please enter email and password', 'warning');
+    return;
+  }
+
+  try {
+    if (authTab === 'REGISTER') {
+      const user = await window.CricStorage.register(email, password, name);
+      localStorage.setItem('cric_user_mode', 'REGISTERED');
+      showToast(`Welcome, ${user.name}! Registered & synced to AWS Cloud`, 'success');
+    } else {
+      const user = await window.CricStorage.login(email, password);
+      localStorage.setItem('cric_user_mode', 'REGISTERED');
+      showToast(`Welcome back, ${user.name}!`, 'success');
+    }
+    closeAuthModal();
+    updateAuthUI();
+    showLandingScreen();
+  } catch (err) {
+    showToast(`Auth error: ${err.message}`, 'danger');
+  }
+}
+
+function updateAuthUI() {
+  const user = window.CricStorage.getCurrentUser();
+  updateScoringModeAccess(Boolean(user) || localStorage.getItem('cric_user_mode') === 'REGISTERED');
+  const btn = document.getElementById('authBtn');
+  const syncBadge = document.getElementById('syncBadge');
+
+  if (user) {
+    if (btn) {
+      btn.innerText = `👤 ${user.name || user.email.split('@')[0]}`;
+      btn.style.background = 'var(--color-primary-soft)';
+    }
+    if (syncBadge) {
+      syncBadge.className = 'status-badge online';
+      syncBadge.innerText = `🟢 Sync: ${user.name || 'User'}`;
+    }
+  } else {
+    const isGuest = localStorage.getItem('cric_user_mode') === 'GUEST';
+    if (btn) {
+      btn.innerText = '🔑 Sign In';
+      btn.style.background = 'var(--color-primary)';
+    }
+    if (syncBadge) {
+      if (isGuest) {
+        syncBadge.className = 'status-badge guest';
+        syncBadge.innerText = '🟡 Guest Mode';
+      } else {
+        syncBadge.className = 'status-badge';
+        syncBadge.innerText = '⚪ Sync Inactive';
+      }
+    }
+  }
+}
