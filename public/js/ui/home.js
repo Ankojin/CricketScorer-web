@@ -16,9 +16,9 @@ function isRegisteredScoringUser() {
 }
 
 function updateScoringModeAccess(isRegistered = isRegisteredScoringUser()) {
-  const fullMatchButton = document.getElementById('featureFullMatchBtn');
+  const quickMatchButton = document.getElementById('featureFullMatchBtn');
   const signInPrompt = document.getElementById('webScoreSignInPrompt');
-  if (fullMatchButton) fullMatchButton.hidden = !isRegistered;
+  if (quickMatchButton) quickMatchButton.hidden = !isRegistered;
   if (signInPrompt) signInPrompt.hidden = isRegistered;
 }
 
@@ -31,9 +31,9 @@ function requireRegisteredScoringMode(modeName) {
   return false;
 }
 
-function startFullMatch() {
+function startQuickMatch() {
   closeFeaturesMenu();
-  if (!requireRegisteredScoringMode('Full Match')) return;
+  if (!requireRegisteredScoringMode('Quick Match')) return;
 
   currentScoringMode = 'FULL';
   showNewMatchScreen('FULL');
@@ -53,8 +53,10 @@ async function renderHomeDashboard() {
   updateScoringModeAccess(isRegistered);
   const recentSection = document.getElementById('homeRecentSection');
   const guestSavedMatchesPrompt = document.getElementById('guestSavedMatchesPrompt');
+  const homeSeriesSection = document.getElementById('homeSeriesSection');
   if (recentSection) recentSection.hidden = !isRegistered || !hasAppSession;
   if (guestSavedMatchesPrompt) guestSavedMatchesPrompt.hidden = isRegistered || !hasAppSession;
+  if (homeSeriesSection) homeSeriesSection.hidden = !isRegistered || !hasAppSession;
 
   if (hasAppSession) {
     entry.hidden = true;
@@ -72,28 +74,32 @@ async function renderHomeDashboard() {
   // Toggle CTAs based on session state (Guest vs Signed-In)
   const guestCtas = document.getElementById('homeGuestCtas');
   const registeredCtas = document.getElementById('homeRegisteredCtas');
-  if (guestCtas && registeredCtas) {
-    if (isRegistered) {
+  if (isRegistered) {
+    if (guestCtas) {
       guestCtas.hidden = true;
       guestCtas.setAttribute('hidden', '');
       guestCtas.style.display = 'none';
-
+    }
+    if (registeredCtas) {
       registeredCtas.hidden = false;
       registeredCtas.removeAttribute('hidden');
       registeredCtas.style.display = 'flex';
-    } else {
+    }
+  } else {
+    if (guestCtas) {
       guestCtas.hidden = false;
       guestCtas.removeAttribute('hidden');
       guestCtas.style.display = 'flex';
-
+    }
+    if (registeredCtas) {
       registeredCtas.hidden = true;
       registeredCtas.setAttribute('hidden', '');
       registeredCtas.style.display = 'none';
     }
   }
-  // Guest mode is limited to Web Score; Full Match requires a signed-in account.
-  const featureFullMatchBtn = document.getElementById('featureFullMatchBtn');
-  if (featureFullMatchBtn) featureFullMatchBtn.hidden = !isRegistered;
+  // Guest mode is limited to Web Score; Quick Match requires a signed-in account.
+  const featureQuickMatchBtn = document.getElementById('featureFullMatchBtn');
+  if (featureQuickMatchBtn) featureQuickMatchBtn.hidden = !isRegistered;
 
   recentList.replaceChildren();
   try {
@@ -104,7 +110,7 @@ async function renderHomeDashboard() {
     if (!recentMatches.length) {
       const empty = document.createElement('div');
       empty.className = 'home-recent-empty';
-      empty.textContent = 'No saved matches yet. Start a Full Match to see it here.';
+      empty.textContent = 'No saved matches yet. Start a Quick Match to see it here.';
       recentList.appendChild(empty);
       return;
     }

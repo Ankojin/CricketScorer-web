@@ -1,4 +1,4 @@
-// Storage Adapter - Optimistic Local-First with Background AWS Cloud Sync & Auth
+// Storage Adapter - Optimistic Local-First with background cloud sync & auth.
 
 window.CRIC_API_BASE = window.CRIC_API_BASE || "";
 
@@ -169,7 +169,7 @@ const CricStorage = {
         body: JSON.stringify(match)
       }).then(res => {
         if (res.ok) {
-          this.notifyToast('🟢 Match saved & synced to AWS Cloud', 'success');
+          this.notifyToast('🟢 Match saved & synced', 'success');
         } else {
           this.notifyToast('💾 Saved locally', 'info');
         }
@@ -195,7 +195,7 @@ const CricStorage = {
         body: JSON.stringify(match)
       }).then(res => {
         if (res.ok) {
-          this.notifyToast('🟢 Match updated on AWS Cloud', 'success');
+          this.notifyToast('🟢 Match updated & synced', 'success');
         } else {
           this.notifyToast('💾 Saved locally', 'info');
         }
@@ -423,7 +423,16 @@ const CricStorage = {
 
     const raw = localStorage.getItem('cric_global_players');
     const players = raw ? JSON.parse(raw) : [];
-    const updated = [player, ...players.filter(p => p.id !== player.id)];
+    const incomingNameKey = `${player?.name || ''}`.trim().toLowerCase();
+    const updated = [
+      player,
+      ...players.filter(p => {
+        const existingNameKey = `${p?.name || ''}`.trim().toLowerCase();
+        if (p.id === player.id) return false;
+        if (incomingNameKey && existingNameKey === incomingNameKey) return false;
+        return true;
+      })
+    ];
     localStorage.setItem('cric_global_players', JSON.stringify(updated));
     return player;
   },

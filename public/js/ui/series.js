@@ -4,11 +4,22 @@ async function exportTournamentSnapshot(tournamentId) {
   await exportElementSnapshot(`tourneyCard_${tournamentId}`, `series_${tournamentId}`);
 }
 
+function buildSeriesFixtureStatus(fixture, linkedMatch) {
+  if (linkedMatch?.status === 'COMPLETED') return 'COMPLETED';
+  if (linkedMatch?.status === 'ABANDONED') return 'ABANDONED';
+  if (linkedMatch?.status === 'LIVE') return 'LIVE';
+  return fixture?.status || 'SCHEDULED';
+}
+
 async function renderTournaments() {
   const container = document.getElementById('tournamentsContainer');
   const tourneys = await window.CricStorage.listTournaments();
   const matches = await window.CricStorage.listMatches();
   const canBuildPointsTable = !!window.ScoringEngine && typeof window.ScoringEngine.calculatePointsTable === 'function';
+
+  if (activeTourneySubTab === 'MATCHES') {
+    activeTourneySubTab = 'SCHEDULE';
+  }
 
   container.innerHTML = '';
 
@@ -18,7 +29,6 @@ async function renderTournaments() {
   }
 
   tourneys.forEach(t => {
-    activeTournament = t;
     const card = document.createElement('div');
     card.id = `tourneyCard_${t.id}`;
     card.className = 'card';
@@ -52,6 +62,60 @@ async function renderTournaments() {
       </div>
     `).join('');
 
+    const teamsForSchedule = Array.isArray(t.teams) ? t.teams : [];
+    const fixtures = Array.isArray(t.fixtures) ? t.fixtures : [];
+    const renderedFixtures = fixtures.map((fixture, idx) => {
+          const teamA = teamsForSchedule.find(team => team.id === fixture.teamAId);
+          const teamB = teamsForSchedule.find(team => team.id === fixture.teamBId);
+          const linkedMatch = fixture.linkedMatchId
+            ? matches.find(match => match.id === fixture.linkedMatchId)
+            : null;
+          const status = buildSeriesFixtureStatus(fixture, linkedMatch);
+          const badgeColor = status === 'COMPLETED'
+            ? 'var(--color-success)'
+            : status === 'LIVE'
+              ? 'var(--color-info)'
+              : status === 'ABANDONED'
+                ? 'var(--color-warning)'
+                : 'var(--text-muted)';
+          const whenText = fixture.scheduledAt
+            ? new Date(fixture.scheduledAt).toLocaleString()
+            : 'Unscheduled time';
+          return {
+            fixture,
+            status,
+            html: `
+            <div style="background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:10px; padding:10px; margin-top:8px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <div style="font-size:13px; font-weight:800; color:var(--color-text);">${teamA?.name || 'Team A'} vs ${teamB?.name || 'Team B'}</div>
+                <span style="font-size:10px; font-weight:800; color:${badgeColor};">${status}</span>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${whenText}</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${fixture.oversPerInnings || d.oversPerInnings || 5} ov • Max Bowler ${fixture.maxOversPerBowler || d.maxOversPerBowler || 2} ov${fixture.quotaBowlersCount ? ` • Bowlers ${fixture.quotaBowlersCount}` : ''}${fixture.quotaMaxOvers ? ` • Limit ${fixture.quotaMaxOvers}` : ''}</div>
+              <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+                <button class="btn" style="width:auto; padding:5px 9px; font-size:11px; background:var(--color-primary-soft); color:var(--color-text-on-dark); border-color:var(--color-primary);" onclick="startSeriesFixtureMatch('${t.id}','${fixture.id}')" ${status === 'COMPLETED' ? 'disabled' : ''}>▶ Start Match</button>
+                ${fixture.linkedMatchId ? `<button class="btn" style="width:auto; padding:5px 9px; font-size:11px;" onclick="selectMatch('${fixture.linkedMatchId}')">Open Match</button>` : ''}
+                <button class="btn" style="width:auto; padding:5px 9px; font-size:11px; background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error);" onclick="deleteSeriesFixture('${t.id}','${fixture.id}')">Delete</button>
+              </div>
+            </div>
+          `
+          };
+        });
+
+    const activeFixtureRowsHtml = renderedFixtures
+      .filter(item => item.status !== 'COMPLETED' && item.status !== 'ABANDONED')
+      .map(item => item.html)
+      .join('');
+
+    const completedFixtureRowsHtml = renderedFixtures
+      .filter(item => item.status === 'COMPLETED' || item.status === 'ABANDONED')
+      .map(item => item.html)
+      .join('');
+
+    const scheduleTeamOptions = teamsForSchedule.map(team =>
+      `<option value="${team.id}">${team.name}</option>`
+    ).join('');
+
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <h4 style="font-size:16px; font-weight:800; color:var(--color-primary);">🏆 ${t.name}</h4>
@@ -67,7 +131,7 @@ async function renderTournaments() {
       <!-- Sub-Tabs Bar for Tournament Details -->
       <div style="display:flex; gap:6px; background:var(--color-surface-soft); padding:4px; border-radius:8px; margin-top:8px; margin-bottom:12px;">
         <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='TEAMS'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('TEAMS')">TEAMS</button>
-        <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='MATCHES'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('MATCHES')">MATCHES</button>
+        <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='SCHEDULE'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('SCHEDULE')">SCHEDULE</button>
         <button class="btn" style="flex:1; padding:6px; font-size:11px; background:${activeTourneySubTab==='TABLE'?'var(--primary-color)':'transparent'}" onclick="setTourneySubTab('TABLE')">TABLE</button>
       </div>
 
@@ -79,10 +143,35 @@ async function renderTournaments() {
         <div style="margin-top:6px;">${teamsListHtml || '<div style="font-size:12px; color:var(--text-muted);">No teams in this series yet.</div>'}</div>
       ` : ''}
 
-      ${activeTourneySubTab === 'MATCHES' ? `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Series Matches</div>
-          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="showNewMatchScreen('FULL')">+ Start Match</button>
+      ${activeTourneySubTab === 'SCHEDULE' ? `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Series Match Schedule</div>
+          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="startSeriesMatch('${t.id}')">+ Quick Start (No Fixture)</button>
+        </div>
+        ${teamsForSchedule.length < 2 ? '<div style="font-size:12px; color:var(--color-warning); margin-top:8px;">Add at least 2 teams before scheduling fixtures.</div>' : `
+          <div style="margin-top:8px; padding:10px; background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:10px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:140px;"><label style="font-size:11px; color:var(--text-muted);">Team A</label><select id="fixtureTeamA_${t.id}" class="form-control">${scheduleTeamOptions}</select></div>
+              <div style="flex:1; min-width:140px;"><label style="font-size:11px; color:var(--text-muted);">Team B</label><select id="fixtureTeamB_${t.id}" class="form-control">${scheduleTeamOptions}</select></div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:120px;"><label style="font-size:11px; color:var(--text-muted);">Date & Time</label><input id="fixtureWhen_${t.id}" type="datetime-local" class="form-control"></div>
+              <div style="width:110px;"><label style="font-size:11px; color:var(--text-muted);">Overs</label><input id="fixtureOvers_${t.id}" type="number" min="1" class="form-control" value="${d.oversPerInnings || 5}"></div>
+              <div style="width:140px;"><label style="font-size:11px; color:var(--text-muted);">Max Bowler</label><input id="fixtureMaxBowler_${t.id}" type="number" min="1" class="form-control" value="${d.maxOversPerBowler || 2}"></div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+              <div style="width:130px;"><label style="font-size:11px; color:var(--text-muted);">Powerplay</label><input id="fixturePowerplay_${t.id}" type="number" min="0" class="form-control" value="${d.powerplayOvers || ''}" placeholder="None"></div>
+              <div style="width:160px;"><label style="font-size:11px; color:var(--text-muted);">No. of Bowlers</label><input id="fixtureQuotaCount_${t.id}" type="number" min="0" class="form-control" value="${d.quotaBowlersCount || ''}" placeholder="No limit"></div>
+              <div style="width:160px;"><label style="font-size:11px; color:var(--text-muted);">Per Bowler Limit</label><input id="fixtureQuotaMax_${t.id}" type="number" min="0" class="form-control" value="${d.quotaMaxOvers || ''}" placeholder="No limit"></div>
+              <div style="display:flex; align-items:flex-end;"><button class="btn-primary" style="width:auto; padding:8px 12px; font-size:12px;" onclick="createSeriesFixture('${t.id}')">Create Fixture</button></div>
+            </div>
+          </div>
+        `}
+        <div style="margin-top:10px;">
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Active Fixtures</div>
+          ${activeFixtureRowsHtml || '<div style="font-size:12px; color:var(--text-muted); margin-top:8px;">No active fixtures.</div>'}
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-top:12px;">Completed Fixtures</div>
+          ${completedFixtureRowsHtml || '<div style="font-size:12px; color:var(--text-muted); margin-top:8px;">No completed fixtures yet.</div>'}
         </div>
       ` : ''}
 
@@ -99,6 +188,121 @@ async function renderTournaments() {
     `;
     container.appendChild(card);
   });
+}
+
+async function createSeriesFixture(tournamentId) {
+  const tourneys = await window.CricStorage.listTournaments();
+  const target = (tourneys || []).find(t => t.id === tournamentId);
+  if (!target) {
+    showToast('Series not found', 'warning');
+    return;
+  }
+
+  const teamAId = document.getElementById(`fixtureTeamA_${tournamentId}`)?.value;
+  const teamBId = document.getElementById(`fixtureTeamB_${tournamentId}`)?.value;
+  if (!teamAId || !teamBId) {
+    showToast('Select both teams', 'warning');
+    return;
+  }
+  if (teamAId === teamBId) {
+    showToast('Team A and Team B must be different', 'warning');
+    return;
+  }
+
+  const overs = Math.max(1, parseInt(document.getElementById(`fixtureOvers_${tournamentId}`)?.value, 10) || 5);
+  const maxBowler = Math.max(1, parseInt(document.getElementById(`fixtureMaxBowler_${tournamentId}`)?.value, 10) || 2);
+  const powerplayRaw = parseInt(document.getElementById(`fixturePowerplay_${tournamentId}`)?.value, 10);
+  const quotaCountRaw = parseInt(document.getElementById(`fixtureQuotaCount_${tournamentId}`)?.value, 10);
+  const quotaMaxRaw = parseInt(document.getElementById(`fixtureQuotaMax_${tournamentId}`)?.value, 10);
+  const whenValue = document.getElementById(`fixtureWhen_${tournamentId}`)?.value;
+
+  const fixture = {
+    id: `fix_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    teamAId,
+    teamBId,
+    scheduledAt: whenValue ? new Date(whenValue).toISOString() : null,
+    oversPerInnings: overs,
+    maxOversPerBowler: maxBowler,
+    powerplayOvers: Number.isNaN(powerplayRaw) || powerplayRaw <= 0 ? null : Math.min(powerplayRaw, overs),
+    quotaBowlersCount: Number.isNaN(quotaCountRaw) || quotaCountRaw <= 0 ? null : quotaCountRaw,
+    quotaMaxOvers: Number.isNaN(quotaMaxRaw) || quotaMaxRaw <= 0 ? null : quotaMaxRaw,
+    status: 'SCHEDULED',
+    linkedMatchId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  target.fixtures = [...(target.fixtures || []), fixture];
+  await window.CricStorage.saveTournament(target);
+  showToast('Fixture scheduled', 'success');
+  renderTournaments();
+}
+
+async function deleteSeriesFixture(tournamentId, fixtureId) {
+  const tourneys = await window.CricStorage.listTournaments();
+  const target = (tourneys || []).find(t => t.id === tournamentId);
+  if (!target) return;
+
+  target.fixtures = (target.fixtures || []).filter(fixture => fixture.id !== fixtureId);
+  await window.CricStorage.saveTournament(target);
+  showToast('Fixture removed', 'info');
+  renderTournaments();
+}
+
+async function startSeriesFixtureMatch(tournamentId, fixtureId) {
+  const tourneys = await window.CricStorage.listTournaments();
+  const target = (tourneys || []).find(t => t.id === tournamentId);
+  if (!target) {
+    showToast('Series not found', 'warning');
+    return;
+  }
+
+  const fixture = (target.fixtures || []).find(item => item.id === fixtureId);
+  if (!fixture) {
+    showToast('Fixture not found', 'warning');
+    return;
+  }
+
+  const teamA = (target.teams || []).find(team => team.id === fixture.teamAId);
+  const teamB = (target.teams || []).find(team => team.id === fixture.teamBId);
+  if (!teamA || !teamB) {
+    showToast('Fixture teams are missing from this series', 'warning');
+    return;
+  }
+
+  activeTournament = target;
+  await showNewMatchScreen('FULL', {
+    source: 'SERIES',
+    tournamentId,
+    prefill: {
+      fixtureId: fixture.id,
+      teamAId: fixture.teamAId,
+      teamBId: fixture.teamBId,
+      oversPerInnings: fixture.oversPerInnings,
+      maxOversPerBowler: fixture.maxOversPerBowler,
+      powerplayOvers: fixture.powerplayOvers,
+      quotaBowlersCount: fixture.quotaBowlersCount,
+      quotaMaxOvers: fixture.quotaMaxOvers
+    }
+  });
+  showToast('Fixture loaded into match setup', 'info');
+}
+
+async function startSeriesMatch(tournamentId) {
+  if (!tournamentId) {
+    showToast('Series not found', 'warning');
+    return;
+  }
+
+  const tourneys = await window.CricStorage.listTournaments();
+  const target = (tourneys || []).find(t => t.id === tournamentId);
+  if (!target) {
+    showToast('Series not found', 'warning');
+    return;
+  }
+
+  activeTournament = target;
+  await showNewMatchScreen('FULL', { source: 'SERIES', tournamentId });
 }
 
 function setTourneySubTab(tab) {
@@ -357,7 +561,7 @@ async function renderGlobalPlayers() {
 
   container.replaceChildren();
   if (!players.length) {
-    container.innerHTML = '<div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--color-surface-muted); border-radius:12px; border:1px solid var(--color-border);">No global players yet. Add a player to use them in Full Match squads.</div>';
+    container.innerHTML = '<div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--color-surface-muted); border-radius:12px; border:1px solid var(--color-border);">No global players yet. Add a player to use them in Quick Match squads.</div>';
     return;
   }
 

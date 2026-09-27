@@ -37,6 +37,10 @@ let matchSquadB = [];
 
 let matchGlobalPlayerCache = [];
 
+let currentMatchSetupSource = 'STANDALONE';
+
+let pendingSeriesFixtureContext = null;
+
 let activeMatchFilter = 'ALL';
 
 let activeQuickMatchStep = 0;

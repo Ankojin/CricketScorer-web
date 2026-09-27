@@ -87,6 +87,14 @@ function openMatchSettingsModal() {
   if (editPowerplay) {
     editPowerplay.value = activeMatch.powerplayOvers ? `${activeMatch.powerplayOvers}` : '';
   }
+  const editQuotaBowlersCount = document.getElementById('editQuotaBowlersCount');
+  if (editQuotaBowlersCount) {
+    editQuotaBowlersCount.value = activeMatch.quotaBowlersCount ? `${activeMatch.quotaBowlersCount}` : '';
+  }
+  const editQuotaMaxOvers = document.getElementById('editQuotaMaxOvers');
+  if (editQuotaMaxOvers) {
+    editQuotaMaxOvers.value = activeMatch.quotaMaxOvers ? `${activeMatch.quotaMaxOvers}` : '';
+  }
 
   const rules = activeMatch.gullyRules || {};
   document.getElementById('ruleCommonPlayer').checked = rules.commonPlayer || false;
@@ -148,10 +156,18 @@ async function saveMatchSettings() {
   const overs = parseInt(document.getElementById('editOversText').value) || 5;
   const maxBowlerOvers = parseInt(document.getElementById('editMaxBowlerOvers').value) || 2;
   const powerplayOversRaw = parseInt(document.getElementById('editPowerplayOvers').value, 10);
+  const quotaBowlersCountRaw = parseInt(document.getElementById('editQuotaBowlersCount')?.value, 10);
+  const quotaMaxOversRaw = parseInt(document.getElementById('editQuotaMaxOvers')?.value, 10);
 
   activeMatch.oversPerInnings = overs;
   activeMatch.maxOversPerBowler = maxBowlerOvers;
   activeMatch.powerplayOvers = normalizePowerplayOvers(powerplayOversRaw, overs);
+  activeMatch.quotaBowlersCount = Number.isNaN(quotaBowlersCountRaw) || quotaBowlersCountRaw <= 0
+    ? null
+    : Math.max(1, quotaBowlersCountRaw);
+  activeMatch.quotaMaxOvers = Number.isNaN(quotaMaxOversRaw) || quotaMaxOversRaw <= 0
+    ? null
+    : Math.max(1, quotaMaxOversRaw);
 
   const selectA = document.getElementById('editTeamAWK');
   const selectB = document.getElementById('editTeamBWK');

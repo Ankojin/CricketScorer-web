@@ -164,7 +164,7 @@ function renderScorecardInnings(tab) {
   const allHistory = baseMatch.ballHistory || [];
   const splitIdx = baseMatch.innings1Data?.recordedBallsCount || allHistory.length;
   let m = baseMatch;
-  let inningsLabel = 'Full Match';
+  let inningsLabel = 'Quick Match';
   let isInningsView = false;
 
   if (tab === 'INNINGS1' || tab === 'INNINGS2') {

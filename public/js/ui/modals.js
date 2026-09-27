@@ -12,7 +12,8 @@ const PRIMARY_ACTION_MODAL_IDS = [
   'fielderModal',
   'runOutModal',
   'overEndModal',
-  'editBallModal'
+  'editBallModal',
+  'matchResultModal'
 ];
 
 function closePrimaryActionModalsExcept(exceptId = null) {

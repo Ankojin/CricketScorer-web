@@ -59,7 +59,7 @@ async function handleAuthSubmit() {
     if (authTab === 'REGISTER') {
       const user = await window.CricStorage.register(email, password, name);
       localStorage.setItem('cric_user_mode', 'REGISTERED');
-      showToast(`Welcome, ${user.name}! Registered & synced to AWS Cloud`, 'success');
+      showToast(`Welcome, ${user.name}! Registered & synced`, 'success');
     } else {
       const user = await window.CricStorage.login(email, password);
       localStorage.setItem('cric_user_mode', 'REGISTERED');

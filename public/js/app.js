@@ -15,7 +15,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Check URL routing for separate navigation pages (/web-score, /full-match, /coin-toss, /settings-gully-rules)
+  // Check URL routing for separate navigation pages (/web-score, /quick-match, /series, /coin-toss, /settings-gully-rules)
   const isRouted = handleUrlRouting();
 
   // Check URL query parameters for Spectator Live View Mode (?matchId=match_123)
@@ -84,7 +84,12 @@ window.closeFeaturesMenu = closeFeaturesMenu;
 
 window.showWebScoreLandingScreen = showWebScoreLandingScreen;
 
-window.showFullMatchLandingScreen = showFullMatchLandingScreen;
+window.showQuickMatchLandingScreen = showQuickMatchLandingScreen;
+window.showFullMatchLandingScreen = showQuickMatchLandingScreen;
+
+window.showSeriesLandingScreen = showSeriesLandingScreen;
+
+window.startSeriesMatch = startSeriesMatch;
 
 window.navigateToRoute = navigateToRoute;
 
@@ -92,7 +97,8 @@ window.handleUrlRouting = handleUrlRouting;
 
 window.startWebScore = startWebScore;
 
-window.startFullMatch = startFullMatch;
+window.startQuickMatch = startQuickMatch;
+window.startFullMatch = startQuickMatch;
 
 window.viewAllMatches = viewAllMatches;
 
@@ -103,6 +109,8 @@ window.goToWizardOversStep = goToWizardOversStep;
 window.adjustMatchOvers = adjustMatchOvers;
 
 window.setQuickMatchOvers = setQuickMatchOvers;
+
+window.syncTeamNamesToTossUI = syncTeamNamesToTossUI;
 
 window.goToWizardTossStep = goToWizardTossStep;
 

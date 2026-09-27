@@ -1550,6 +1550,52 @@ html.has-app-session #homeDashboard { display: block !important; }
   font-size: 12px;
 }
 
+.home-series-heading {
+  margin-bottom: 10px;
+  justify-content: center;
+  text-align: center;
+}
+
+.home-series-heading > div {
+  width: 100%;
+}
+
+.home-series-heading h2 {
+  text-align: center;
+}
+
+.home-series-heading p {
+  margin: 6px auto 0;
+  max-width: 640px;
+  text-align: center;
+}
+
+.home-series-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: min(100%, 560px);
+  margin: 0 auto;
+}
+
+.home-series-actions .cric-btn {
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  justify-content: center;
+}
+
+.home-series-actions .series-btn-icon {
+  width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .home-text-action {
   min-height: 40px;
   padding: 6px 10px;
@@ -2110,10 +2156,10 @@ button.quick-match-progress-step { cursor: pointer; }
 .btn-boundary { background: var(--color-success-soft); color: var(--color-green-dark); border-color: var(--color-green); }
 .btn-extra { background: var(--color-warning-soft); color: var(--color-warning); border-color: var(--color-warning); }
 .keypad-grid .btn-wicket {
-  grid-column: 1 / -1;
-  min-height: 62px;
+  grid-column: span 2;
+  min-height: 52px;
   color: var(--color-text-on-dark);
-  font-size: 20px;
+  font-size: 16px;
   letter-spacing: .04em;
   background: var(--color-error);
   border: 2px solid var(--color-error);
@@ -2121,11 +2167,11 @@ button.quick-match-progress-step { cursor: pointer; }
 }
 
 .keypad-grid .btn-undo {
-  grid-column: 1 / -1;
-  min-height: 48px;
-  margin-top: 4px;
+  grid-column: span 2;
+  min-height: 42px;
+  margin-top: 0;
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 12px;
   background: var(--color-surface-soft);
   border-color: var(--color-border);
 }
@@ -2725,23 +2771,26 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .score-header-live-button:hover { filter: brightness(1.04); }
 .live-score-team-row { flex-wrap: wrap; font-size: 14px !important; }
 .live-swap-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   grid-column: 1 / -1;
   width: 100%;
-  min-height: 34px;
-  margin-top: -7px;
-  color: var(--color-electric);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-green);
+  min-height: 36px;
+  margin-top: -4px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--card-border);
+  border-left: 1px solid var(--card-border);
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: .12em;
+  letter-spacing: .09em;
   cursor: pointer;
 }
-.live-swap-button:hover { background: var(--color-primary-soft); }
+.live-swap-button:hover { background: var(--color-surface-soft); border-color: var(--color-primary); color: var(--color-text); }
 .scoring-extra-actions {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2980,6 +3029,7 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   .action-modal-actions > * { min-width: 0; }
   .home-dashboard .cric-hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-dashboard .home-web-score-cta { grid-column: 1 / -1; justify-self: center; width: min(100%, 180px); }
+  .home-series-actions { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
@@ -3068,3 +3118,210 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .toast-close:hover,
 .toast-close:focus-visible { color: var(--color-text); background: var(--color-surface-raised); }
 .toast-close:focus-visible { outline: 2px solid var(--color-electric); outline-offset: 1px; }
+
+/* Live UX fit patch: tighten hierarchy and keep controls within comfortable viewport on mobile + desktop. */
+#screenLiveScoring {
+  overflow-x: hidden;
+}
+
+#liveScoringActiveContainer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+#mainScoreCard {
+  padding: 12px 12px 10px;
+}
+
+#mainScoreCard .score-main {
+  font-size: clamp(30px, 7.2vw, 42px) !important;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+#mainScoreCard .overs-main {
+  font-size: clamp(13px, 3.3vw, 16px);
+}
+
+#mainScoreCard .rates-row {
+  gap: 6px;
+}
+
+#mainScoreCard .rates-row span {
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+#mainScoreCard .target-banner {
+  margin-top: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+#mainScoreCard .recent-balls {
+  min-height: 36px;
+}
+
+#mainScoreCard .ball-chip {
+  min-width: 34px;
+  height: 34px;
+  font-size: 11px;
+}
+
+#liveBattersCard,
+#liveBowlerCard,
+#actionBanner {
+  padding: 11px 12px !important;
+}
+
+#liveBattersCard .stats-table th,
+#liveBowlerCard .stats-table th {
+  font-size: 10px;
+}
+
+#liveBattersCard .stats-table td,
+#liveBowlerCard .stats-table td {
+  font-size: 12px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+#scoringKeypad {
+  gap: 7px;
+  width: 100%;
+}
+
+#scoringKeypad .btn {
+  min-height: 48px;
+  padding: 8px 4px;
+  font-size: 17px;
+}
+
+#scoringKeypad .btn-extra {
+  font-size: 14px;
+}
+
+#scoringKeypad .btn-wicket {
+  grid-column: span 2;
+  min-height: 50px;
+  font-size: 15px;
+}
+
+#scoringKeypad .btn-undo {
+  grid-column: span 2;
+  min-height: 42px;
+  font-size: 12px;
+}
+
+#scoringExtraActions {
+  margin-top: -3px;
+  gap: 6px;
+  width: 100%;
+}
+
+#scoringExtraActions .btn {
+  min-height: 34px;
+  font-size: 10px;
+  padding: 5px 4px;
+}
+
+@media (max-width: 600px) {
+  .match-hub-heading {
+    gap: 8px;
+    padding: 12px 10px 10px;
+  }
+
+  .match-hub-score strong {
+    font-size: 19px;
+  }
+
+  .match-view-tabs {
+    gap: 3px;
+    padding: 4px;
+  }
+
+  .match-view-tabs button {
+    min-height: 40px;
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 992px) {
+  #screenLiveScoring.active {
+    max-width: 1240px;
+    margin-inline: auto;
+  }
+
+  #screenLiveScoring.active #liveScoringActiveContainer {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  #screenLiveScoring.active #spectatorBanner,
+  #screenLiveScoring.active #completedMatchCard,
+  #screenLiveScoring.active #mainScoreCard,
+  #screenLiveScoring.active #actionBanner,
+  #screenLiveScoring.active #scoringKeypad,
+  #screenLiveScoring.active #scoringExtraActions {
+    grid-column: 1 / -1;
+  }
+
+  #screenLiveScoring.active #liveBattersCard {
+    grid-column: 1 / 2;
+    grid-row: 2;
+  }
+
+  #screenLiveScoring.active #liveBowlerCard {
+    grid-column: 2 / 3;
+    grid-row: 2 / span 2;
+    align-self: start;
+  }
+
+  #screenLiveScoring.active #btnSwapBatsmen {
+    grid-column: 1 / 2;
+    grid-row: 3;
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+    margin-top: 4px;
+  }
+
+  #screenLiveScoring.active #scoringKeypad {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  #screenLiveScoring.active #scoringKeypad .btn {
+    min-height: 54px;
+    font-size: 18px;
+  }
+
+  #screenLiveScoring.active #scoringKeypad .btn-wicket {
+    grid-column: span 2;
+    min-height: 52px;
+    font-size: 17px;
+  }
+
+  #screenLiveScoring.active #scoringKeypad .btn-undo {
+    grid-column: span 2;
+    min-height: 44px;
+    font-size: 13px;
+  }
+
+  #screenLiveScoring.active #scoringExtraActions {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  #screenLiveScoring.active #scoringExtraActions .btn {
+    min-height: 38px;
+    font-size: 11px;
+  }
+}

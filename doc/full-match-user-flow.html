@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CricScore Pro — Full Match user flow</title>
+  <style>
+    :root {
+      --navy: #071B33;
+      --navy-deep: #041326;
+      --navy-soft: #0D2A4A;
+      --green: #13A968;
+      --electric: #49E878;
+      --bg: #F4F7FA;
+      --surface: #fff;
+      --text: #122033;
+      --muted: #5C6B7A;
+      --line: #C5D0DC;
+      --warn: #F59E0B;
+      --danger: #D92D20;
+      --info: #2563EB;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    header {
+      background: linear-gradient(160deg, var(--navy-deep), var(--navy) 55%, var(--navy-soft));
+      color: #fff;
+      padding: 36px 24px 28px;
+    }
+    header .wrap, main { max-width: 1180px; margin: 0 auto; }
+    .eyebrow {
+      color: var(--electric);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 8px 0 8px; font-size: 34px; letter-spacing: -.02em; }
+    header p { margin: 0; max-width: 720px; color: rgba(255,255,255,.82); }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin-top: 18px;
+      font-size: 13px;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 8px; }
+    .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+    main { padding: 28px 20px 64px; }
+    section.phase { margin-bottom: 18px; }
+    .phase-head {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin: 8px 0 14px;
+    }
+    .phase-num {
+      background: var(--navy);
+      color: var(--electric);
+      font-weight: 800;
+      font-size: 13px;
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+    h2 { margin: 0; font-size: 20px; }
+    .phase-note { color: var(--muted); font-size: 13px; margin: -6px 0 14px; }
+
+    .node {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 0 rgba(7,27,51,.04);
+    }
+    .node strong { display: block; font-size: 14px; }
+    .node small, .node p { display: block; color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+    .node ul { margin: 6px 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; }
+    .node li { margin: 2px 0; }
+    .screen { border-top: 4px solid var(--green); }
+    .action { border-top: 4px solid var(--electric); background: #f3fff7; }
+    .decision {
+      background: #fff8eb;
+      border: 1px solid #f3d48a;
+      border-top: 4px solid var(--warn);
+    }
+    .end { border-top: 4px solid var(--navy); background: var(--navy); color: #fff; }
+    .end small, .end p, .end li { color: rgba(255,255,255,.75); }
+    .side { border-top: 4px solid var(--info); }
+    .stop { border-top: 4px solid var(--danger); background: #fff5f4; }
+
+    .row { display: grid; gap: 12px; align-items: stretch; }
+    .row.two { grid-template-columns: 1fr 1fr; }
+    .row.three { grid-template-columns: 1fr 1fr 1fr; }
+    .row.four { grid-template-columns: repeat(4, 1fr); }
+    .arrow {
+      text-align: center;
+      color: var(--green);
+      font-weight: 800;
+      font-size: 18px;
+      line-height: 1;
+      padding: 4px 0;
+    }
+    .arrow span { display: block; font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .04em; }
+    .branch-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .yes { color: var(--green); }
+    .no { color: var(--danger); }
+
+    .hub {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 12px;
+    }
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .tab {
+      background: var(--navy);
+      color: #fff;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+    }
+    .tab.on { background: var(--electric); color: var(--navy); }
+
+    table.outcomes {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      font-size: 13px;
+    }
+    table.outcomes th, table.outcomes td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    table.outcomes th { background: var(--navy); color: #fff; font-size: 12px; letter-spacing: .04em; }
+    table.outcomes tr:last-child td { border-bottom: 0; }
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 2px 7px;
+      background: #e7f8ef;
+      color: #0d7a49;
+    }
+    footer {
+      max-width: 1180px;
+      margin: 0 auto 40px;
+      padding: 0 20px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 800px) {
+      .row.two, .row.three, .row.four, .hub { grid-template-columns: 1fr; }
+      h1 { font-size: 26px; }
+    }
+    @media print {
+      header, .node, table.outcomes th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="eyebrow">CricScore Pro · scoringMode FULL</div>
+      <h1>Full Match — end-to-end user flow</h1>
+      <p>Signed-in path from Home through named squads, toss, ball-by-ball scoring, the innings break, and the finished scorecard.</p>
+      <div class="legend">
+        <span><i class="swatch" style="background:#13A968"></i> Screen</span>
+        <span><i class="swatch" style="background:#49E878"></i> What the user does</span>
+        <span><i class="swatch" style="background:#F59E0B"></i> Decision</span>
+        <span><i class="swatch" style="background:#2563EB"></i> Side path</span>
+        <span><i class="swatch" style="background:#D92D20"></i> Blocked</span>
+        <span><i class="swatch" style="background:#071B33"></i> End state</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="phase">
+      <div class="phase-head"><span class="phase-num">1</span><h2>Open the app and clear the sign-in gate</h2></div>
+      <p class="phase-note">Full Match is registered-only. Guests can score with Web Score. A guest who opens /full-match is sent home and shown Sign in.</p>
+
+      <div class="node screen"><strong>Open CricScore Pro</strong><p>Landing checks local session: registered user, or guest.</p></div>
+      <div class="arrow">↓</div>
+      <div class="node decision"><strong>Is there a session?</strong></div>
+      <div class="arrow">↓</div>
+      <div class="row two">
+        <div>
+          <div class="branch-label no">No session</div>
+          <div class="node screen"><strong>Sign-in entry</strong>
+            <ul>
+              <li>Register / Sign in → account saved, Home as registered</li>
+              <li>Continue as guest → Home with Web Score only</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label yes">Session exists</div>
+          <div class="node screen"><strong>Home</strong>
+            <p>Registered: Full Match is the primary button, Web Score is secondary, Recent Matches lists the latest three saved games.</p>
+            <p>Guest: Web Score only. Full Match is hidden in Features.</p>
+          </div>
+        </div>
+      </div>
+      <div class="arrow">↓ <span>REGISTERED USER STARTS FULL MATCH</span></div>
+      <div class="row two">
+        <div class="node action"><strong>Door A — Home</strong><p>Tap <b>Full Match</b>. Goes straight into match setup.</p></div>
+        <div class="node action"><strong>Door B — Features</strong><p>Features menu → Full Match → <b>/full-match</b> landing → <b>Start Full Match Now</b>.</p></div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node side"><strong>Return later, instead of starting new</strong>
+        <p>Home → a recent match, or bottom nav → Matches (All / Live / Completed) → open that match. Live games reopen on the scoring hub. Completed games open locked, with the result card.</p>
+      </div>
+    </section>
+
+    <section class="phase">
+      <div class="phase-head"><span class="phase-num">2</span><h2>Set up the match — Teams, Settings, Toss</h2></div>
+      <p class="phase-note">Four-step wizard. Full Match shows the squad builder. Player-count boxes used by Web Score stay hidden.</p>
+
+      <div class="row four">
+        <div class="node screen"><strong>1 · Teams</strong><small>Wizard step</small></div>
+        <div class="node screen"><strong>2 · Settings</strong><small>Overs and bowler cap</small></div>
+        <div class="node screen"><strong>3 · Toss</strong><small>Call, flip, decision</small></div>
+        <div class="node screen"><strong>4 · Score</strong><small>Live hub</small></div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="node screen">
+        <strong>Step 1 — Teams and squads</strong>
+        <ul>
+          <li>Name Team A and Team B, and pick each team colour.</li>
+          <li>Load a saved team into either squad, or type a new player and add them.</li>
+          <li>Or open the global player list: search, add one, or add a checked group.</li>
+          <li>On each player: mark Captain, mark Vice-captain, move to the other squad, or remove.</li>
+        </ul>
+      </div>
+      <div class="arrow">↓ <span>NEXT: OVERS</span></div>
+      <div class="node decision"><strong>Did the user add any players?</strong>
+        <p>Empty squads are filled with 11 placeholders (“Team A Player 1” …) so the match can still start. A squad the user built is kept as entered. First player becomes captain and the second vice-captain if those roles were left blank.</p>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node screen">
+        <strong>Step 2 — Settings</strong>
+        <ul>
+          <li>Overs per innings: stepper, or 6 / 10 / 20 / 35 / 50.</li>
+          <li>Max overs per bowler. Defaults to about one fifth of the innings, and cannot exceed the innings length.</li>
+          <li>If a series is active, its defaults seed overs, bowler cap, powerplay, quota, and gully rules.</li>
+          <li>Teams and named players are saved for reuse.</li>
+        </ul>
+        <p>Back returns to Teams.</p>
+      </div>
+      <div class="arrow">↓ <span>NEXT: TOSS</span></div>
+      <div class="node screen">
+        <strong>Step 3 — Coin toss</strong>
+        <ul>
+          <li>Choose who calls: Team A or Team B.</li>
+          <li>Call Heads or Tails, then flip. Flip again is allowed.</li>
+          <li>The winner chooses Bat first or Bowl first.</li>
+        </ul>
+        <p>Back returns to Settings. Start Scoring Now stays hidden until the coin has landed.</p>
+      </div>
+      <div class="arrow">↓ <span>START SCORING NOW</span></div>
+      <div class="node action">
+        <strong>Match is created and goes live</strong>
+        <ul>
+          <li>Status LIVE, scoring mode FULL, toss winner and decision stored.</li>
+          <li>Batting side and bowling side follow the decision.</li>
+          <li>Opening striker is batting player 1, non-striker is player 2, bowler is bowling player 1.</li>
+          <li>Saved on this device, and synced to the cloud because the user is signed in.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="phase">
+      <div class="phase-head"><span class="phase-num">3</span><h2>Live hub — what stays on screen for the whole match</h2></div>
+      <p class="phase-note">Full Match keeps batter and bowler tables, the four view tabs, and the bottom bar. Web Score hides those.</p>
+
+      <div class="hub">
+        <div class="node screen">
+          <strong>Match views</strong>
+          <div class="tabs">
+            <span class="tab on">Summary</span>
+            <span class="tab">Scorecard</span>
+            <span class="tab">Overs</span>
+            <span class="tab">Stats</span>
+          </div>
+          <p>Bottom bar while scoring: Live, Scorecard, Overs. Leaving the match: Home, Matches, Teams, Series, Stats.</p>
+        </div>
+        <div class="node screen">
+          <strong>Summary (the scoring screen)</strong>
+          <ul>
+            <li>Who is batting, score, overs, current run rate, this-over balls.</li>
+            <li>In the chase: target, runs still needed, balls left, required rate.</li>
+            <li>Powerplay label while a powerplay is set.</li>
+            <li>Batter card (striker starred) with Swap and replace. Bowler card with replace.</li>
+            <li>Keypad: 0 1 2 3 4 6, Wide, No-ball, Wicket, Undo.</li>
+            <li>More: Byes, Leg byes, Overthrows, Dropped catch, Granted run (1G).</li>
+            <li>LIVE copies a spectator link and opens WhatsApp. The link works only while the match is LIVE.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="row three">
+        <div class="node side"><strong>Scorecard</strong><p>1st and 2nd innings tabs. Batting card, bowling card, fall of wickets, extras.</p></div>
+        <div class="node side"><strong>Overs</strong><p>Each over, newest first, per innings. Open a ball to edit runs, extras, wicket, or strike.</p></div>
+        <div class="node side"><strong>Stats</strong><p>Match leaderboards from the balls already recorded.</p></div>
+      </div>
+    </section>
+
+    <section class="phase">
+      <div class="phase-head"><span class="phase-num">4</span><h2>Score a ball</h2></div>
+      <p class="phase-note">Every legal tap is saved, replayed by the scoring engine, and the screen redraws. A pending choice blocks the next ball until it is answered.</p>
+
+      <div class="node decision"><strong>Can this ball be recorded?</strong>
+        <p>No, if a choice is still open, the match is abandoned, or the match is already complete. Abandoned matches resume only from Match settings.</p>
+      </div>
+      <div class="arrow">↓ <span>YES — PICK AN OUTCOME</span></div>
+
+      <table class="outcomes">
+        <thead>
+          <tr><th>User taps</th><th>What they confirm</th><th>What happens next</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag">Runs</span> 0, 1, 2, 3, 4, 6</td>
+            <td>Nothing else. 4 and 6 show as boundary chips.</td>
+            <td>Odd runs rotate the strike. Then the over and innings checks below.</td>
+          </tr>
+          <tr>
+            <td><span class="tag">Wide</span> or <span class="tag">No-ball</span></td>
+            <td>How many extra runs.</td>
+            <td>Not a legal delivery, unless gully rules say wides and no-balls add no extra runs.</td>
+          </tr>
+          <tr>
+            <td><span class="tag">Byes</span> or <span class="tag">Leg byes</span></td>
+            <td>Runs completed.</td>
+            <td>Counted as a legal ball. Strike rotates on odd totals.</td>
+          </tr>
+          <tr>
+            <td><span class="tag">Overthrows</span></td>
+            <td>A custom run total.</td>
+            <td>Recorded as additional runs on the ball.</td>
+          </tr>
+          <tr>
+            <td><span class="tag">Dropped catch</span></td>
+            <td>Which fielder, then runs completed (0–3).</td>
+            <td>The batter stays in. The drop is stored on that ball.</td>
+          </tr>
+          <tr>
+            <td><span class="tag">1G</span> Granted run</td>
+            <td>Nothing else.</td>
+            <td>One granted run. Strike does not rotate.</td>
+          </tr>
+          <tr>
+            <td><span class="tag">Wicket</span></td>
+            <td>Dismissal type, then the details in the next table.</td>
+            <td>A new batter is required before the next ball. Retired hurt replaces the batter without adding a wicket.</td>
+          </tr>
+          <tr>
+            <td><span class="tag">Undo</span></td>
+            <td>Confirm by tapping.</td>
+            <td>Last ball is removed and the innings is recalculated.</td>
+          </tr>
+          <tr>
+            <td><span class="tag">Swap</span></td>
+            <td>Nothing else.</td>
+            <td>Striker and non-striker change ends. Hidden if single-side batting is on.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="arrow">↓ <span>WICKET DETAILS</span></div>
+      <table class="outcomes">
+        <thead>
+          <tr><th>Dismissal</th><th>Extra steps</th><th>Then</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Bowled, LBW</td><td>None. Striker is out.</td><td>Pick the new striker.</td></tr>
+          <tr><td>Caught</td><td>Pick the fielder who caught it.</td><td>Pick the new striker.</td></tr>
+          <tr><td>Stumped</td><td>Bowling wicket-keeper must be set. If not, Match settings opens first. Then pick the fielder.</td><td>Pick the new striker.</td></tr>
+          <tr><td>Run out</td><td>Who was out, runs completed (0–3), fielder.</td><td>Replace the dismissed batter.</td></tr>
+          <tr><td>Retired hurt</td><td>None.</td><td>Batter leaves without a wicket. Pick a replacement.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="phase">
+      <div class="phase-head"><span class="phase-num">5</span><h2>After each ball — over, innings, or match</h2></div>
+
+      <div class="node decision"><strong>What did that ball finish?</strong></div>
+      <div class="arrow">↓</div>
+      <div class="row three">
+        <div>
+          <div class="branch-label">Still in the over</div>
+          <div class="node action"><strong>Ready for the next ball</strong><p>Score, this-over chips, batter and bowler figures update.</p></div>
+        </div>
+        <div>
+          <div class="branch-label">Six legal balls</div>
+          <div class="node screen"><strong>End of over</strong>
+            <p>Summary of the over, bowler figures, and dismissals. Then pick the next bowler. A bowler who has used their max overs is not offered.</p>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label">Innings over</div>
+          <div class="node screen"><strong>Innings ends when</strong>
+            <ul>
+              <li>The over limit is bowled, or</li>
+              <li>The batting side is all out.</li>
+            </ul>
+            <p>Last man standing, unequal teams, and single-side batting change that all-out count and whether a non-striker is required.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓ <span>FIRST INNINGS FINISHED</span></div>
+      <div class="node screen">
+        <strong>Innings break</strong>
+        <p>First-innings score and overs, and the target (runs + 1). The other side is now batting.</p>
+      </div>
+      <div class="arrow">↓ <span>START SECOND INNINGS</span></div>
+      <div class="row three">
+        <div class="node action"><strong>Pick striker</strong><p>From the chasing squad.</p></div>
+        <div class="node action"><strong>Pick non-striker</strong><p>Skipped for single-side batting, or when last man standing leaves one batter.</p></div>
+        <div class="node action"><strong>Pick opening bowler</strong><p>From the side that just batted.</p></div>
+      </div>
+      <div class="arrow">↓ <span>CHASE</span></div>
+      <div class="node screen">
+        <strong>Second innings</strong>
+        <p>Same keypad and the same over and wicket loop. The target banner stays up: runs needed, balls left, and required rate.</p>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node decision"><strong>How does the chase end?</strong></div>
+      <div class="arrow">↓</div>
+      <div class="row three">
+        <div class="node end"><strong>Target reached</strong><p>Chasing side wins by the wickets still in hand.</p></div>
+        <div class="node end"><strong>Overs or all out, short of the target</strong><p>Bowling side wins by the runs remaining.</p></div>
+        <div class="node end"><strong>Scores level</strong><p>Match tied.</p></div>
+      </div>
+    </section>
+
+    <section class="phase">
+      <div class="phase-head"><span class="phase-num">6</span><h2>Result, and everything around the live match</h2></div>
+
+      <div class="node end">
+        <strong>Match completed</strong>
+        <ul>
+          <li>Celebration dialog: winner, or “Match tied”, plus the result line.</li>
+          <li>Summary card: result, Man of the Match, Done / Home, and View Scorecard.</li>
+          <li>Keypad hides. Scoring stays locked.</li>
+          <li>The match remains under Recent Matches and under Match Center → Completed.</li>
+        </ul>
+      </div>
+      <div class="arrow">↓ <span>DONE / HOME</span></div>
+      <div class="node screen"><strong>Home</strong><p>The finished match is in Recent Matches. Full Match starts another one.</p></div>
+
+      <div class="arrow">↓ <span>AVAILABLE ANY TIME THE MATCH IS OPEN</span></div>
+      <div class="row two">
+        <div class="node side">
+          <strong>Share live</strong>
+          <p>LIVE builds ?matchId=…, copies it, and opens WhatsApp with the score. A spectator sees the same hub read-only. The link is refused once the match is no longer LIVE.</p>
+        </div>
+        <div class="node side">
+          <strong>Match and Gully Rules</strong>
+          <ul>
+            <li>Change overs, max bowler overs, powerplay, and each side’s wicket-keeper.</li>
+            <li>Gully rules: common player, join mid-match, switch teams, single-side batting, no extra runs for wides and no-balls, last man standing, unequal teams.</li>
+            <li>Abandon or resume. Export or import a backup.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="row three">
+        <div class="node side"><strong>Teams directory</strong><p>Saved teams and the global player list. Step 1 loads those into a new Full Match squad.</p></div>
+        <div class="node side"><strong>Series</strong><p>A series can hold default overs and gully rules. A new match copies those defaults while that series is active.</p></div>
+        <div class="node stop"><strong>Abandoned</strong><p>Scoring is locked. Resume from Match settings puts it back to LIVE. Delete from Match Center removes it after a confirm.</p></div>
+      </div>
+    </section>
+  </main>
+  <footer>
+    Flow matches the current web app: Home and Features gate, setup wizard, live hub, wicket and extra dialogs, innings-break modal, and the completed-match card.
+  </footer>
+</body>
+</html>

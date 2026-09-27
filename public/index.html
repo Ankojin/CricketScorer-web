@@ -56,10 +56,10 @@
         </div>
       </button>
 
-      <button id="featureFullMatchBtn" class="feature-item" type="button" hidden onclick="closeFeaturesMenu(); showFullMatchLandingScreen();">
+      <button id="featureFullMatchBtn" class="feature-item" type="button" hidden onclick="closeFeaturesMenu(); showQuickMatchLandingScreen();">
         <span class="feature-icon bg-emerald">📋</span>
         <div class="feature-info">
-          <strong>Full Match</strong>
+          <strong>Quick Match</strong>
           <small>Squads, Players, Scorecards & Stats</small>
         </div>
       </button>
@@ -117,13 +117,13 @@
         <div class="cric-home-hero">
           <div class="cric-hero-content">
             <div class="cric-hero-badge">
-              <span class="badge-dot"></span> WEB PWA · SCORE IN THE BROWSER
+              <span class="badge-dot"></span> LIVE CRICKET SCORING PLATFORM
             </div>
 
             <h1 id="homeHeading" class="cric-hero-title">
-              YOUR MATCH.<br>
-              YOUR SCOREBOOK.<br>
-              <span class="highlight-green">YOUR SCORE.</span>
+              TRACK EVERY BALL.<br>
+              OWN EVERY OVER.<br>
+              <span class="highlight-green">SHARE EVERY MOMENT.</span>
             </h1>
 
             <p class="cric-hero-subline">
@@ -137,14 +137,20 @@
               </button>
             </div>
 
-            <div id="homeRegisteredCtas" class="cric-hero-actions" hidden>
-              <button class="cric-btn cric-btn-primary" type="button" onclick="startFullMatch()">
-                📋 Full Match →
-              </button>
-              <button class="cric-btn cric-btn-outline home-web-score-cta" type="button" onclick="showWebScoreLandingScreen()">
-                ⚡ Web Score
-              </button>
-            </div>
+            <section id="homeSeriesSection" class="home-recent-section" hidden>
+              <div class="home-section-heading home-series-heading">
+                <div>
+                  <h2># MATCH HUB</h2>
+                  <p>Start a quick game, run live web scoring, open an existing series, or create a new one.</p>
+                </div>
+              </div>
+              <div class="home-series-actions" role="group" aria-label="Tournament and quick actions">
+                <button class="cric-btn cric-btn-primary" type="button" onclick="startQuickMatch()"><span class="series-btn-icon" aria-hidden="true">📋</span><span>Quick Match</span></button>
+                <button class="cric-btn cric-btn-outline home-web-score-cta" type="button" onclick="showWebScoreLandingScreen()"><span class="series-btn-icon" aria-hidden="true">⚡</span><span>Web Score</span></button>
+                <button class="cric-btn cric-btn-primary" type="button" onclick="showSeriesLandingScreen()"><span class="series-btn-icon" aria-hidden="true">🏆</span><span>Open Series</span></button>
+                <button class="cric-btn cric-btn-secondary" type="button" onclick="showTournamentsScreen(); openNewTournamentModal();"><span class="series-btn-icon" aria-hidden="true">➕</span><span>Create Series</span></button>
+              </div>
+            </section>
 
             <!-- Optional Mobile Screenshot Placeholder Slots -->
             <div class="home-shots-row" aria-label="Mobile app screenshots">
@@ -233,14 +239,14 @@
       </div>
     </div>
 
-    <!-- Screen 0.5: Full Match Mode Landing (/full-match) -->
+    <!-- Screen 0.5: Quick Match Mode Landing (/quick-match) -->
     <div id="screenFullMatchLanding" class="screen">
       <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
         <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-primary); font-weight:700; cursor:pointer; padding:0;">Home</button>
         <span>›</span>
         <span>Features</span>
         <span>›</span>
-        <span style="color:var(--text-color);">Full Match Mode</span>
+        <span style="color:var(--text-color);">Quick Match Mode</span>
       </div>
 
       <div class="cric-hero">
@@ -250,17 +256,47 @@
           </div>
 
           <h1 class="cric-hero-title">
-            FULL MATCH <span class="highlight-green">MODE</span>
+            QUICK MATCH <span class="highlight-green">MODE</span>
           </h1>
 
           <p class="cric-hero-summary" style="max-width:680px; font-size:15px; line-height:1.6;">
-            Player-level scoring for matches that matter — professional games, tournaments, box leagues, and your weekend gully. Build your squad once, pick your team sheets, and score every ball against real named players — who’s on strike, who bowled it, who took the catch. Real scorecards, real career stats, and gully rules built in.
+            Detailed match scoring for league nights, academy games, and local tournaments. Build squads, choose playing elevens, and record each delivery with player-level events, scorecards, and season-ready stats.
           </p>
 
           <div class="cric-hero-actions" style="margin-top:28px;">
-            <button id="fullMatchLandingBtn" class="cric-btn cric-btn-primary" type="button" onclick="startFullMatch()">
-              🔑 Sign In / Register to Start Full Match →
+            <button id="fullMatchLandingBtn" class="cric-btn cric-btn-primary" type="button" onclick="startQuickMatch()">
+              🔑 Sign In / Register to Start Quick Match →
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 0.6: Series Landing (/series) -->
+    <div id="screenSeriesLanding" class="screen">
+      <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-primary); font-weight:700; cursor:pointer; padding:0;">Home</button>
+        <span>›</span>
+        <span style="color:var(--text-color);">Series</span>
+      </div>
+
+      <div class="cric-hero">
+        <div class="cric-hero-content">
+          <div class="cric-hero-badge">
+            <span class="badge-dot"></span> SERIES WORKFLOW
+          </div>
+
+          <h1 class="cric-hero-title">
+            TOURNAMENT <span class="highlight-green">SERIES</span>
+          </h1>
+
+          <p class="cric-hero-summary" style="max-width:680px; font-size:15px; line-height:1.6;">
+            Create a series, attach teams, assign players, and start series matches with default overs and advanced bowler restrictions.
+          </p>
+
+          <div class="cric-hero-actions" style="margin-top:22px; gap:10px; flex-wrap:wrap;">
+            <button class="cric-btn cric-btn-primary" type="button" onclick="showTournamentsScreen()">Open Series Hub</button>
+            <button class="cric-btn cric-btn-secondary" type="button" onclick="showTournamentsScreen(); openNewTournamentModal();">Create New Series</button>
           </div>
         </div>
       </div>
@@ -311,7 +347,7 @@
 
       <div class="wizard-card">
         <div id="fullMatchSetupIntro" hidden style="margin-bottom:20px; padding:12px; background:var(--color-primary-soft); border:1px solid var(--color-border-dark); border-radius:12px;">
-          <div style="font-size:12px; font-weight:800; color:var(--color-electric); text-transform:uppercase; letter-spacing:.06em;">Full Match setup</div>
+          <div style="font-size:12px; font-weight:800; color:var(--color-electric); text-transform:uppercase; letter-spacing:.06em;">Quick Match setup</div>
           <div style="font-size:12px; color:var(--color-text-on-dark); margin-top:4px;">Create both teams, then add players directly or choose from your saved global player list.</div>
         </div>
 
@@ -321,7 +357,7 @@
             <label class="team-input-label" for="teamAName">TEAM A</label>
             <div class="team-input-row">
               <input type="color" id="teamAColor" class="team-color-picker" value="#13a968" title="Team A Color" onchange="syncTeamColorDot('A')">
-              <input type="text" id="teamAName" class="form-control team-name-input" value="Team A" placeholder="Team A Name" oninput="syncTeamNamesToTossUI()">
+              <input type="text" id="teamAName" class="form-control team-name-input" value="Team A" placeholder="Team A Name" oninput="window.syncTeamNamesToTossUI && window.syncTeamNamesToTossUI()">
             </div>
             <div class="web-score-player-count"><label for="teamAPlayerCount">Players</label><input id="teamAPlayerCount" class="web-score-player-count-input" type="number" inputmode="numeric" min="1" max="11" step="1" value="11" aria-label="Team A player count"></div>
           </div>
@@ -332,7 +368,7 @@
             <label class="team-input-label" for="teamBName">TEAM B</label>
             <div class="team-input-row">
               <input type="color" id="teamBColor" class="team-color-picker" value="#38bdf8" title="Team B Color" onchange="syncTeamColorDot('B')">
-              <input type="text" id="teamBName" class="form-control team-name-input" value="Team B" placeholder="Team B Name" oninput="syncTeamNamesToTossUI()">
+              <input type="text" id="teamBName" class="form-control team-name-input" value="Team B" placeholder="Team B Name" oninput="window.syncTeamNamesToTossUI && window.syncTeamNamesToTossUI()">
             </div>
             <div class="web-score-player-count"><label for="teamBPlayerCount">Players</label><input id="teamBPlayerCount" class="web-score-player-count-input" type="number" inputmode="numeric" min="1" max="11" step="1" value="11" aria-label="Team B player count"></div>
           </div>
@@ -346,7 +382,7 @@
                 <button type="button" class="btn-primary" style="width:auto; padding:8px 12px;" onclick="addTypedPlayerToSquad('A')">Add</button>
               </div>
               <div id="teamASquadList" style="margin-top:10px;"></div>
-              <details class="global-player-picker">
+              <details id="globalPlayerPickerA" class="global-player-picker">
                 <summary>Add from global player list</summary>
                 <input id="globalPlayerSearchA" class="form-control" type="search" aria-label="Search global players for Team A" placeholder="Search global players" oninput="filterGlobalPlayerOptions('A')">
                 <label class="team-input-label" for="selectGlobalPlayerA">Add one player</label>
@@ -363,7 +399,7 @@
                 <button type="button" class="btn-primary" style="width:auto; padding:8px 12px;" onclick="addTypedPlayerToSquad('B')">Add</button>
               </div>
               <div id="teamBSquadList" style="margin-top:10px;"></div>
-              <details class="global-player-picker">
+              <details id="globalPlayerPickerB" class="global-player-picker">
                 <summary>Add from global player list</summary>
                 <input id="globalPlayerSearchB" class="form-control" type="search" aria-label="Search global players for Team B" placeholder="Search global players" oninput="filterGlobalPlayerOptions('B')">
                 <label class="team-input-label" for="selectGlobalPlayerB">Add one player</label>
@@ -400,6 +436,19 @@
           <div class="max-bowler-overs-field">
             <label class="team-input-label" for="maxBowlerOvers">MAX OVERS PER BOWLER</label>
             <input type="number" id="maxBowlerOvers" class="form-control" min="1" max="100" step="1" value="2" inputmode="numeric">
+          </div>
+          <div class="max-bowler-overs-field" style="margin-top:10px;">
+            <label class="team-input-label" style="margin-bottom:6px;">ADVANCED BOWLER RESTRICTIONS (OPTIONAL)</label>
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1;">
+                <label class="team-input-label" for="quotaBowlersCount" style="font-size:11px;">NUMBER OF BOWLERS</label>
+                <input type="number" id="quotaBowlersCount" class="form-control" min="0" step="1" placeholder="No limit" inputmode="numeric">
+              </div>
+              <div style="flex:1;">
+                <label class="team-input-label" for="quotaMaxOvers" style="font-size:11px;">PER BOWLER LIMIT</label>
+                <input type="number" id="quotaMaxOvers" class="form-control" min="0" step="1" placeholder="No limit" inputmode="numeric">
+              </div>
+            </div>
           </div>
           <input type="checkbox" id="saveTeamsForReuse" checked style="display:none;">
 
@@ -665,11 +714,11 @@
   <!-- Sign In / Register Auth Modal -->
   <div id="authModal" class="modal-overlay">
     <div class="modal">
-      <!-- Full Match Mode Info Banner -->
+      <!-- Quick Match Mode Info Banner -->
       <div id="authFullMatchBanner" style="background:var(--color-surface-dark); color:var(--color-text-on-dark); border-radius:14px; padding:16px; margin-bottom:16px; border:1px solid var(--color-border-dark); text-align:center;">
-        <div style="font-size:10px; font-weight:800; color:var(--color-electric); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">FULL MATCH MODE</div>
+        <div style="font-size:10px; font-weight:800; color:var(--color-electric); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">QUICK MATCH MODE</div>
         <p style="font-size:12px; color:rgba(255,255,255,0.88); line-height:1.5; margin:0;">
-          Player-level scoring for matches that matter — professional games, tournaments, box leagues, and your weekend gully. Build your squad once, pick your team sheets, and score every ball against real named players — who’s on strike, who bowled it, who took the catch. Real scorecards, real career stats, and gully rules built in.
+          Build your squads, select lineups, and score ball-by-ball with named players, bowling events, and complete scorecards. Save match history and performance stats for repeat tournaments.
         </p>
       </div>
 
@@ -797,6 +846,19 @@
         <label for="editPowerplayOvers">Powerplay Overs (optional)</label>
         <input type="number" id="editPowerplayOvers" class="form-control" min="1" placeholder="None">
       </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label style="margin-bottom:8px; display:block;">Advanced Bowler Restrictions</label>
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1;">
+            <label for="editQuotaBowlersCount" style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Number of Bowlers</label>
+            <input type="number" id="editQuotaBowlersCount" class="form-control" min="0" step="1" placeholder="No limit">
+          </div>
+          <div style="flex:1;">
+            <label for="editQuotaMaxOvers" style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Per Bowler Limit</label>
+            <input type="number" id="editQuotaMaxOvers" class="form-control" min="0" step="1" placeholder="No limit">
+          </div>
+        </div>
+      </div>
       <div style="display:flex; gap:8px;">
         <div class="form-group" style="flex:1;"><label for="editTeamAWK">Team A Wicket-Keeper</label><select id="editTeamAWK" class="form-control"></select></div>
         <div class="form-group" style="flex:1;"><label for="editTeamBWK">Team B Wicket-Keeper</label><select id="editTeamBWK" class="form-control"></select></div>
@@ -874,8 +936,20 @@
       <div id="overEndMatchScores" style="font-size:22px; font-weight:900; color:var(--color-primary); margin-bottom:8px;">Team A 12/0 (1.0 ov)</div>
       <div id="overEndBody" style="font-size:16px; font-weight:800; color:var(--color-text); margin-bottom:8px;">Runs in Over: 12</div>
       <div id="overEndDismissals" style="font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:12px;">Dismissal: None</div>
-      <div id="overEndBowlerStats" style="font-size:12px; color:var(--text-muted); margin-bottom:20px;"></div>
+      <div id="overEndBowlerStats" style="font-size:14px; font-weight:700; color:var(--text-muted); margin-bottom:20px;"></div>
       <button id="overEndContinueBtn" class="btn-primary" onclick="closeOverEndModal()">Continue (Auto-closes in 5s)</button>
+    </div>
+  </div>
+
+  <div id="matchResultModal" class="modal-overlay">
+    <div class="modal" style="text-align:center; padding:26px 20px; max-width:460px;">
+      <div style="font-size:40px; margin-bottom:8px;">🎉</div>
+      <h3 id="matchResultTitle" style="margin-bottom:10px; font-size:26px; font-weight:900; color:var(--color-success);">🏆 Team A won the match!</h3>
+      <div id="matchResultBody" style="font-size:17px; font-weight:800; color:var(--color-text); margin-bottom:18px;">Team A won by 10 runs</div>
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <button class="cric-btn cric-btn-secondary" style="min-height:44px; padding:10px 18px;" onclick="showScorecardScreen(); closeMatchResultModal();">View Scorecard</button>
+        <button class="cric-btn cric-btn-primary" style="min-height:44px; padding:10px 18px;" onclick="closeMatchResultModal();">Close</button>
+      </div>
     </div>
   </div>
 
@@ -1121,7 +1195,7 @@
     <button class="bottom-nav-item" id="navPlayers" data-nav-context="general" type="button" onclick="showPlayersScreen()">
       <span class="bottom-nav-icon" aria-hidden="true">👥</span><span>Teams</span>
     </button>
-    <button class="bottom-nav-item" id="navTournaments" data-nav-context="general" type="button" onclick="showTournamentsScreen()">
+    <button class="bottom-nav-item" id="navTournaments" data-nav-context="general" type="button" onclick="showSeriesLandingScreen()">
       <span class="bottom-nav-icon" aria-hidden="true">🏆</span><span>Series</span>
     </button>
     <button class="bottom-nav-item" id="navStats" data-nav-context="general" type="button" onclick="showStatsScreen()">
@@ -1163,5 +1237,6 @@
       navigator.serviceWorker.register('sw.js').catch(console.error);
     }
   </script>
+  <div style="text-align:center; font-size:11px; color:var(--text-muted); padding:10px 16px 14px;">Developed by Ankoji | Version 2.33.28</div>
 </body>
 </html>

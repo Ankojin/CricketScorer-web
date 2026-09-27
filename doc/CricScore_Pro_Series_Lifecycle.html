@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CricScore Pro — Series Lifecycle</title>
+<style>
+:root{--bg:#07130b;--surface:#0d1f13;--surface2:#12291a;--border:#23452d;--text:#f4f7f4;--muted:#a9b8ad;--accent:#39d353;--accent2:#8ee99b;--blue:#67b7ff}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+.page{max-width:1500px;margin:auto;padding:48px 32px 80px}.hero{padding:42px;border:1px solid var(--border);border-radius:28px;background:radial-gradient(circle at top right,rgba(57,211,83,.14),transparent 35%),linear-gradient(145deg,#102719,#09160d);margin-bottom:42px}
+.eyebrow{color:var(--accent2);text-transform:uppercase;letter-spacing:.12em;font-size:12px;font-weight:700;margin-bottom:12px}h1{margin:0;font-size:clamp(34px,5vw,64px);line-height:1;letter-spacing:-.04em}.hero p{max-width:780px;color:var(--muted);font-size:17px;line-height:1.7;margin:22px 0 0}
+.section{margin-top:46px}.section-title{margin-bottom:18px}.section-title h2{margin:0;font-size:28px}.section-title p{color:var(--muted);margin:7px 0 0}
+.lifecycle{display:grid;grid-template-columns:repeat(7,minmax(150px,1fr));gap:0;overflow-x:auto;padding:10px 0 24px}.stage{position:relative;min-width:180px;padding:0 12px}.stage:not(:last-child)::after{content:"→";position:absolute;right:-10px;top:62px;color:#55745e;font-size:26px;z-index:2}
+.stage-card{min-height:160px;padding:22px;border:1px solid var(--border);border-radius:20px;background:var(--surface);transition:.2s}.stage-card:hover{transform:translateY(-4px);border-color:var(--accent)}
+.stage-number{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:rgba(57,211,83,.12);color:var(--accent);font-weight:800;margin-bottom:16px}.stage-card h3{margin:0 0 8px;font-size:17px}.stage-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+.flow{border:1px solid var(--border);border-radius:24px;background:var(--surface);padding:28px;overflow-x:auto}.flow-row{display:flex;align-items:center;gap:14px;min-width:1000px}.node{min-width:150px;padding:18px;border-radius:16px;border:1px solid var(--border);background:var(--surface2);text-align:center}.node strong{display:block;font-size:14px}.node span{display:block;color:var(--muted);font-size:12px;margin-top:6px}.arrow{color:#63826b;font-size:22px}
+.identity-flow{display:grid;grid-template-columns:1fr 80px 1fr 80px 1fr;align-items:center;gap:16px}.identity-card{padding:26px;border:1px solid var(--border);border-radius:20px;background:var(--surface)}.identity-card .icon{font-size:28px;margin-bottom:14px}.identity-card h3{margin:0 0 8px}.identity-card p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}.identity-arrow{text-align:center;color:var(--accent);font-size:28px}
+.matches{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.match{padding:22px;border:1px solid var(--border);border-radius:20px;background:var(--surface)}.match-label{display:inline-block;padding:5px 9px;border-radius:999px;background:rgba(103,183,255,.12);color:var(--blue);font-size:11px;font-weight:700;margin-bottom:14px}.match h3{margin:0 0 8px}.match p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.stat{padding:22px;border:1px solid var(--border);border-radius:18px;background:var(--surface)}.stat-value{font-size:25px;font-weight:800;color:var(--accent)}.stat-label{color:var(--muted);font-size:13px;margin-top:5px}
+.rule{margin-top:34px;padding:24px;border-radius:20px;border:1px solid rgba(57,211,83,.25);background:rgba(57,211,83,.06)}.rule strong{color:var(--accent2)}.rule p{color:var(--muted);line-height:1.7;margin-bottom:0}
+footer{margin-top:55px;color:#718276;font-size:12px;text-align:center}
+@media(max-width:900px){.lifecycle{grid-template-columns:repeat(7,180px)}.identity-flow{grid-template-columns:1fr}.identity-arrow{transform:rotate(90deg)}.matches,.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="page">
+<section class="hero"><div class="eyebrow">CricScore Pro</div><h1>Series Lifecycle</h1><p>A complete end-to-end view of how a cricket series moves from creation and team setup through player movement, match execution, historical match snapshots, standings, player statistics and series completion.</p></section>
+
+<section class="section"><div class="section-title"><h2>Series lifecycle</h2><p>The primary journey from creating a series to completing the tournament.</p></div>
+<div class="lifecycle">
+<div class="stage"><div class="stage-card"><div class="stage-number">1</div><h3>Create Series</h3><p>Create the tournament and configure overs, bowler limits, quotas and other series settings.</p></div></div>
+<div class="stage"><div class="stage-card"><div class="stage-number">2</div><h3>Teams</h3><p>Create or reuse teams participating in the series.</p></div></div>
+<div class="stage"><div class="stage-card"><div class="stage-number">3</div><h3>Players</h3><p>Register players once and assign them to the current team roster.</p></div></div>
+<div class="stage"><div class="stage-card"><div class="stage-number">4</div><h3>Schedule</h3><p>Select teams and create matches using their current rosters.</p></div></div>
+<div class="stage"><div class="stage-card"><div class="stage-number">5</div><h3>Play</h3><p>Run the match through upcoming, live and completed states.</p></div></div>
+<div class="stage"><div class="stage-card"><div class="stage-number">6</div><h3>Statistics</h3><p>Recalculate standings and aggregate player statistics across the series.</p></div></div>
+<div class="stage"><div class="stage-card"><div class="stage-number">7</div><h3>Complete</h3><p>Final standings, player statistics and tournament backup/export.</p></div></div>
+</div></section>
+
+<section class="section"><div class="section-title"><h2>1. Series setup</h2><p>Establish the tournament structure before matches begin.</p></div>
+<div class="flow"><div class="flow-row">
+<div class="node"><strong>Create Series</strong><span>Tournament ID</span></div><div class="arrow">→</div>
+<div class="node"><strong>Configure Rules</strong><span>Overs / quotas</span></div><div class="arrow">→</div>
+<div class="node"><strong>Create Teams</strong><span>Persistent Team IDs</span></div><div class="arrow">→</div>
+<div class="node"><strong>Add Players</strong><span>Persistent Player IDs</span></div><div class="arrow">→</div>
+<div class="node"><strong>Ready</strong><span>Series can be scheduled</span></div>
+</div></div></section>
+
+<section class="section"><div class="section-title"><h2>2. Player identity and team movement</h2><p>Player identity remains persistent even when the player changes teams.</p></div>
+<div class="identity-flow">
+<div class="identity-card"><div class="icon">👤</div><h3>Player Master</h3><p>Player is created once with a persistent Player ID. The same identity can be reused throughout the series.</p></div>
+<div class="identity-arrow">→</div>
+<div class="identity-card"><div class="icon">🏏</div><h3>Current Team</h3><p>The player's current team membership is mutable. Moving the player does not create a new player.</p></div>
+<div class="identity-arrow">→</div>
+<div class="identity-card"><div class="icon">📊</div><h3>Tournament History</h3><p>Historical matches continue to reference the same Player ID, allowing statistics to be aggregated across team changes.</p></div>
+</div>
+<div class="rule"><strong>Core rule:</strong><p>Player identity and current team membership are separate concepts. A player can move from Team A → Team B → Team A while retaining the same Player ID and cumulative tournament statistics.</p></div>
+</section>
+
+<section class="section"><div class="section-title"><h2>3. Player movement between teams</h2><p>Example of the same player participating for different teams during a series.</p></div>
+<div class="flow"><div class="flow-row">
+<div class="node"><strong>Player P123</strong><span>Persistent identity</span></div><div class="arrow">→</div>
+<div class="node"><strong>Team A</strong><span>Current roster</span></div><div class="arrow">→</div>
+<div class="node"><strong>Match 1</strong><span>Historical snapshot</span></div><div class="arrow">→</div>
+<div class="node"><strong>Move</strong><span>Same Player ID</span></div><div class="arrow">→</div>
+<div class="node"><strong>Team B</strong><span>New current roster</span></div><div class="arrow">→</div>
+<div class="node"><strong>Match 2</strong><span>Historical snapshot</span></div>
+</div></div></section>
+
+<section class="section"><div class="section-title"><h2>4. Match lifecycle</h2><p>Every scheduled match progresses through its own lifecycle.</p></div>
+<div class="matches">
+<div class="match"><div class="match-label">UPCOMING</div><h3>Scheduled Match</h3><p>Teams and their current rosters are captured when the match is created.</p></div>
+<div class="match"><div class="match-label">LIVE</div><h3>Live Scoring</h3><p>Ball-by-ball events are recorded and the scoring engine recalculates match state.</p></div>
+<div class="match"><div class="match-label">COMPLETED</div><h3>Historical Match</h3><p>The completed match retains its historical team/player context for standings and statistics.</p></div>
+</div></section>
+
+<section class="section"><div class="section-title"><h2>5. Series match loop</h2><p>After each match, the series returns to the current team rosters for the next fixture.</p></div>
+<div class="flow"><div class="flow-row">
+<div class="node"><strong>Completed Match</strong><span>Save history</span></div><div class="arrow">→</div>
+<div class="node"><strong>Update Standings</strong><span>Wins / losses / points</span></div><div class="arrow">→</div>
+<div class="node"><strong>Aggregate Stats</strong><span>Player IDs</span></div><div class="arrow">→</div>
+<div class="node"><strong>Current Rosters</strong><span>Check player movement</span></div><div class="arrow">→</div>
+<div class="node"><strong>Schedule Next Match</strong><span>New roster snapshot</span></div>
+</div></div></section>
+
+<section class="section"><div class="section-title"><h2>6. Tournament statistics</h2><p>Statistics remain connected to persistent player identity rather than team membership.</p></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">ID</div><div class="stat-label">Persistent Player Identity</div></div>
+<div class="stat"><div class="stat-value">Runs</div><div class="stat-label">Aggregated batting performance</div></div>
+<div class="stat"><div class="stat-value">Wkts</div><div class="stat-label">Aggregated bowling performance</div></div>
+<div class="stat"><div class="stat-value">Field</div><div class="stat-label">Aggregated fielding performance</div></div>
+</div></section>
+
+<section class="section"><div class="section-title"><h2>7. Series completion</h2><p>The lifecycle ends when all scheduled matches have been completed.</p></div>
+<div class="flow"><div class="flow-row">
+<div class="node"><strong>All Matches Complete</strong><span>Series finished</span></div><div class="arrow">→</div>
+<div class="node"><strong>Final Standings</strong><span>Team results</span></div><div class="arrow">→</div>
+<div class="node"><strong>Player Statistics</strong><span>Series totals</span></div><div class="arrow">→</div>
+<div class="node"><strong>Export / Backup</strong><span>Persist tournament</span></div><div class="arrow">→</div>
+<div class="node"><strong>🏆 Series Complete</strong><span>Final state</span></div>
+</div></div></section>
+
+<footer>CricScore Pro · Series Lifecycle</footer>
+</main>
+</body>
+</html>

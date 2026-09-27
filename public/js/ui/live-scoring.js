@@ -1,4 +1,40 @@
 // Live scoring UI and scoring interactions.
+let lastCelebratedResultToken = null;
+
+function closeMatchResultModal() {
+  const modal = document.getElementById('matchResultModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function maybeShowMatchResultCelebration(match) {
+  if (!match || match.status !== 'COMPLETED') return;
+
+  const resultToken = `${match.id || ''}|${match.status}|${match.winnerId || 'TIE'}|${match.totalRuns || 0}|${match.totalWickets || 0}|${match.updatedAt || ''}`;
+  if (resultToken === lastCelebratedResultToken) return;
+
+  const resultText = window.ScoringEngine.getMatchResultString(match);
+  const winnerName = match.winnerId === match.teamA?.id
+    ? (match.teamA?.name || 'Team A')
+    : match.winnerId === match.teamB?.id
+      ? (match.teamB?.name || 'Team B')
+      : null;
+
+  const titleEl = document.getElementById('matchResultTitle');
+  const bodyEl = document.getElementById('matchResultBody');
+  if (!titleEl || !bodyEl) return;
+
+  if (winnerName) {
+    titleEl.innerText = `🏆 ${winnerName} won the match!`;
+  } else {
+    titleEl.innerText = '🤝 Match tied';
+  }
+
+  bodyEl.innerText = resultText || 'Match completed';
+  openPrimaryActionModal('matchResultModal');
+  showToast(winnerName ? `${winnerName} won the match` : 'Match tied', 'success');
+  lastCelebratedResultToken = resultToken;
+}
+
 function goLiveShare() {
   if (!activeMatch) return;
 
@@ -298,6 +334,11 @@ function renderLiveScoring() {
     }
   } else {
     completedCard.style.display = 'none';
+    lastCelebratedResultToken = null;
+  }
+
+  if (m.status === 'COMPLETED') {
+    maybeShowMatchResultCelebration(m);
   }
 
   // Header Match Info & Team Accents
@@ -813,12 +854,53 @@ function openPlayerSelection(type) {
       return true;
     });
 
+    const allowSwitchMidMatch = Boolean(m.gullyRules?.playersSwitchMidMatch);
+    const switchCandidates = allowSwitchMidMatch
+      ? (bowlingTeam?.players || []).filter(p => {
+          if (!p) return false;
+          if (p.id === otherId) return false;
+          if (p.battingStats?.isOut) return false;
+          if (p.battingStats?.isRetiredHurt) return false;
+          const existsInBatting = (battingTeam?.players || []).some(bp => bp.id === p.id || bp.name?.toLowerCase() === p.name?.toLowerCase());
+          return !existsInBatting;
+        })
+      : [];
+
     if (available.length === 0) {
       const opt = document.createElement('option');
       opt.value = '';
       opt.innerText = 'No available batters';
       select.appendChild(opt);
-      confirmBtn.disabled = true;
+      confirmBtn.disabled = switchCandidates.length === 0;
+
+      if (switchCandidates.length > 0) {
+        const separator = document.createElement('option');
+        separator.value = '';
+        separator.disabled = true;
+        separator.innerText = '──────────';
+        select.appendChild(separator);
+
+        switchCandidates.forEach((p, index) => {
+          const sw = document.createElement('option');
+          sw.value = `SWITCH::${p.id}`;
+          sw.innerText = `${p.name} (Switch from ${bowlingTeam?.name || 'Bowling Team'})`;
+          if (index === 0) sw.selected = true;
+          select.appendChild(sw);
+        });
+      }
+
+      if (m.gullyRules?.playersJoinMidMatch) {
+        const joinBox = document.createElement('div');
+        joinBox.style.cssText = 'margin-top:10px; padding:10px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface-soft);';
+        joinBox.innerHTML = '<div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">No batter available. Mid-match join is enabled.</div>';
+        const addBtn = document.createElement('button');
+        addBtn.className = 'btn-primary';
+        addBtn.style.cssText = 'width:auto; padding:8px 12px; font-size:12px;';
+        addBtn.innerText = 'Add New Batter';
+        addBtn.onclick = () => addMidMatchPlayerForSelection();
+        joinBox.appendChild(addBtn);
+        bowlerContainer.appendChild(joinBox);
+      }
     } else {
       confirmBtn.disabled = false;
       available.forEach(p => {
@@ -831,6 +913,21 @@ function openPlayerSelection(type) {
         if (isCurrent) opt.selected = true;
         select.appendChild(opt);
       });
+
+      if (switchCandidates.length > 0) {
+        const separator = document.createElement('option');
+        separator.value = '';
+        separator.disabled = true;
+        separator.innerText = '──────────';
+        select.appendChild(separator);
+
+        switchCandidates.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = `SWITCH::${p.id}`;
+          opt.innerText = `${p.name} (Switch from ${bowlingTeam?.name || 'Bowling Team'})`;
+          select.appendChild(opt);
+        });
+      }
     }
   }
 
@@ -1021,15 +1118,49 @@ async function confirmPlayerSelection() {
   if (!selectedId || !activeMatch || isReadOnlySpectator || !ensureMatchLiveForScoring()) return;
 
   const slot = currentSelectionType;
+  let finalSelectedId = selectedId;
+
+  if (selectedId.startsWith('SWITCH::')) {
+    if (!activeMatch.gullyRules?.playersSwitchMidMatch) {
+      showToast('Mid-match team switching is disabled', 'warning');
+      return;
+    }
+
+    const playerId = selectedId.replace('SWITCH::', '');
+    const isBattingA = activeMatch.battingTeamId === activeMatch.teamA?.id;
+    const battingTeam = isBattingA ? activeMatch.teamA : activeMatch.teamB;
+    const bowlingTeam = isBattingA ? activeMatch.teamB : activeMatch.teamA;
+    const player = (bowlingTeam?.players || []).find(p => p.id === playerId);
+
+    if (!player) {
+      showToast('Selected player not found in bowling team', 'warning');
+      return;
+    }
+
+    battingTeam.players = battingTeam.players || [];
+    bowlingTeam.players = bowlingTeam.players || [];
+
+    bowlingTeam.players = bowlingTeam.players.filter(p => p.id !== player.id);
+    if (!battingTeam.players.some(p => p.id === player.id || p.name?.toLowerCase() === player.name?.toLowerCase())) {
+      battingTeam.players.push(player);
+    }
+
+    if (activeMatch.currentBowlerId === player.id) {
+      activeMatch.currentBowlerId = null;
+    }
+
+    finalSelectedId = player.id;
+    showToast(`${player.name} switched to batting team`, 'info');
+  }
 
   if (slot === 'STRIKER') {
-    activeMatch.strikerId = selectedId;
-    if (activeMatch.nonStrikerId === selectedId) {
+    activeMatch.strikerId = finalSelectedId;
+    if (activeMatch.nonStrikerId === finalSelectedId) {
       activeMatch.nonStrikerId = null;
     }
   } else if (slot === 'NON_STRIKER') {
-    activeMatch.nonStrikerId = selectedId;
-    if (activeMatch.strikerId === selectedId) {
+    activeMatch.nonStrikerId = finalSelectedId;
+    if (activeMatch.strikerId === finalSelectedId) {
       activeMatch.strikerId = null;
     }
   }
@@ -1040,6 +1171,40 @@ async function confirmPlayerSelection() {
   activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
   activeMatch = await window.CricStorage.saveMatch(activeMatch);
   renderLiveScoring();
+}
+
+async function addMidMatchPlayerForSelection() {
+  if (!activeMatch || isReadOnlySpectator || !ensureMatchLiveForScoring()) return;
+  if (!activeMatch.gullyRules?.playersJoinMidMatch) {
+    showToast('Mid-match join is disabled in settings', 'warning');
+    return;
+  }
+
+  const isBattingA = activeMatch.battingTeamId === activeMatch.teamA?.id;
+  const battingTeam = isBattingA ? activeMatch.teamA : activeMatch.teamB;
+  const name = (window.prompt('Enter new batter name') || '').trim();
+  if (!name) return;
+
+  const alreadyExists = (battingTeam?.players || []).some(p => p && p.name?.toLowerCase() === name.toLowerCase());
+  if (alreadyExists) {
+    showToast(`"${name}" already exists in batting team`, 'warning');
+    return;
+  }
+
+  battingTeam.players = battingTeam.players || [];
+  const playerId = `join_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  battingTeam.players.push({
+    id: playerId,
+    name,
+    role: 'Batter',
+    style: 'RHB'
+  });
+
+  activeMatch.pendingAction = currentSelectionType === 'NON_STRIKER' ? 'SELECT_NON_STRIKER' : 'SELECT_STRIKER';
+  activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
+  activeMatch = await window.CricStorage.saveMatch(activeMatch);
+  showToast(`${name} joined the batting team`, 'success');
+  openPlayerSelection(currentSelectionType || 'STRIKER');
 }
 
 function chooseWebScoreBowler(match, bowlingTeam) {
@@ -1539,10 +1704,18 @@ function checkAndShowOverEndModal() {
     statsEl.hidden = isWebScore;
     if (lastBowler) {
       const stats = lastBowler.bowlingStats || { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
-      statsEl.innerText = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts`;
+      const inningsRuns = lastOver.teamTotalRuns ?? activeMatch.totalRuns ?? 0;
+      const inningsWkts = lastOver.teamTotalWickets ?? activeMatch.totalWickets ?? 0;
+      statsEl.innerHTML = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts<br><span style="font-size:16px; font-weight:900; color:var(--color-primary);">Innings: ${inningsRuns}/${inningsWkts}</span>`;
     } else {
       statsEl.innerText = '';
     }
+  }
+
+  if (!isWebScore && activeMatch.status === 'LIVE' && activeMatch.pendingAction !== 'START_SECOND_INNINGS') {
+    // A completed over always requires bowler re-selection for the next over.
+    activeMatch.currentBowlerId = null;
+    activeMatch.pendingAction = 'SELECT_BOWLER';
   }
 
   const continueBtn = document.getElementById('overEndContinueBtn');
@@ -1568,6 +1741,14 @@ function closeOverEndModal() {
   if (modal) {
     modal.classList.remove('active');
   }
+
+  if (activeMatch && !isReadOnlySpectator && activeMatch.status === 'LIVE') {
+    // Keep explicit bowler-selection pending action set at over end.
+    activeMatch.pendingAction = activeMatch.pendingAction === 'SELECT_BOWLER'
+      ? 'SELECT_BOWLER'
+      : nextPendingSelectionAction(activeMatch);
+  }
+
   if (activeMatch?.pendingAction && activeMatch.pendingAction !== 'NONE' && !isReadOnlySpectator) {
     promptPendingAction(activeMatch.pendingAction);
   }

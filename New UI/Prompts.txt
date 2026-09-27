@@ -92,7 +92,7 @@ PHASE 5 — Toss
 
 PHASE 6 — Live Scoring (HIGHEST PRIORITY)
 
-Inspiration: Gully Crix web scorer layout (clean hierarchy, large score,
+Inspiration: modern cricket web scorer layout (clean hierarchy, large score,
 this-over chips, calm keypad). Do NOT clone their compose-then-Next-ball
 model in this phase.
 
@@ -121,7 +121,7 @@ Preserve ALL existing handlers and flows:
 Do NOT:
 - Change ScoringEngine or ball data shape
 - Change storage keys or addBall API
-- Implement Gully-style "THIS BALL: nb + 2 → Next ball" commit flow
+- Implement staged "THIS BALL: nb + 2 → Next ball" commit flow
   (existing extra-runs modal is enough for Phase 6)
 - Remove any scoring capability
 

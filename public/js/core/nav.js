@@ -33,6 +33,7 @@ function updateBottomNavContext(screenId) {
   const screenNavIds = {
     screenLanding: 'navHome',
     screenNewMatch: 'navHome',
+    screenSeriesLanding: 'navTournaments',
     screenMatchList: 'navMatches',
     screenPlayers: 'navPlayers',
     screenTournaments: 'navTournaments',
@@ -140,6 +141,13 @@ async function showTournamentsScreen() {
   renderTournaments();
 }
 
+function showSeriesLandingScreen() {
+  closeFeaturesMenu();
+  navigateToRoute('/series');
+  updateNavState('navTournaments');
+  showScreen('screenSeriesLanding');
+}
+
 async function showPlayersScreen() {
   updateNavState('navPlayers');
   showScreen('screenPlayers');
@@ -187,16 +195,16 @@ function showWebScoreLandingScreen() {
   showScreen('screenWebScoreLanding');
 }
 
-function showFullMatchLandingScreen() {
-  if (!requireRegisteredScoringMode('Full Match')) return;
+function showQuickMatchLandingScreen() {
+  if (!requireRegisteredScoringMode('Quick Match')) return;
   closeFeaturesMenu();
-  navigateToRoute('/full-match');
+  navigateToRoute('/quick-match');
 
   const btn = document.getElementById('fullMatchLandingBtn');
   const isRegistered = isRegisteredScoringUser();
 
   if (btn) {
-    btn.innerText = isRegistered ? '📋 Start Full Match Now →' : '🔑 Sign In / Register to Start Full Match →';
+    btn.innerText = isRegistered ? '📋 Start Quick Match Now →' : '🔑 Sign In / Register to Start Quick Match →';
   }
 
   showScreen('screenFullMatchLanding');
@@ -208,13 +216,16 @@ function handleUrlRouting() {
   const hash = window.location.hash.toLowerCase();
 
   if (path.includes('/quick-match') || search.includes('quick-match') || hash.includes('quick-match')) {
-    showFullMatchLandingScreen();
+    showQuickMatchLandingScreen();
+    return true;
+  } else if (path.includes('/series') || search.includes('series') || hash.includes('series')) {
+    showSeriesLandingScreen();
     return true;
   } else if (path.includes('/web-score') || search.includes('web-score') || hash.includes('web-score')) {
     showWebScoreLandingScreen();
     return true;
   } else if (path.includes('/full-match') || search.includes('full-match') || hash.includes('full-match')) {
-    showFullMatchLandingScreen();
+    showQuickMatchLandingScreen();
     return true;
   } else if (path.includes('/coin-toss') || search.includes('coin-toss') || hash.includes('coin-toss')) {
     openQuickTossModal();

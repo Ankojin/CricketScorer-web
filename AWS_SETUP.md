@@ -53,7 +53,7 @@ Follow these exact steps to verify that data survives refreshes, browser restart
   - `6`: Bright Cyan (`#06b6d4`)
   - `W`: Bright Red (`#ef4444`)
   - `WD`/`NB`/`1G`/`🔀`: Amber (`#f59e0b`)
-- **Gully Crix Style Bowler Selection**: Displays list of bowlers with bowling stats and disables/greys out the bowler who bowled the previous over (`(Last Bowler)`).
+- **Enhanced Bowler Selection**: Displays list of bowlers with bowling stats and disables/greys out the bowler who bowled the previous over (`(Last Bowler)`).
 - **Match Completion Summary**: Displays winner banner and margin when match status becomes `COMPLETED` (e.g. `🎉 Rockets won by 4 wickets`).
 
 ---
