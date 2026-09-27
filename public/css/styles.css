@@ -629,23 +629,27 @@ html.has-app-session #homeDashboard { display: block !important; }
 }
 
 .cric-btn-primary {
-  background: var(--color-green);
-  color: var(--color-text-on-dark);
-  box-shadow: 0 4px 14px rgba(19, 169, 104, 0.35);
+  background: #16a34a !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4);
 }
 
 .cric-btn-primary:hover {
-  background: var(--color-green-dark);
+  background: #15803d !important;
 }
 
 .cric-btn-secondary {
-  background: var(--color-surface);
-  color: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: #ffffff !important;
+  color: #0b2213 !important;
+  font-weight: 800 !important;
+  border: 1px solid #ffffff !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .cric-btn-secondary:hover {
-  background: var(--color-border);
+  background: #efece4 !important;
+  color: #16a34a !important;
 }
 
 /* Mobile Screenshot Placeholder Frames */
@@ -661,18 +665,18 @@ html.has-app-session #homeDashboard { display: block !important; }
 .home-shot-frame {
   flex: 0 0 110px;
   height: 170px;
-  background: var(--color-primary-soft);
-  border: 2px solid var(--color-border-dark);
+  background: #0d2818;
+  border: 2px solid #1f482b;
   border-radius: 18px;
   padding: 6px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
   position: relative;
 }
 
 .phone-screen {
   width: 100%;
   height: 100%;
-  background: var(--color-primary-soft);
+  background: #0b2213;
   border-radius: 12px;
   overflow: hidden;
   display: flex;
@@ -680,6 +684,7 @@ html.has-app-session #homeDashboard { display: block !important; }
   align-items: center;
   justify-content: center;
   position: relative;
+  border: 1px solid #1f482b;
 }
 
 .shot-img {
@@ -2471,7 +2476,6 @@ button:disabled,
   }
 
   .bottom-nav { background: rgba(7, 27, 51, .98); }
-  .cric-btn-secondary { color: var(--color-text-on-dark); background: transparent; }
   .score-card { background: var(--color-primary-soft); }
 }
 
