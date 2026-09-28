@@ -615,6 +615,24 @@ html.has-app-session #homeDashboard { display: block !important; }
   object-position: center 52%;
 }
 
+.landing-hero-image-solo {
+  width: min(100%, 920px);
+  min-height: 0;
+  height: auto;
+  aspect-ratio: auto;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  transform: none;
+  border-radius: 24px;
+  image-rendering: auto;
+}
+
+.landing-hero-media-solo {
+  min-height: 0;
+  align-items: center;
+}
+
 .landing-brand-row {
   display: flex;
   align-items: center;
@@ -730,6 +748,19 @@ html.has-app-session #homeDashboard { display: block !important; }
     width: clamp(96px, 39vw, 148px);
     min-height: 150px;
     transform: rotate(5deg) translateX(-20px);
+  }
+
+  .landing-hero-image-solo {
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    height: auto;
+    transform: none;
+    border-radius: 18px;
+  }
+
+  .landing-hero-media-solo {
+    min-height: 0;
   }
 
   .landing-title {
