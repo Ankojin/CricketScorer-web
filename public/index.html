@@ -90,11 +90,33 @@
     <!-- Screen 0: Home and Auth Entry -->
     <div id="screenLanding" class="screen active">
       <div id="landingAuthEntry" class="card landing-card">
-        <img src="img/app-icon.png" alt="CricScore Pro App Icon" style="width:68px; height:68px; border-radius:18px; margin-bottom:12px; box-shadow:0 4px 14px rgba(0,0,0,0.18); object-fit:cover;">
-        <h2 class="landing-title">CricScore Pro</h2>
-        <p class="landing-subtitle">
-          Professional Cricket Scorer & Live Scoreboard
+        <div class="landing-hero-media" aria-label="CricScore Pro app previews">
+          <img src="img/landing-hero-stack.png" alt="CricScore Pro match flow" class="landing-hero-image landing-hero-image-rear" onerror="this.onerror=null;this.src='img/coin_tails.png';">
+          <img src="img/landing-hero-main.png" alt="CricScore Pro live scoring screen" class="landing-hero-image landing-hero-image-main" onerror="this.onerror=null;this.src='img/app-icon.png';">
+          <img src="img/landing-hero-stack.png" alt="CricScore Pro match views" class="landing-hero-image landing-hero-image-stack" onerror="this.onerror=null;this.src='img/coin_heads.png';">
+        </div>
+
+        <div class="landing-brand-row">
+          <img src="img/app-icon.png" alt="CricScore Pro App Icon" class="landing-brand-icon">
+          <div>
+            <h2 class="landing-title">CricScore Pro</h2>
+            <p class="landing-subtitle">Your gully match. Your scoreboard. Your moments.</p>
+          </div>
+        </div>
+
+        <h3 class="landing-punchline">YOUR GULLY. YOUR MATCH. <span>YOUR SCORE.</span></h3>
+
+        <p class="landing-about">
+          CricScore Pro helps you score every ball with quick controls, generate full scorecards instantly,
+          track player performance, and share live updates with your team from any browser.
         </p>
+
+        <div class="landing-highlights" aria-label="App highlights">
+          <span>Live ball-by-ball scoring</span>
+          <span>Series and tournament flow</span>
+          <span>Match stats and scorecards</span>
+          <span>Guest mode + account sync</span>
+        </div>
 
         <div class="landing-btn-group">
           <button class="btn-primary" style="padding:16px; font-size:16px;" onclick="openAuthModal('REGISTER')">
@@ -106,9 +128,9 @@
           </button>
         </div>
 
-        <div style="margin-top:20px; font-size:11px; color:var(--text-muted); line-height:1.5;">
-          <b>Registered Users</b>: Matches, Series, and Player stats persist permanently.<br>
-          <b>Guest Users</b>: Offline scoring stored temporarily in local storage.
+        <div class="landing-user-note">
+          <b>Registered Users</b>: Matches, series, and player stats are securely synced.<br>
+          <b>Guest Users</b>: Score instantly; data stays locally on this device.
         </div>
       </div>
 

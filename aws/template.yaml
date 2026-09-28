@@ -29,7 +29,8 @@ Resources:
   JwtSigningSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub "cricscore-jwt-secret-${AWS::StackName}"
+      Name:
+        Fn::Sub: "cricscore-jwt-secret-${AWS::StackName}"
       Description: "JWT Signing Secret for CricScore Pro Web API"
       GenerateSecretString:
         SecretStringTemplate: '{"secretKey": ""}'
@@ -41,7 +42,8 @@ Resources:
   CricScoreWebBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "cricscore-pro-web-${AWS::AccountId}-${AWS::Region}"
+      BucketName:
+        Fn::Sub: "cricscore-pro-web-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -62,7 +64,8 @@ Resources:
   CricScoreWebBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: !Ref CricScoreWebBucket
+      Bucket:
+        Ref: CricScoreWebBucket
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -71,10 +74,12 @@ Resources:
             Principal:
               Service: cloudfront.amazonaws.com
             Action: s3:GetObject
-            Resource: !Sub "${CricScoreWebBucket.Arn}/*"
+            Resource:
+              Fn::Sub: "${CricScoreWebBucket.Arn}/*"
             Condition:
               StringEquals:
-                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CricScoreCDN}"
+                AWS:SourceArn:
+                  Fn::Sub: "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CricScoreCDN}"
 
   # 6. CloudFront Distribution (1 TB Always Free Data Transfer)
   CricScoreCDN:
@@ -85,8 +90,14 @@ Resources:
         DefaultRootObject: index.html
         Origins:
           - Id: S3Origin
-            DomainName: !GetAtt CricScoreWebBucket.RegionalDomainName
-            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+            DomainName:
+              Fn::GetAtt:
+                - CricScoreWebBucket
+                - RegionalDomainName
+            OriginAccessControlId:
+              Fn::GetAtt:
+                - CloudFrontOAC
+                - Id
             S3OriginConfig:
               OriginAccessIdentity: ""
         DefaultCacheBehavior:
@@ -114,7 +125,7 @@ Resources:
       Name: CricScoreHttpApi
       CorsConfiguration:
         AllowOrigins:
-          - !Sub "https://${CricScoreCDN.DomainName}"
+          - Fn::Sub: "https://${CricScoreCDN.DomainName}"
         AllowMethods:
           - GET
           - POST
@@ -133,8 +144,10 @@ Resources:
       Handler: index.handler
       Environment:
         Variables:
-          TABLE_NAME: !Ref CricMatchesTable
-          JWT_SECRET_ARN: !Ref JwtSigningSecret
+          TABLE_NAME:
+            Ref: CricMatchesTable
+          JWT_SECRET_ARN:
+            Ref: JwtSigningSecret
       Policies:
         - Statement:
             - Effect: Allow
@@ -143,98 +156,118 @@ Resources:
                 - dynamodb:PutItem
                 - dynamodb:Scan
                 - dynamodb:DeleteItem
-              Resource: !GetAtt CricMatchesTable.Arn
+              Resource:
+                Fn::GetAtt:
+                  - CricMatchesTable
+                  - Arn
             - Effect: Allow
               Action:
                 - secretsmanager:GetSecretValue
-              Resource: !Ref JwtSigningSecret
+              Resource:
+                Ref: JwtSigningSecret
       Events:
         PostAuthRegister:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /auth/register
             Method: POST
         PostAuthLogin:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /auth/login
             Method: POST
         GetMatches:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /matches
             Method: GET
         PostMatches:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /matches
             Method: POST
         GetMatchById:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /matches/{id}
             Method: GET
         PutMatchById:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /matches/{id}
             Method: PUT
         DeleteMatchById:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /matches/{id}
             Method: DELETE
         GetTournaments:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /tournaments
             Method: GET
         PostTournaments:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /tournaments
             Method: POST
         DeleteTournaments:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /tournaments/{id}
             Method: DELETE
         GetPlayers:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /players
             Method: GET
         PostPlayers:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /players
             Method: POST
         DeletePlayers:
           Type: HttpApi
           Properties:
-            ApiId: !Ref CricScoreHttpApi
+            ApiId:
+              Ref: CricScoreHttpApi
             Path: /players/{id}
             Method: DELETE
 
 Outputs:
   WebUrl:
     Description: CloudFront Static Web URL for Intune Browser Users
-    Value: !Sub "https://${CricScoreCDN.DomainName}"
+    Value:
+      Fn::Sub: "https://${CricScoreCDN.DomainName}"
   ApiUrl:
     Description: API Gateway HTTP API Endpoint
-    Value: !Sub "https://${CricScoreHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Value:
+      Fn::Sub: "https://${CricScoreHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
   S3BucketName:
     Description: S3 Bucket Name for Static Web UI Deployment
-    Value: !Ref CricScoreWebBucket
+    Value:
+      Ref: CricScoreWebBucket
