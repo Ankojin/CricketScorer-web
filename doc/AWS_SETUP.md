@@ -1,4 +1,4 @@
-# CricScore Pro Web - Architecture & Testing Documentation
+# CricLeague - Architecture & Testing Documentation
 
 A high-performance, deterministic, event-sourced Progressive Web Application (PWA) built for corporate and Intune-managed browser devices. Operating 100% within the **AWS Free Tier** ($0.00 cost).
 

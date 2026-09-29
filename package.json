@@ -1,7 +1,7 @@
 {
   "name": "cricscore-pro-web",
   "version": "2.33.28",
-  "description": "CricScore Pro Web PWA - Serverless Cricket Scorer for Intune Managed Browsers",
+  "description": "CricLeague PWA - Serverless Cricket Scorer for Intune Managed Browsers",
   "main": "dist/src/index.js",
   "type": "module",
   "scripts": {
@@ -18,7 +18,7 @@
     "serverless",
     "dynamodb"
   ],
-  "author": "CricScore Pro Team",
+  "author": "CricLeague Team",
   "license": "MIT",
   "devDependencies": {
     "@playwright/test": "^1.40.0",

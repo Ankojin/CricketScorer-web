@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CricScore Pro Web</title>
+  <title>CricLeague</title>
   <script>
     (function () {
       try {
@@ -29,9 +29,9 @@
 
   <!-- Top App Header -->
   <header class="app-header">
-    <div class="app-title" role="button" tabindex="0" aria-label="CricScore Pro home" onclick="showLandingScreen()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showLandingScreen();}">
-      <img src="img/app-icon.png" alt="CricScore Pro Logo" class="app-header-logo">
-      <span>CricScore Pro</span>
+    <div class="app-title" role="button" tabindex="0" aria-label="CricLeague home" onclick="showLandingScreen()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showLandingScreen();}">
+      <img src="img/app-icon.png" alt="CricLeague Logo" class="app-header-logo">
+      <span>CricLeague</span>
     </div>
     <div class="app-header-actions" style="display:flex; align-items:center; gap:8px;">
       <button class="nav-btn features-trigger-btn" style="background:var(--color-primary-soft); border:1px solid var(--color-electric);" onclick="toggleFeaturesMenu(event)">✨ Features ▾</button>
@@ -44,7 +44,7 @@
   <!-- Features Options Dropdown Menu -->
   <div id="featuresMenuDropdown" class="features-dropdown" hidden>
     <div class="features-dropdown-header">
-      <span>CRICSCORE PRO FEATURES</span>
+      <span>CRICLEAGUE FEATURES</span>
       <button class="features-close-btn" type="button" onclick="closeFeaturesMenu()">&times;</button>
     </div>
     <div class="features-dropdown-grid">
@@ -90,14 +90,14 @@
     <!-- Screen 0: Home and Auth Entry -->
     <div id="screenLanding" class="screen active">
       <div id="landingAuthEntry" class="card landing-card">
-        <div class="landing-hero-media landing-hero-media-solo" aria-label="CricScore Pro app preview">
-          <img src="img/landing-hero-main.png" alt="CricScore Pro live scoring screen" class="landing-hero-image landing-hero-image-solo" width="1400" height="1000" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='img/app-icon.png';">
+        <div class="landing-hero-media landing-hero-media-solo" aria-label="CricLeague app preview">
+          <img src="img/landing-hero-main.png" alt="CricLeague live scoring screen" class="landing-hero-image landing-hero-image-solo" width="1400" height="1000" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='img/app-icon.png';">
         </div>
 
         <div class="landing-brand-row">
-          <img src="img/app-icon.png" alt="CricScore Pro App Icon" class="landing-brand-icon">
+          <img src="img/app-icon.png" alt="CricLeague App Icon" class="landing-brand-icon">
           <div>
-            <h2 class="landing-title">CricScore Pro</h2>
+            <h2 class="landing-title">CricLeague</h2>
             <p class="landing-subtitle">Your gully match. Your scoreboard. Your moments.</p>
           </div>
         </div>
@@ -105,7 +105,7 @@
         <h3 class="landing-punchline">YOUR GULLY. YOUR MATCH. <span>YOUR SCORE.</span></h3>
 
         <p class="landing-about">
-          CricScore Pro helps you score every ball with quick controls, generate full scorecards instantly,
+          CricLeague helps you score every ball with quick controls, generate full scorecards instantly,
           track player performance, and share live updates with your team from any browser.
         </p>
 
@@ -176,7 +176,7 @@
             <div class="home-shots-row" aria-label="Mobile app screenshots">
               <div id="homeShot1" class="home-shot-frame">
                 <div class="phone-screen">
-                  <img src="img/app-icon.png" alt="CricScore Pro Preview" class="shot-img">
+                  <img src="img/app-icon.png" alt="CricLeague Preview" class="shot-img">
                   <span class="shot-caption">Live Scoring</span>
                 </div>
               </div>
@@ -272,7 +272,7 @@
       <div class="cric-hero">
         <div class="cric-hero-content">
           <div class="cric-hero-badge">
-            <span class="badge-dot"></span> NEW IN CRICSCORE PRO 3.0
+            <span class="badge-dot"></span> NEW IN CRICLEAGUE 3.0
           </div>
 
           <h1 class="cric-hero-title">
@@ -1234,7 +1234,7 @@
 
   <!-- API Endpoint Switch -->
   <script>
-    window.CRIC_API_BASE = window.CRIC_API_BASE || "https://zqa91yrypg.execute-api.us-east-1.amazonaws.com";
+    window.CRIC_API_BASE = window.CRIC_API_BASE || "https://cricleagueapi.nrkmart.in";
   </script>
   <script src="js/scoring-engine.js"></script>
   <script src="js/storage.js"></script>

@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
 
-  /* CricScore Pro — Navy + Electric Green */
+  /* CricLeague — Navy + Electric Green */
   --color-primary: #071B33;
   --color-primary-deep: #041326;
   --color-primary-soft: #0D2A4A;
@@ -783,7 +783,7 @@ html.has-app-session #homeDashboard { display: block !important; }
   flex-shrink: 0;
 }
 
-/* CricScore Pro Original Hero Section */
+/* CricLeague Original Hero Section */
 /* Marketing Quality Home Hero */
 .cric-home-hero {
   background: var(--color-surface-dark);

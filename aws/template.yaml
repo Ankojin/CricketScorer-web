@@ -1,6 +1,29 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: CricScore Pro Web - Serverless Architecture (AWS Free Tier / On-Demand Mode)
+Description: CricLeague - Serverless Architecture (AWS Free Tier / On-Demand Mode)
+
+Parameters:
+  CustomDomainName:
+    Type: String
+    Default: cricleague.nrkmart.in
+    Description: Primary domain used for the web application.
+  ApiDomainName:
+    Type: String
+    Default: cricleagueapi.nrkmart.in
+    Description: Hostname used for the public HTTP API.
+  WebCertificateArn:
+    Type: String
+    Default: arn:aws:acm:us-east-1:112232725342:certificate/266fd1fb-e2ce-4529-bfad-4b753b959fc0
+    Description: ACM certificate ARN in us-east-1 covering the website hostname.
+  ApiCertificateArn:
+    Type: String
+    Default: arn:aws:acm:us-east-1:112232725342:certificate/e59d7422-a76a-46fc-b7ad-f006a2b63f6e
+    Description: ACM certificate ARN in us-east-1 covering the API hostname.
+
+Conditions:
+  HasCustomDomain: !And
+    - !Not [!Equals [!Ref WebCertificateArn, ""]]
+    - !Not [!Equals [!Ref ApiCertificateArn, ""]]
 
 Globals:
   Function:
@@ -31,7 +54,7 @@ Resources:
     Properties:
       Name:
         Fn::Sub: "cricscore-jwt-secret-${AWS::StackName}"
-      Description: "JWT Signing Secret for CricScore Pro Web API"
+      Description: "JWT Signing Secret for CricLeague API"
       GenerateSecretString:
         SecretStringTemplate: '{"secretKey": ""}'
         GenerateStringKey: "secretKey"
@@ -59,6 +82,35 @@ Resources:
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4
+
+  RedirectCloudFrontDomain:
+    Type: AWS::CloudFront::Function
+    Condition: HasCustomDomain
+    Properties:
+      Name: !Sub "${AWS::StackName}-redirect-cloudfront-domain"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Redirect the CloudFront hostname to the public domain.
+        Runtime: cloudfront-js-2.0
+      FunctionCode: !Sub |
+        function handler(event) {
+          var request = event.request;
+          var host = request.headers.host.value.toLowerCase();
+          var publicHosts = ['${CustomDomainName}'];
+
+          if (publicHosts.indexOf(host) !== -1) {
+            return request;
+          }
+
+          var query = request.querystring ? '?' + request.querystring : '';
+          return {
+            statusCode: 301,
+            statusDescription: 'Moved Permanently',
+            headers: {
+              location: { value: 'https://${CustomDomainName}' + request.uri + query }
+            }
+          };
+        }
 
   # 5. S3 Bucket Policy allowing CloudFront Read Access
   CricScoreWebBucketPolicy:
@@ -88,6 +140,10 @@ Resources:
       DistributionConfig:
         Enabled: true
         DefaultRootObject: index.html
+        Aliases: !If
+          - HasCustomDomain
+          - - !Ref CustomDomainName
+          - !Ref AWS::NoValue
         Origins:
           - Id: S3Origin
             DomainName:
@@ -102,6 +158,11 @@ Resources:
               OriginAccessIdentity: ""
         DefaultCacheBehavior:
           TargetOriginId: S3Origin
+          FunctionAssociations: !If
+            - HasCustomDomain
+            - - EventType: viewer-request
+                FunctionARN: !GetAtt RedirectCloudFrontDomain.FunctionARN
+            - !Ref AWS::NoValue
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods: [GET, HEAD]
           CachedMethods: [GET, HEAD]
@@ -117,6 +178,12 @@ Resources:
           - ErrorCode: 403
             ResponseCode: 200
             ResponsePagePath: /index.html
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref WebCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
 
   # 7. API Gateway HTTP API v2 (1 Million Requests Free)
   CricScoreHttpApi:
@@ -124,8 +191,10 @@ Resources:
     Properties:
       Name: CricScoreHttpApi
       CorsConfiguration:
-        AllowOrigins:
-          - Fn::Sub: "https://${CricScoreCDN.DomainName}"
+        AllowOrigins: !If
+          - HasCustomDomain
+          - - !Sub "https://${CustomDomainName}"
+          - - !Sub "https://${CricScoreCDN.DomainName}"
         AllowMethods:
           - GET
           - POST
@@ -135,6 +204,24 @@ Resources:
         AllowHeaders:
           - Content-Type
           - Authorization
+
+  ApiCustomDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref ApiDomainName
+      DomainNameConfigurations:
+        - CertificateArn: !Ref ApiCertificateArn
+          EndpointType: REGIONAL
+          SecurityPolicy: TLS_1_2
+
+  ApiCustomDomainMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Condition: HasCustomDomain
+    Properties:
+      ApiId: !Ref CricScoreHttpApi
+      DomainName: !Ref ApiCustomDomain
+      Stage: $default
 
   # 8. AWS Lambda Backend API Handler (1 Million Requests Always Free)
   CricScoreApiLambda:
@@ -260,13 +347,24 @@ Resources:
 
 Outputs:
   WebUrl:
-    Description: CloudFront Static Web URL for Intune Browser Users
-    Value:
-      Fn::Sub: "https://${CricScoreCDN.DomainName}"
+    Description: Public website URL
+    Value: !If
+      - HasCustomDomain
+      - !Sub "https://${CustomDomainName}"
+      - !Sub "https://${CricScoreCDN.DomainName}"
   ApiUrl:
-    Description: API Gateway HTTP API Endpoint
-    Value:
-      Fn::Sub: "https://${CricScoreHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: Public API URL
+    Value: !If
+      - HasCustomDomain
+      - !Sub "https://${ApiDomainName}"
+      - !Sub "https://${CricScoreHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  CloudFrontDomainName:
+    Description: CloudFront domain target for external DNS configuration
+    Value: !GetAtt CricScoreCDN.DomainName
+  ApiGatewayRegionalDomainName:
+    Description: API Gateway regional domain target for external DNS configuration
+    Condition: HasCustomDomain
+    Value: !GetAtt ApiCustomDomain.RegionalDomainName
   S3BucketName:
     Description: S3 Bucket Name for Static Web UI Deployment
     Value:

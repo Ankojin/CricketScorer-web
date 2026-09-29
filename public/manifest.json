@@ -1,6 +1,6 @@
 {
-  "name": "CricScore Pro Web",
-  "short_name": "CricScore",
+  "name": "CricLeague",
+  "short_name": "CricLeague",
   "description": "Serverless Cricket Scorer for Intune Managed Browsers",
   "start_url": "./index.html",
   "display": "standalone",

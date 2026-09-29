@@ -1,4 +1,4 @@
-# CricScore Pro Web (PWA)
+# CricLeague (PWA)
 
 A high-performance, deterministic, event-sourced Progressive Web Application (PWA) built for corporate and Intune-managed browser devices. Operating 100% within the **AWS Free Tier** ($0.00 cost).
 
@@ -70,6 +70,36 @@ A high-performance, deterministic, event-sourced Progressive Web Application (PW
 
 ## 🚀 Deployment Commands
 
+## 🌐 Public domain: `cricleague.nrkmart.in`
+
+The application is configured to use these public hostnames:
+
+| Hostname | Purpose | DNS target |
+| :--- | :--- | :--- |
+| `cricleague.nrkmart.in` | Main website | CloudFront distribution domain (CNAME) |
+| `cricleagueapi.nrkmart.in` | Application API | API Gateway regional domain (CNAME) |
+
+Before deploying, add this ACM DNS-validation record in the Spaceship DNS zone. It is required before AWS can issue the HTTPS certificate:
+
+| Type | Host | Value |
+| :--- | :--- | :--- |
+| `CNAME` | `_da902f14652543ad1d90358c5788c963` | `_6bee345353698669ebec04cbaa8706ad.wzccmgtwzk.acm-validations.aws` |
+
+Wait until the certificate status is `ISSUED`:
+
+```powershell
+aws acm describe-certificate --region us-east-1 --certificate-arn arn:aws:acm:us-east-1:112232725342:certificate/ddb82548-dbd0-4675-b5f1-90a6f7aea3f8 --query 'Certificate.Status' --output text
+```
+
+After it is issued, deploy the stack. The outputs provide the CloudFront and API Gateway values needed for the remaining DNS records:
+
+```powershell
+sam deploy --no-confirm-changeset --stack-name cricscore-pro-web --template-file aws/template.yaml --capabilities CAPABILITY_IAM --resolve-s3
+aws cloudformation describe-stacks --stack-name cricscore-pro-web --region us-east-1 --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDomainName` || OutputKey==`ApiGatewayRegionalDomainName`].[OutputKey,OutputValue]' --output table
+```
+
+Add `cricleague` as a CNAME using the CloudFront value. Add `cricleagueapi` as a CNAME using the API Gateway value.
+
 ### 1. Deploy Infrastructure with AWS SAM
 ```powershell
 sam deploy --no-confirm-changeset --stack-name cricscore-pro-web --template-file aws/template.yaml --capabilities CAPABILITY_IAM --resolve-s3
@@ -78,5 +108,6 @@ sam deploy --no-confirm-changeset --stack-name cricscore-pro-web --template-file
 ### 2. Sync Static Web Files to S3 & Invalidate CloudFront
 ```powershell
 aws s3 sync public/ s3://cricscore-pro-web-112232725342-us-east-1/ --delete
+aws s3 cp doc/privacy-policy.html s3://cricscore-pro-web-112232725342-us-east-1/privacy-policy.html --content-type text/html
 aws cloudfront create-invalidation --distribution-id E2FADRQRZIIFJQ --paths "/*"
 ```

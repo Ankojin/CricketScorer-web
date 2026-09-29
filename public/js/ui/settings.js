@@ -26,7 +26,7 @@ async function exportActiveMatchBackup() {
   }
   const payload = {
     exportedAt: new Date().toISOString(),
-    app: 'CricScore Pro Web',
+    app: 'CricLeague',
     match: activeMatch
   };
   const safeName = (activeMatch.tournamentName || activeMatch.id || 'match').replace(/[^a-z0-9_-]+/gi, '_');

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cricscore-pro-v2.34.0';
+const CACHE_NAME = 'cricleague-v3.0.0';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

@@ -1,4 +1,4 @@
-# CricScore Pro Web - High-Level Architecture & End-to-End Flow
+# CricLeague - High-Level Architecture & End-to-End Flow
 
 A high-performance, deterministic, event-sourced Progressive Web Application (PWA) designed for corporate Intune-managed devices and mobile web browsers. Built on a **100% AWS Serverless Always Free Tier** architecture ($0.00 cost).
 

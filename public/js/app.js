@@ -1,4 +1,4 @@
-// CricScore Pro application bootstrap. Feature modules load before this file.
+// CricLeague application bootstrap. Feature modules load before this file.
 window.selectBowlerDirect = selectBowlerDirect;
 
 window.addEventListener('DOMContentLoaded', async () => {

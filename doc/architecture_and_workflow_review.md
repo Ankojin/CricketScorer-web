@@ -1,6 +1,6 @@
 # Comprehensive Architecture & User Workflow Reference
 
-**Application:** CricScore Pro Web (PWA)  
+**Application:** CricLeague (PWA)
 **Version:** 2.33.28  
 **Repository:** [https://github.com/Ankojin/CricketScorer-web](https://github.com/Ankojin/CricketScorer-web)  
 **Latest Commit:** `0e05e91` (Theme: Navy + Electric Green — pushed to `main`)  
@@ -11,7 +11,7 @@
 
 ## Executive Summary
 
-CricScore Pro Web is a serverless, progressive web application (PWA) for offline-first cricket scoring with background AWS cloud synchronization.
+CricLeague is a serverless, progressive web application (PWA) for offline-first cricket scoring with background AWS cloud synchronization.
 
 The application strictly separates **Presentation**, **Application Controller**, **Scoring Engine**, and **Persistence**. UI theme and home changes must not alter cricket rules, match records, or sync contracts.
 
@@ -86,7 +86,7 @@ The application strictly separates **Presentation**, **Application Controller**,
 
 ## 3. Design system (current)
 
-**Name:** CricScore Pro — Navy + Electric Green  
+**Name:** CricLeague — Navy + Electric Green
 
 | Role | Token | Hex |
 | :--- | :--- | :--- |

@@ -64,7 +64,7 @@ async function exportElementSnapshot(elementId, filenameBase) {
 
     const file = new File([blob], fileName, { type: 'image/png' });
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'CricScore Snapshot' });
+      await navigator.share({ files: [file], title: 'CricLeague Snapshot' });
       showToast('Snapshot shared', 'success');
       return;
     }
