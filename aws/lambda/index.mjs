@@ -9,6 +9,7 @@ import {
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { resolveMx, resolve4, resolve6 } from 'node:dns/promises';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -18,6 +19,19 @@ const TABLE_NAME = process.env.TABLE_NAME || 'CricMatches';
 const JWT_SECRET_ARN = process.env.JWT_SECRET_ARN;
 
 let cachedJwtSecret = null;
+const emailDomainCheckCache = new Map();
+
+const DEFAULT_BLOCKED_EMAIL_DOMAINS = [
+  'example.com',
+  'example.net',
+  'example.org',
+  'test.com',
+  'invalid',
+  'mailinator.com',
+  'tempmail.com',
+  '10minutemail.com',
+  'guerrillamail.com'
+];
 
 const response = (statusCode, body) => ({
   statusCode,
@@ -39,6 +53,106 @@ function extractOwnerUserId(item) {
 function isOwnedByUser(item, userId) {
   if (!item || !userId) return false;
   return extractOwnerUserId(item) === userId;
+}
+
+function normalizeEmail(rawEmail) {
+  return String(rawEmail || '').trim().toLowerCase();
+}
+
+function isValidEmailSyntax(email) {
+  if (!email || email.length > 254) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  return emailRegex.test(email);
+}
+
+function isStrongPassword(password) {
+  if (typeof password !== 'string') return false;
+  if (password.length < 8 || password.length > 128) return false;
+  const hasLetter = /[A-Za-z]/.test(password);
+  const hasDigit = /\d/.test(password);
+  return hasLetter && hasDigit;
+}
+
+function getBlockedEmailDomains() {
+  const envRaw = process.env.BLOCKED_EMAIL_DOMAINS || '';
+  const envDomains = envRaw
+    .split(',')
+    .map(d => d.trim().toLowerCase())
+    .filter(Boolean);
+  return new Set([...DEFAULT_BLOCKED_EMAIL_DOMAINS, ...envDomains]);
+}
+
+function isReservedOrBlockedDomain(domain) {
+  const blocked = getBlockedEmailDomains();
+  return blocked.has(domain);
+}
+
+function isObviouslyDummyLocalPart(localPart) {
+  const lp = String(localPart || '').trim().toLowerCase();
+  if (!lp) return true;
+
+  const obviousValues = new Set([
+    'test',
+    'dummy',
+    'fake',
+    'sample',
+    'unknown',
+    'na',
+    'none',
+    'admin'
+  ]);
+
+  return obviousValues.has(lp);
+}
+
+async function isDeliverableEmailDomain(domain) {
+  const normalized = String(domain || '').trim().toLowerCase();
+  if (!normalized) return false;
+
+  if (emailDomainCheckCache.has(normalized)) {
+    return emailDomainCheckCache.get(normalized);
+  }
+
+  const dnsCheckEnabled = process.env.ENFORCE_EMAIL_DOMAIN_DNS !== 'false';
+  if (!dnsCheckEnabled) {
+    emailDomainCheckCache.set(normalized, true);
+    return true;
+  }
+
+  const timeoutMs = Number(process.env.EMAIL_DNS_TIMEOUT_MS || 2500);
+  const check = (async () => {
+    try {
+      const mx = await resolveMx(normalized);
+      if (Array.isArray(mx) && mx.length > 0) return true;
+    } catch (_) {
+      // ignore and continue with A/AAAA checks
+    }
+
+    try {
+      const a = await resolve4(normalized);
+      if (Array.isArray(a) && a.length > 0) return true;
+    } catch (_) {
+      // ignore and continue
+    }
+
+    try {
+      const aaaa = await resolve6(normalized);
+      if (Array.isArray(aaaa) && aaaa.length > 0) return true;
+    } catch (_) {
+      // no resolvable records
+    }
+
+    return false;
+  })();
+
+  const timed = Promise.race([
+    check,
+    new Promise(resolve => setTimeout(() => resolve(false), timeoutMs))
+  ]);
+
+  const result = Boolean(await timed);
+  emailDomainCheckCache.set(normalized, result);
+  return result;
 }
 
 async function verifySpectatorToken(event, expectedMatchId, expectedTokenVersion) {
@@ -139,7 +253,28 @@ export const handler = async (event) => {
         return response(400, { error: 'Email and password required' });
       }
 
-      const emailLower = email.toLowerCase();
+      const emailLower = normalizeEmail(email);
+      if (!isValidEmailSyntax(emailLower)) {
+        return response(400, { error: 'Please enter a valid email address' });
+      }
+
+      if (!isStrongPassword(password)) {
+        return response(400, { error: 'Password must be at least 8 characters and include letters and numbers' });
+      }
+
+      const emailParts = emailLower.split('@');
+      const emailLocal = emailParts[0] || '';
+      const emailDomain = emailParts[1] || '';
+
+      if (isReservedOrBlockedDomain(emailDomain) || isObviouslyDummyLocalPart(emailLocal)) {
+        return response(400, { error: 'Please use a real email address you can access' });
+      }
+
+      const isDeliverableDomain = await isDeliverableEmailDomain(emailDomain);
+      if (!isDeliverableDomain) {
+        return response(400, { error: 'Email domain appears invalid or unreachable' });
+      }
+
       const userId = `user_${legacyHash(emailLower)}`;
       const passwordHash = await bcrypt.hash(password, 12);
 
@@ -155,7 +290,7 @@ export const handler = async (event) => {
       const userDoc = {
         userId,
         email: emailLower,
-        name: name || email.split('@')[0],
+        name: name || emailLocal,
         passwordHash,
         createdAt: new Date().toISOString()
       };
@@ -177,7 +312,10 @@ export const handler = async (event) => {
         return response(400, { error: 'Email and password required' });
       }
 
-      const emailLower = email.toLowerCase();
+      const emailLower = normalizeEmail(email);
+      if (!isValidEmailSyntax(emailLower)) {
+        return response(400, { error: 'Please enter a valid email address' });
+      }
       const userId = `user_${legacyHash(emailLower)}`;
 
       const data = await docClient.send(new GetCommand({

@@ -1,6 +1,47 @@
 // auth UI module.
 let authModalKeydownBound = false;
 
+const BLOCKED_EMAIL_DOMAINS = new Set([
+  'example.com',
+  'example.net',
+  'example.org',
+  'test.com',
+  'invalid',
+  'mailinator.com',
+  'tempmail.com',
+  '10minutemail.com',
+  'guerrillamail.com'
+]);
+
+function normalizeEmail(rawEmail) {
+  return String(rawEmail || '').trim().toLowerCase();
+}
+
+function isValidEmailSyntax(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+}
+
+function isStrongPassword(password) {
+  return typeof password === 'string'
+    && password.length >= 8
+    && /[A-Za-z]/.test(password)
+    && /\d/.test(password);
+}
+
+function looksLikeDummyEmail(email) {
+  const parts = String(email || '').split('@');
+  if (parts.length !== 2) return true;
+
+  const local = (parts[0] || '').trim().toLowerCase();
+  const domain = (parts[1] || '').trim().toLowerCase();
+
+  if (!local || !domain) return true;
+  if (BLOCKED_EMAIL_DOMAINS.has(domain)) return true;
+
+  const obviousLocals = new Set(['test', 'dummy', 'fake', 'sample', 'unknown', 'na', 'none', 'admin']);
+  return obviousLocals.has(local);
+}
+
 function getAuthModalFocusableElements() {
   const authModal = document.getElementById('authModal');
   if (!authModal) return [];
@@ -103,13 +144,29 @@ function switchAuthTab(tab) {
 }
 
 async function handleAuthSubmit() {
-  const email = document.getElementById('authEmail').value;
+  const email = normalizeEmail(document.getElementById('authEmail').value);
   const password = document.getElementById('authPassword').value;
-  const name = document.getElementById('authName').value;
+  const name = document.getElementById('authName').value?.trim();
 
   if (!email || !password) {
     showToast('Please enter email and password', 'warning');
     return;
+  }
+
+  if (!isValidEmailSyntax(email)) {
+    showToast('Please enter a valid email address', 'warning');
+    return;
+  }
+
+  if (authTab === 'REGISTER') {
+    if (!isStrongPassword(password)) {
+      showToast('Password must be at least 8 characters and include letters and numbers', 'warning');
+      return;
+    }
+    if (looksLikeDummyEmail(email)) {
+      showToast('Please use a real email address you can access', 'warning');
+      return;
+    }
   }
 
   try {
