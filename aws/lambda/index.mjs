@@ -410,6 +410,20 @@ export const handler = async (event) => {
 
       const payload = JSON.parse(event.body || '{}');
       const matchId = payload.id || payload.matchId || `match_${Date.now()}`;
+
+      const existing = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { matchId }
+      }));
+
+      const isMatchDoc = existing.Item && (!existing.Item.docType || existing.Item.docType === 'MATCH');
+      if (existing.Item && !isMatchDoc) {
+        return response(404, { error: 'Match not found' });
+      }
+      if (existing.Item && !isOwnedByUser(existing.Item, authUser.userId)) {
+        return response(403, { error: 'Forbidden' });
+      }
+
       payload.id = matchId;
       payload.ownerUserId = authUser.userId;
 
@@ -424,7 +438,7 @@ export const handler = async (event) => {
           payload
         }
       }));
-      return response(201, payload);
+      return response(existing.Item ? 200 : 201, payload);
     }
 
     if (method === 'PUT' && pathParams.id) {

@@ -194,10 +194,10 @@ Resources:
         ThrottlingBurstLimit: 40
         ThrottlingRateLimit: 20
       CorsConfiguration:
-        AllowOrigins: !If
-          - HasCustomDomain
-          - - !Sub "https://${CustomDomainName}"
-          - - !Sub "https://${CricScoreCDN.DomainName}"
+        AllowOrigins:
+          - "https://cricleague.nrkmart.in"
+          - "https://www.cricleague.nrkmart.in"
+          - !Sub "https://${CricScoreCDN.DomainName}"
         AllowMethods:
           - GET
           - POST

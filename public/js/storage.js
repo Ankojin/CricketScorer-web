@@ -126,6 +126,10 @@ const CricStorage = {
         throw new Error(errBody.error || `Registration failed (HTTP ${res.status})`);
       } catch (err) {
         console.warn('API register failed:', err);
+        const msg = String(err?.message || '');
+        if (msg) {
+          throw err;
+        }
         throw new Error('Unable to register to cloud right now. Please try again.');
       }
     }
@@ -155,6 +159,10 @@ const CricStorage = {
         throw new Error(errBody.error || `Login failed (HTTP ${res.status})`);
       } catch (err) {
         console.warn('API login failed:', err);
+        const msg = String(err?.message || '');
+        if (msg) {
+          throw err;
+        }
         throw new Error('Unable to sign in to cloud right now. Please try again.');
       }
     }

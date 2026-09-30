@@ -1,6 +1,6 @@
 {
   "name": "cricscore-lambda-handler",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CricLeague AWS Lambda API Handler",
   "main": "index.mjs",
   "type": "module",

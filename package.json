@@ -1,6 +1,6 @@
 {
   "name": "cricscore-pro-web",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CricLeague PWA - Serverless Cricket Scorer for Intune Managed Browsers",
   "main": "dist/src/index.js",
   "type": "module",
