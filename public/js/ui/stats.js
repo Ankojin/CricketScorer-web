@@ -15,18 +15,18 @@ async function renderStats() {
   const i2Balls = (m.ballHistory || []).slice(splitIdx);
 
   const totalOvers = Math.max(1, Number(m.oversPerInnings || 20));
-  const configuredPowerplay = Number(m.powerplayOvers || 0) > 0 ? Number(m.powerplayOvers) : 6;
-  const powerplayOvers = Math.max(0, Math.min(configuredPowerplay, totalOvers));
-  const deathStartOver = Math.max(powerplayOvers, Math.max(0, totalOvers - 5)) + 1;
 
   const i1Stats = window.ScoringEngine.calculateInningsStats(i1Balls, {
-    powerplayOvers,
+    powerplayOvers: m.powerplayOvers,
     oversPerInnings: totalOvers
   });
   const i2Stats = window.ScoringEngine.calculateInningsStats(i2Balls, {
-    powerplayOvers,
+    powerplayOvers: m.powerplayOvers,
     oversPerInnings: totalOvers
   });
+
+  const powerplayOvers = i1Stats.powerplayOvers || 0;
+  const deathStartOver = i1Stats.deathStartOver || (powerplayOvers + 1);
 
   const i1Partnerships = window.ScoringEngine.calculatePartnerships(i1Balls, m);
   const i2Partnerships = window.ScoringEngine.calculatePartnerships(i2Balls, m);
@@ -86,8 +86,8 @@ async function renderStats() {
       </div>
 
       ${buildBreakdownRow(`Powerplay (1-${powerplayOvers} Ov)`, `${i1Stats.ppRuns}/${i1Stats.ppWickets}`, `${i2Stats.ppRuns}/${i2Stats.ppWickets}`)}
-      ${i1Stats.hasMid || i2Stats.hasMid ? buildBreakdownRow(`Middle Overs (${powerplayOvers + 1}-${Math.max(powerplayOvers + 1, deathStartOver - 1)} Ov)`, `${i1Stats.midRuns}/${i1Stats.midWickets}`, `${i2Stats.midRuns}/${i2Stats.midWickets}`) : ''}
-      ${i1Stats.hasFin || i2Stats.hasFin ? buildBreakdownRow(`Death Overs (${deathStartOver}-${totalOvers} Ov)`, `${i1Stats.finRuns}/${i1Stats.finWickets}`, `${i2Stats.finRuns}/${i2Stats.finWickets}`) : ''}
+      ${i1Stats.hasMid || i2Stats.hasMid ? buildBreakdownRow(`Middle Overs (${powerplayOvers + 1}-${deathStartOver - 1} Ov)`, `${i1Stats.midRuns}/${i1Stats.midWickets}`, `${i2Stats.midRuns}/${i2Stats.midWickets}`) : ''}
+      ${i1Stats.hasFin || i2Stats.hasFin ? buildBreakdownRow(`Final Overs (${deathStartOver}-${totalOvers} Ov)`, `${i1Stats.finRuns}/${i1Stats.finWickets}`, `${i2Stats.finRuns}/${i2Stats.finWickets}`) : ''}
 
       <hr style="border-color:rgba(255,255,255,0.05); margin:8px 0;">
 

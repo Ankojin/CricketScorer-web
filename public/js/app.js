@@ -1,6 +1,21 @@
 // CricLeague application bootstrap. Feature modules load before this file.
 window.selectBowlerDirect = selectBowlerDirect;
 
+function applySpectatorUiRestrictions() {
+  const headerActions = document.querySelector('.app-header-actions');
+  if (headerActions) headerActions.style.display = 'none';
+
+  const appTitle = document.querySelector('.app-title');
+  if (appTitle) {
+    appTitle.removeAttribute('onclick');
+    appTitle.style.cursor = 'default';
+  }
+
+  document.querySelectorAll('[data-nav-context="general"]').forEach(el => {
+    el.style.display = 'none';
+  });
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   initializeDialogAccessibility();
   updateAuthUI();
@@ -21,26 +36,42 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Check URL query parameters for Spectator Live View Mode (?matchId=match_123)
   const urlParams = new URLSearchParams(window.location.search);
   const sharedMatchId = urlParams.get('matchId');
+  const spectatorToken = urlParams.get('st');
 
   if (sharedMatchId) {
+    if (!spectatorToken) {
+      showToast('Invalid or expired spectator link', 'warning');
+      showLandingScreen();
+      return;
+    }
+
     isReadOnlySpectator = true;
+    applySpectatorUiRestrictions();
     selectMatch(sharedMatchId);
 
     // Auto-poll live score every 5 seconds for spectators
     spectatorPollInterval = setInterval(async () => {
       if (activeMatch && isReadOnlySpectator) {
-        const fresh = await window.CricStorage.getMatch(activeMatch.id);
-        if (fresh) {
-          activeMatch = window.ScoringEngine.recalculateMatch(fresh);
-          if (activeMatch.status !== 'LIVE') {
-            showToast('Live link expired: match has ended.', 'info');
-            activeMatch = null;
-            clearInterval(spectatorPollInterval);
-            spectatorPollInterval = null;
-            showLandingScreen();
-            return;
+        try {
+          const fresh = await window.CricStorage.getMatch(activeMatch.id);
+          if (fresh) {
+            activeMatch = window.ScoringEngine.recalculateMatch(fresh);
+            if (activeMatch.status !== 'LIVE') {
+              showToast('Live link expired: match has ended.', 'info');
+              activeMatch = null;
+              clearInterval(spectatorPollInterval);
+              spectatorPollInterval = null;
+              showLandingScreen();
+              return;
+            }
+            renderLiveScoring();
           }
-          renderLiveScoring();
+        } catch (err) {
+          showToast('Unable to refresh live score. Link may be expired.', 'warning');
+          activeMatch = null;
+          clearInterval(spectatorPollInterval);
+          spectatorPollInterval = null;
+          showLandingScreen();
         }
       }
     }, 5000);
@@ -88,6 +119,12 @@ window.showQuickMatchLandingScreen = showQuickMatchLandingScreen;
 window.showFullMatchLandingScreen = showQuickMatchLandingScreen;
 
 window.showSeriesLandingScreen = showSeriesLandingScreen;
+
+window.showAboutScreen = showAboutScreen;
+
+window.showInfoScreen = showInfoScreen;
+
+window.openPrivacyPolicy = openPrivacyPolicy;
 
 window.startSeriesMatch = startSeriesMatch;
 

@@ -369,10 +369,10 @@ function renderOvers() {
         let label = ball.runs;
         let cls = 'ball-chip';
         if (ball.isAdjustment && ball.adjustmentSlot === 'SWAP') { label = '🔀'; cls += ' extra'; }
-        else if (ball.wicketType && ball.wicketType !== 'NONE') { label = ball.wicketType === 'RETIRED_HURT' ? 'RET' : 'W'; cls += ' wicket'; }
+        else if (ball.wicketType && ball.wicketType !== 'NONE') { label = ball.wicketType === 'RETIRED_HURT' ? '🚑RET' : '🏏W'; cls += ' wicket'; }
         else if (ball.isDroppedCatch || ball.wasDroppedCatch) { label = `🤲${ball.runs || 0}`; cls += ' extra'; }
-        else if (ball.runs === 4) cls += ' four';
-        else if (ball.runs === 6) cls += ' six';
+        else if (ball.runs === 4) { label = '4💥'; cls += ' four'; }
+        else if (ball.runs === 6) { label = '6💥'; cls += ' six'; }
         else if (ball.runs === 1 && ball.rotateStrike === false) { label = '1G'; }
         else if (ball.extrasType === 'GRANTED') { label = '1G'; cls += ' extra'; }
         else if (ball.extrasType === 'WIDE') { label = `${ball.extraRuns ?? 1}WD`; cls += ' extra'; }

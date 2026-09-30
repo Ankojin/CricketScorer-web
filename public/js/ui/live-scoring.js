@@ -1,9 +1,44 @@
 // Live scoring UI and scoring interactions.
 let lastCelebratedResultToken = null;
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function closeMatchResultModal() {
   const modal = document.getElementById('matchResultModal');
   if (modal) modal.classList.remove('active');
+}
+
+function formatShareTtlText(ttlSeconds) {
+  const ttlMinutes = Math.ceil(Number(ttlSeconds || 0) / 60);
+  if (ttlMinutes <= 0) return 'Valid while match is live';
+  if (ttlMinutes >= 60) {
+    const hours = Math.floor(ttlMinutes / 60);
+    const mins = ttlMinutes % 60;
+    return mins > 0 ? `Valid up to ${hours}h ${mins}m (or until match ends)` : `Valid up to ${hours}h (or until match ends)`;
+  }
+  return `Valid up to ${ttlMinutes}m (or until match ends)`;
+}
+
+function chooseShareTtlMinutes() {
+  const allowed = [15, 60, 360];
+  const previous = Number(localStorage.getItem('cric_share_ttl_minutes') || 360);
+  const defaultValue = allowed.includes(previous) ? previous : 360;
+  const input = prompt('Share link validity in minutes? Allowed: 15, 60, 360', String(defaultValue));
+  if (input === null) return null;
+  const parsed = Number(input);
+  if (!allowed.includes(parsed)) {
+    showToast('Choose 15, 60, or 360 minutes', 'warning');
+    return null;
+  }
+  localStorage.setItem('cric_share_ttl_minutes', String(parsed));
+  return parsed;
 }
 
 function maybeShowMatchResultCelebration(match) {
@@ -35,11 +70,16 @@ function maybeShowMatchResultCelebration(match) {
   lastCelebratedResultToken = resultToken;
 }
 
-function goLiveShare() {
+async function goLiveShare() {
   if (!activeMatch) return;
 
   if (window.CricStorage && window.CricStorage.isGuestUser()) {
     showToast('Sign in to share live scores across devices', 'warning');
+    return;
+  }
+
+  if (!window.CricStorage || !window.CricStorage.hasCloudApi || !window.CricStorage.hasCloudApi()) {
+    showToast('Live sharing requires cloud API configuration', 'warning');
     return;
   }
 
@@ -51,18 +91,68 @@ function goLiveShare() {
   const m = activeMatch;
   const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
   const scoreStr = `${m.totalRuns || 0}/${m.totalWickets || 0} (${overStr} Ov)`;
-  const matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}`;
+  let matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}`;
+  let shareValidityText = 'Valid while match is live';
+  const chosenTtlMinutes = chooseShareTtlMinutes();
+  if (chosenTtlMinutes === null) return;
+
+  try {
+    const share = await window.CricStorage.createSpectatorShareToken(m.id, chosenTtlMinutes);
+    matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}&st=${encodeURIComponent(share.spectatorToken)}`;
+    const ttlSeconds = Number(share?.expiresInSeconds || 0);
+    shareValidityText = formatShareTtlText(ttlSeconds);
+    activeMatch = {
+      ...activeMatch,
+      spectatorShareActive: true,
+      spectatorShareExpiresInSeconds: ttlSeconds,
+      spectatorShareIssuedAt: share?.shareStatus?.issuedAt || new Date().toISOString(),
+      spectatorShareRevokedAt: null
+    };
+    renderLiveScoring();
+  } catch (err) {
+    showToast(err?.message || 'Unable to create live share token', 'danger');
+    return;
+  }
 
   if (navigator.clipboard) {
     navigator.clipboard.writeText(matchUrl).catch(() => {});
   }
 
-  showToast('🟢 Live Spectator Link Copied!', 'success');
+  showToast(`🟢 Public read-only spectator link copied • ${shareValidityText}`, 'success');
 
-  const text = `🏏 *Live Cricket Score*\n*${m.teamA?.name} vs ${m.teamB?.name}*\nScore: *${scoreStr}*\nStatus: ${m.status || 'LIVE'}\n\n👇 *Watch Live Score Updates here:*\n${matchUrl}`;
+  const text = `🏏 *Live Cricket Score (Read-Only)*\n*${m.teamA?.name} vs ${m.teamB?.name}*\nScore: *${scoreStr}*\nStatus: ${m.status || 'LIVE'}\n\nIncludes: Live Score, Scorecard, Overs, Stats\n${shareValidityText}.\n\n👇 *Watch Live Score Updates here:*\n${matchUrl}`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 
   window.open(whatsappUrl, '_blank');
+}
+
+async function revokeLiveShare() {
+  if (!activeMatch) return;
+  if (window.CricStorage && window.CricStorage.isGuestUser()) {
+    showToast('Sign in to manage shared links', 'warning');
+    return;
+  }
+  if (!window.CricStorage || !window.CricStorage.hasCloudApi || !window.CricStorage.hasCloudApi()) {
+    showToast('Share revocation requires cloud API configuration', 'warning');
+    return;
+  }
+
+  if (!confirm('Revoke all previously shared spectator links for this match?')) {
+    return;
+  }
+
+  try {
+    await window.CricStorage.revokeSpectatorShareToken(activeMatch.id);
+    activeMatch = {
+      ...activeMatch,
+      spectatorShareActive: false,
+      spectatorShareRevokedAt: new Date().toISOString()
+    };
+    renderLiveScoring();
+    showToast('🛑 Previously shared spectator links revoked', 'success');
+  } catch (err) {
+    showToast(err?.message || 'Unable to revoke shared links', 'danger');
+  }
 }
 
 function shareLiveScoreWhatsApp() {
@@ -259,6 +349,7 @@ function renderLiveScoring() {
   const spectatorBanner = document.getElementById('spectatorBanner');
   const scoringKeypad = document.getElementById('scoringKeypad');
   const goLiveBtn = document.getElementById('goLiveBtn');
+  const revokeLiveBtn = document.getElementById('revokeLiveBtn');
   const btnSwapBatsmen = document.getElementById('btnSwapBatsmen');
   const extraScoringActions = document.getElementById('scoringExtraActions');
   const isWebScore = isWebScoreMatch(m);
@@ -266,14 +357,17 @@ function renderLiveScoring() {
   const isSingleSideBatting = Boolean(m.gullyRules?.singleSideBatting);
   if (isReadOnlySpectator) {
     if (spectatorBanner) spectatorBanner.style.display = 'block';
+    if (spectatorBanner) spectatorBanner.innerText = '👀 Public Spectator View: Live Score, Scorecard, Overs & Stats only (Read-Only). Link auto-expires when match ends.';
     if (scoringKeypad) scoringKeypad.style.display = 'none';
     if (goLiveBtn) goLiveBtn.style.display = 'none';
+    if (revokeLiveBtn) revokeLiveBtn.style.display = 'none';
     if (btnSwapBatsmen) btnSwapBatsmen.style.display = 'none';
     if (extraScoringActions) extraScoringActions.style.display = 'none';
   } else {
     if (spectatorBanner) spectatorBanner.style.display = 'none';
     if (scoringKeypad) scoringKeypad.style.display = isScoringLockedByStatus ? 'none' : 'grid';
     if (goLiveBtn) goLiveBtn.style.display = isScoringLockedByStatus ? 'none' : 'flex';
+    if (revokeLiveBtn) revokeLiveBtn.style.display = isScoringLockedByStatus ? 'none' : 'flex';
     if (extraScoringActions) extraScoringActions.style.display = isScoringLockedByStatus ? 'none' : 'grid';
   }
 
@@ -361,10 +455,30 @@ function renderLiveScoring() {
         </span>
       </div>
       <button id="goLiveBtn" class="score-header-live-button" type="button" onclick="goLiveShare()"><span aria-hidden="true">●</span> LIVE</button>
+      <button id="revokeLiveBtn" class="score-header-live-button" type="button" onclick="revokeLiveShare()" style="right:108px; background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error);"><span aria-hidden="true">●</span> REVOKE</button>
+      <div id="shareStatusBadge" style="position:absolute; top:54px; right:14px; font-size:10px; font-weight:800; border-radius:10px; padding:3px 8px; border:1px solid var(--color-border); background:var(--panel-bg); color:var(--text-muted);">Share: Not active</div>
       <div style="font-size:12px; color:var(--text-muted); font-weight:600; margin-top:6px;">
         Batting: <span style="color:${battingTeamColor}; font-weight:800;">${battingTeam?.name || ''}</span>${tossStr}
       </div>
     `;
+  }
+
+  const shareStatusBadge = document.getElementById('shareStatusBadge');
+  if (shareStatusBadge) {
+    if (isReadOnlySpectator) {
+      shareStatusBadge.style.display = 'none';
+    } else if (m.spectatorShareActive) {
+      const validity = formatShareTtlText(m.spectatorShareExpiresInSeconds || 0).replace('Valid up to ', 'TTL ');
+      shareStatusBadge.style.display = 'inline-flex';
+      shareStatusBadge.style.color = 'var(--color-success)';
+      shareStatusBadge.style.borderColor = 'var(--color-success)';
+      shareStatusBadge.innerText = `Share: Active • ${validity}`;
+    } else {
+      shareStatusBadge.style.display = 'inline-flex';
+      shareStatusBadge.style.color = 'var(--text-muted)';
+      shareStatusBadge.style.borderColor = 'var(--color-border)';
+      shareStatusBadge.innerText = 'Share: Revoked / Not active';
+    }
   }
 
   // Score Main Accent
@@ -416,7 +530,7 @@ function renderLiveScoring() {
       div.innerText = '🔀';
     } else if (b.wicketType && b.wicketType !== 'NONE') {
       div.classList.add('wicket');
-      div.innerText = b.wicketType === 'RETIRED_HURT' ? 'RET' : 'W';
+      div.innerText = b.wicketType === 'RETIRED_HURT' ? '🚑RET' : '🏏W';
     } else if (b.isDroppedCatch || b.wasDroppedCatch) {
       div.classList.add('extra');
       div.innerText = `🤲${b.runs || 0}`;
@@ -438,10 +552,10 @@ function renderLiveScoring() {
       div.innerText = `${b.extraRuns ?? 0}LB`;
     } else if (b.runs === 4) {
       div.classList.add('four');
-      div.innerText = '4';
+      div.innerText = '4💥';
     } else if (b.runs === 6) {
       div.classList.add('six');
-      div.innerText = '6';
+      div.innerText = '6💥';
     } else {
       div.innerText = b.runs || 0;
     }
@@ -498,7 +612,7 @@ function renderLiveScoring() {
       tr.innerHTML = `
         <td class="live-player-name-cell" style="font-weight:700;">
           <div style="display:flex; align-items:center; gap:2px;">
-            <span>${p.name}</span>
+            <span>${escapeHtml(p.name)}</span>
             ${isC ? '<span class="badge-c">(C)</span>' : ''}
             ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
             ${isStriker ? '<span class="striker-star">*</span>' : ''}
@@ -553,7 +667,7 @@ function renderLiveScoring() {
     tr.innerHTML = `
       <td class="live-player-name-cell" style="font-weight:700;">
         <div style="display:flex; align-items:center; gap:2px;">
-          <span>${bowler.name}</span>
+          <span>${escapeHtml(bowler.name)}</span>
           ${isC ? '<span class="badge-c">(C)</span>' : ''}
           ${isVC ? '<span class="badge-vc">(VC)</span>' : ''}
           ${editBtn}
@@ -836,11 +950,61 @@ function openPlayerSelection(type) {
     });
 
   } else {
+    if (type === 'RETIRED_HURT_TARGET') {
+      title.innerText = 'Retired Hurt: Select Batter To Retire';
+      dropdownGroup.style.display = 'block';
+      confirmBtn.style.display = 'block';
+      confirmBtn.disabled = true;
+
+      const select = document.getElementById('selectionDropdown');
+      select.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      placeholder.innerText = '-- Select batter to retire now --';
+      select.appendChild(placeholder);
+
+      const striker = (battingTeam?.players || []).find(p => p.id === m.strikerId);
+      const nonStriker = (battingTeam?.players || []).find(p => p.id === m.nonStrikerId);
+
+      if (m.strikerId && striker) {
+        const strikerOpt = document.createElement('option');
+        strikerOpt.value = 'STRIKER';
+        strikerOpt.innerText = `${striker.name} (Striker)`;
+        select.appendChild(strikerOpt);
+      }
+
+      if (m.nonStrikerId && nonStriker) {
+        const nonStrikerOpt = document.createElement('option');
+        nonStrikerOpt.value = 'NON_STRIKER';
+        nonStrikerOpt.innerText = `${nonStriker.name} (Non-Striker)`;
+        select.appendChild(nonStrikerOpt);
+      }
+
+      if (!m.strikerId && !m.nonStrikerId) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.innerText = 'No active batters available';
+        select.appendChild(opt);
+        confirmBtn.disabled = true;
+      }
+
+      select.onchange = () => {
+        confirmBtn.disabled = !select.value;
+      };
+
+      openPrimaryActionModal('selectionModal');
+      return;
+    }
+
     title.innerText = `Select ${type === 'STRIKER' ? 'Striker' : 'Non-Striker'}`;
     dropdownGroup.style.display = 'block';
     confirmBtn.style.display = 'block';
 
     const select = document.getElementById('selectionDropdown');
+    select.onchange = null;
     select.innerHTML = '';
 
     const otherId = type === 'STRIKER' ? m.nonStrikerId : m.strikerId;
@@ -907,9 +1071,11 @@ function openPlayerSelection(type) {
         const opt = document.createElement('option');
         opt.value = p.id;
         const isCurrent = p.id === currentId;
+        const isRetHurt = Boolean(p.battingStats?.isRetiredHurt);
         const runs = p.battingStats?.runs || 0;
         const balls = p.battingStats?.balls || 0;
-        opt.innerText = `${p.name} (${runs} runs, ${balls}b)${isCurrent ? ' [Current]' : ''}`;
+        const retHurtTag = isRetHurt ? ' (Retired Hurt)' : '';
+        opt.innerText = `${p.name}${retHurtTag} (${runs} runs, ${balls}b)${isCurrent ? ' [Current]' : ''}`;
         if (isCurrent) opt.selected = true;
         select.appendChild(opt);
       });
@@ -1118,6 +1284,13 @@ async function confirmPlayerSelection() {
   if (!selectedId || !activeMatch || isReadOnlySpectator || !ensureMatchLiveForScoring()) return;
 
   const slot = currentSelectionType;
+
+  if (slot === 'RETIRED_HURT_TARGET') {
+    closeSelectionModal();
+    await handleRetireBatter(selectedId);
+    return;
+  }
+
   let finalSelectedId = selectedId;
 
   if (selectedId.startsWith('SWITCH::')) {
@@ -1430,27 +1603,45 @@ async function submitByesWithRuns(type, extraRuns) {
   renderLiveScoring();
 }
 
-async function handleRetireBatter() {
+async function handleRetireBatter(slot = null) {
   if (!ensureScoringPlayersSelected()) return;
-  const striker = activeMatch.strikerId;
-  if (!striker) {
-    showToast('No active striker to retire', 'warning');
+
+  if (!slot) {
+    openPlayerSelection('RETIRED_HURT_TARGET');
     return;
   }
-  if (confirm('Retire current striker? (Retired Hurt)')) {
+
+  const retireSlot = slot === 'NON_STRIKER' ? 'NON_STRIKER' : 'STRIKER';
+  const retiredPlayerId = retireSlot === 'NON_STRIKER' ? activeMatch.nonStrikerId : activeMatch.strikerId;
+  if (!retiredPlayerId) {
+    showToast(`No active ${retireSlot === 'NON_STRIKER' ? 'non-striker' : 'striker'} to retire`, 'warning');
+    return;
+  }
+
+  const isBattingA = activeMatch.battingTeamId === activeMatch.teamA?.id;
+  const battingTeam = isBattingA ? activeMatch.teamA : activeMatch.teamB;
+  const retiredPlayer = (battingTeam?.players || []).find(p => p.id === retiredPlayerId);
+  const retiredName = retiredPlayer?.name || (retireSlot === 'NON_STRIKER' ? 'non-striker' : 'striker');
+  const confirmed = confirm(`Retire ${retiredName} (${retireSlot === 'NON_STRIKER' ? 'Non-Striker' : 'Striker'})?`);
+  if (confirmed) {
     const ball = {
       runs: 0,
       extrasType: 'NONE',
       extraRuns: 0,
       wicketType: 'RETIRED_HURT',
       isLegalBall: false,
+      outPlayerId: retiredPlayerId,
       strikerId: activeMatch.strikerId,
       nonStrikerId: activeMatch.nonStrikerId,
       bowlerId: activeMatch.currentBowlerId
     };
     activeMatch = await window.CricStorage.addBall(activeMatch.id, ball);
-    await continueWebScoreParticipants();
-    showToast('Batter retired hurt', 'info');
+    if (!isWebScoreMatch(activeMatch)) {
+      requestPendingAction(retireSlot === 'NON_STRIKER' ? 'REPLACE_NON_STRIKER' : 'REPLACE_STRIKER');
+    } else {
+      await continueWebScoreParticipants();
+    }
+    showToast(`${retiredName} retired hurt`, 'info');
     renderLiveScoring();
   }
 }
@@ -1589,12 +1780,14 @@ async function submitDroppedCatchWithRuns(runs) {
 
 async function addGrantedRun() {
   if (!ensureScoringPlayersSelected()) return;
+  const currentBallsInOver = (activeMatch.totalBalls || 0) % 6;
+  const isLastBall = currentBallsInOver === 5;
   const ball = {
     runs: 1,
-    extrasType: "NONE",
+    extrasType: "GRANTED",
     extraRuns: 0,
     isLegalBall: true,
-    rotateStrike: false,
+    rotateStrike: isLastBall,
     wicketType: "NONE",
     strikerId: activeMatch.strikerId,
     nonStrikerId: activeMatch.nonStrikerId,

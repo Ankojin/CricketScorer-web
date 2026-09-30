@@ -1,6 +1,6 @@
 {
   "name": "cricscore-pro-web",
-  "version": "2.33.28",
+  "version": "1.0.1",
   "description": "CricLeague PWA - Serverless Cricket Scorer for Intune Managed Browsers",
   "main": "dist/src/index.js",
   "type": "module",
@@ -30,7 +30,6 @@
     "@aws-sdk/client-secrets-manager": "^3.1141.0",
     "@aws-sdk/lib-dynamodb": "^3.500.0",
     "bcryptjs": "^3.0.3",
-    "chromium": "^3.0.3",
     "jsonwebtoken": "^9.0.3"
   }
 }

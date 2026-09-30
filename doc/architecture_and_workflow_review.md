@@ -1,7 +1,7 @@
 # Comprehensive Architecture & User Workflow Reference
 
 **Application:** CricLeague (PWA)
-**Version:** 2.33.28  
+**Version:** 1.0.1  
 **Repository:** [https://github.com/Ankojin/CricketScorer-web](https://github.com/Ankojin/CricketScorer-web)  
 **Latest Commit:** `0e05e91` (Theme: Navy + Electric Green — pushed to `main`)  
 **Date:** 2026-09-26  
@@ -277,7 +277,7 @@ index.html?matchId=…
 | Field | Value |
 | :--- | :--- |
 | Repo | https://github.com/Ankojin/CricketScorer-web |
-| Version | 2.33.28 |
+| Version | 1.0.1 |
 | Latest commit reviewed | `0e05e91` (Navy + Electric Green) |
 | Date | 2026-09-26 |
 | Unit tests | **27/27 passed** (`npm test` = build + `dist/test/ScoringEngine.test.js`) |

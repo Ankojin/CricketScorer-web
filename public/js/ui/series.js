@@ -1,4 +1,23 @@
 // series UI module.
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function ensureSeriesAccess() {
+  return requireRegisteredScoringMode('Series', { keepCurrentScreen: true });
+}
+
+async function openSeriesCreateFlow() {
+  if (!ensureSeriesAccess()) return;
+  await showTournamentsScreen();
+  openNewTournamentModal();
+}
+
 async function exportTournamentSnapshot(tournamentId) {
   if (!tournamentId) return;
   await exportElementSnapshot(`tourneyCard_${tournamentId}`, `series_${tournamentId}`);
@@ -12,6 +31,7 @@ function buildSeriesFixtureStatus(fixture, linkedMatch) {
 }
 
 async function renderTournaments() {
+  if (!ensureSeriesAccess()) return;
   const container = document.getElementById('tournamentsContainer');
   const tourneys = await window.CricStorage.listTournaments();
   const matches = await window.CricStorage.listMatches();
@@ -44,7 +64,7 @@ async function renderTournaments() {
       : [];
     const tableRows = pointsTable.map(p => `
       <tr>
-        <td style="font-weight:700;"><span class="team-badge" style="background:${p.colorHex}"></span>${p.name}</td>
+        <td style="font-weight:700;"><span class="team-badge" style="background:${p.colorHex}"></span>${escapeHtml(p.name)}</td>
         <td style="text-align:right">${p.played}</td>
         <td style="text-align:right">${p.won}</td>
         <td style="text-align:right">${p.lost}</td>
@@ -58,7 +78,7 @@ async function renderTournaments() {
       <div style="background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:8px; margin-top:6px; padding:8px 12px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div style="font-weight:700; font-size:13px; color:var(--color-text);">
-            <span class="team-badge" style="background:${tm.colorHex||'#38bdf8'}"></span>${tm.name} (${(tm.players||[]).length} Players)
+            <span class="team-badge" style="background:${tm.colorHex||'#38bdf8'}"></span>${escapeHtml(tm.name)} (${(tm.players||[]).length} Players)
           </div>
           <div style="display:flex; gap:6px;">
             <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="toggleSeriesTeamRoster('${t.id}','${tm.id}')">📋 Squad</button>
@@ -66,7 +86,7 @@ async function renderTournaments() {
           </div>
         </div>
         <div id="seriesTeamRoster_${t.id}_${tm.id}" hidden style="margin-top:8px; padding-top:6px; border-top:1px solid var(--color-border);">
-          ${(tm.players||[]).map((p, i) => `<div style="font-size:11px; padding:2px 0; color:var(--color-text); display:flex; justify-content:space-between;"><span>${i+1}. ${p.name}</span><span style="color:var(--text-muted); font-size:10px;">${p.role||'Batter'}</span></div>`).join('') || '<div style="font-size:11px; color:var(--text-muted);">No players in squad</div>'}
+          ${(tm.players||[]).map((p, i) => `<div style="font-size:11px; padding:2px 0; color:var(--color-text); display:flex; justify-content:space-between;"><span>${i+1}. ${escapeHtml(p.name)}</span><span style="color:var(--text-muted); font-size:10px;">${escapeHtml(p.role||'Batter')}</span></div>`).join('') || '<div style="font-size:11px; color:var(--text-muted);">No players in squad</div>'}
         </div>
       </div>
     `).join('');
@@ -96,7 +116,7 @@ async function renderTournaments() {
             html: `
             <div style="background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:10px; padding:10px; margin-top:8px;">
               <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                <div style="font-size:13px; font-weight:800; color:var(--color-text);">${teamA?.name || 'Team A'} vs ${teamB?.name || 'Team B'}</div>
+                <div style="font-size:13px; font-weight:800; color:var(--color-text);">${escapeHtml(teamA?.name || 'Team A')} vs ${escapeHtml(teamB?.name || 'Team B')}</div>
                 <span style="font-size:10px; font-weight:800; color:${badgeColor};">${status}</span>
               </div>
               <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${whenText}</div>
@@ -122,12 +142,12 @@ async function renderTournaments() {
       .join('');
 
     const scheduleTeamOptions = teamsForSchedule.map(team =>
-      `<option value="${team.id}">${team.name}</option>`
+      `<option value="${team.id}">${escapeHtml(team.name)}</option>`
     ).join('');
 
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h4 style="font-size:16px; font-weight:800; color:var(--color-primary);">🏆 ${t.name}</h4>
+        <h4 style="font-size:16px; font-weight:800; color:var(--color-primary);">🏆 ${escapeHtml(t.name)}</h4>
         <div style="display:flex; gap:6px;">
           <button class="btn" style="background:var(--color-primary); color:var(--color-text-on-dark); border-color:var(--color-primary); padding:4px 8px; font-size:11px;" onclick="exportTournamentSnapshot('${t.id}')">📸 Snapshot</button>
           <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); padding:4px 8px; font-size:11px;" onclick="openEditTournamentModal('${t.id}')">✏️ Edit Defaults</button>
@@ -203,6 +223,7 @@ async function renderTournaments() {
 }
 
 async function createSeriesFixture(tournamentId) {
+  if (!ensureSeriesAccess()) return;
   const tourneys = await window.CricStorage.listTournaments();
   const target = (tourneys || []).find(t => t.id === tournamentId);
   if (!target) {
@@ -251,6 +272,7 @@ async function createSeriesFixture(tournamentId) {
 }
 
 async function deleteSeriesFixture(tournamentId, fixtureId) {
+  if (!ensureSeriesAccess()) return;
   const tourneys = await window.CricStorage.listTournaments();
   const target = (tourneys || []).find(t => t.id === tournamentId);
   if (!target) return;
@@ -262,6 +284,7 @@ async function deleteSeriesFixture(tournamentId, fixtureId) {
 }
 
 async function startSeriesFixtureMatch(tournamentId, fixtureId) {
+  if (!ensureSeriesAccess()) return;
   const tourneys = await window.CricStorage.listTournaments();
   const target = (tourneys || []).find(t => t.id === tournamentId);
   if (!target) {
@@ -301,6 +324,7 @@ async function startSeriesFixtureMatch(tournamentId, fixtureId) {
 }
 
 async function startSeriesMatch(tournamentId) {
+  if (!ensureSeriesAccess()) return;
   if (!tournamentId) {
     showToast('Series not found', 'warning');
     return;
@@ -352,6 +376,7 @@ function populateTournamentDefaultsForm(tournament) {
 }
 
 function openNewTournamentModal() {
+  if (!ensureSeriesAccess()) return;
   tournamentModalMode = 'CREATE';
   editingTournamentId = null;
 
@@ -393,6 +418,7 @@ function openNewTournamentModal() {
 }
 
 async function openEditTournamentModal(tournamentId) {
+  if (!ensureSeriesAccess()) return;
   const tourneys = await window.CricStorage.listTournaments();
   const target = (tourneys || []).find(t => t.id === tournamentId);
   if (!target) {
@@ -420,6 +446,7 @@ function closeTournamentModal() {
 }
 
 async function handleCreateTournament() {
+  if (!ensureSeriesAccess()) return;
   const name = (document.getElementById('tourneyName').value || 'Premier League 2025').trim() || 'Premier League 2025';
   const oversPerInnings = Math.max(1, parseInt(document.getElementById('tourneyDefaultOvers').value, 10) || 5);
   const maxOversPerBowler = Math.max(1, parseInt(document.getElementById('tourneyDefaultMaxBowlerOvers').value, 10) || 2);
@@ -499,6 +526,7 @@ async function handleCreateTournament() {
 }
 
 async function deleteSeries(id) {
+  if (!ensureSeriesAccess()) return;
   if (confirm("Are you sure you want to delete this tournament series?")) {
     await window.CricStorage.deleteTournament(id);
     renderTournaments();
@@ -545,7 +573,7 @@ async function renderPlayers() {
         <div style="display:flex; align-items:center; gap:10px;">
           <span style="width:16px; height:16px; border-radius:50%; background:${t.colorHex || '#13a968'}; display:inline-block;"></span>
           <div>
-            <div style="font-size:16px; font-weight:800; color:var(--color-text);">${t.name}</div>
+            <div style="font-size:16px; font-weight:800; color:var(--color-text);">${escapeHtml(t.name)}</div>
             <div style="font-size:12px; color:var(--text-muted);">${pCount} player${pCount !== 1 ? 's' : ''}</div>
           </div>
         </div>
@@ -671,7 +699,7 @@ function renderSeriesTeamSelectedPlayers() {
 
   listEl.innerHTML = sortedSelected.map(p => `
     <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:8px; padding:6px 8px; margin-top:6px;">
-      <span style="font-size:12px; color:var(--color-text);">${p.name}</span>
+      <span style="font-size:12px; color:var(--color-text);">${escapeHtml(p.name)}</span>
       <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); width:auto; padding:2px 8px; font-size:11px;" onclick="removeSeriesTeamPlayer('${p.id}')">Remove</button>
     </div>
   `).join('');
@@ -731,7 +759,7 @@ function filterSeriesTeamPlayerPicker() {
   pickEl.innerHTML = '<option value="">Select player from directory</option>' +
     filteredPlayers.map(p => {
       const status = getPlayerSeriesTeamStatus(p, currentModalTeamName);
-      return `<option value="${p.id}">${p.name} (${p.role || 'Batter'}) • [${status.label}]</option>`;
+      return `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.role || 'Batter')}) • [${escapeHtml(status.label)}]</option>`;
     }).join('');
 
   checklistEl.innerHTML = filteredPlayers.map((p, idx) => {
@@ -743,7 +771,7 @@ function filterSeriesTeamPlayerPicker() {
       <label for="${inputId}" style="display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12px; color:var(--color-text); cursor:pointer; border-bottom:1px solid var(--color-border);">
         <div style="display:flex; align-items:center; gap:6px;">
           <input id="${inputId}" type="checkbox" value="${p.id}" ${isAlreadySelected ? 'checked disabled' : ''} style="accent-color:var(--primary-color);">
-          <span style="font-weight:600;">${p.name}</span>
+          <span style="font-weight:600;">${escapeHtml(p.name)}</span>
           <span style="font-size:10px; color:var(--text-muted);">(${p.role || 'Batter'})</span>
         </div>
         <span style="font-size:10px; font-weight:800; color:${status.color}; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">${status.label}</span>

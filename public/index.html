@@ -41,6 +41,13 @@
     </div>
   </header>
 
+  <nav id="topPageTabs" class="top-page-tabs" data-nav-context="general" aria-label="Primary pages">
+    <button id="pageTabHome" class="top-page-tab active" type="button" onclick="showLandingScreen()">Home</button>
+    <button id="pageTabAbout" class="top-page-tab" type="button" onclick="showAboutScreen()">About</button>
+    <button id="pageTabInfo" class="top-page-tab" type="button" onclick="showInfoScreen()">Info</button>
+    <button id="pageTabPrivacy" class="top-page-tab" type="button" onclick="openPrivacyPolicy()">Privacy</button>
+  </nav>
+
   <!-- Features Options Dropdown Menu -->
   <div id="featuresMenuDropdown" class="features-dropdown" hidden>
     <div class="features-dropdown-header">
@@ -48,6 +55,14 @@
       <button class="features-close-btn" type="button" onclick="closeFeaturesMenu()">&times;</button>
     </div>
     <div class="features-dropdown-grid">
+      <button id="featureHomeBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showLandingScreen();">
+        <span class="feature-icon bg-green">⌂</span>
+        <div class="feature-info">
+          <strong>Home</strong>
+          <small>Back to CricLeague landing page</small>
+        </div>
+      </button>
+
       <button id="featureWebScoreBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showWebScoreLandingScreen();">
         <span class="feature-icon bg-accent">⚡</span>
         <div class="feature-info">
@@ -56,11 +71,19 @@
         </div>
       </button>
 
-      <button id="featureFullMatchBtn" class="feature-item" type="button" hidden onclick="closeFeaturesMenu(); showQuickMatchLandingScreen();">
+      <button id="featureFullMatchBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showQuickMatchLandingScreen();">
         <span class="feature-icon bg-emerald">📋</span>
         <div class="feature-info">
           <strong>Quick Match</strong>
           <small>Squads, Players, Scorecards & Stats</small>
+        </div>
+      </button>
+
+      <button id="featureSeriesBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showSeriesLandingScreen();">
+        <span class="feature-icon bg-blue">🏆</span>
+        <div class="feature-info">
+          <strong>Series</strong>
+          <small>Tournaments, Fixtures & Standings</small>
         </div>
       </button>
 
@@ -77,6 +100,22 @@
         <div class="feature-info">
           <strong>Settings & Gully Rules</strong>
           <small>Custom overs, powerplays & rules</small>
+        </div>
+      </button>
+
+      <button id="featureAboutBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showAboutScreen();">
+        <span class="feature-icon bg-teal">ℹ️</span>
+        <div class="feature-info">
+          <strong>About</strong>
+          <small>What CricLeague is and who it is for</small>
+        </div>
+      </button>
+
+      <button id="featureInfoBtn" class="feature-item" type="button" onclick="closeFeaturesMenu(); showInfoScreen();">
+        <span class="feature-icon bg-blue">📘</span>
+        <div class="feature-info">
+          <strong>Info</strong>
+          <small>How scoring, sync, and privacy work</small>
         </div>
       </button>
     </div>
@@ -288,6 +327,9 @@
               🔑 Sign In / Register to Start Quick Match →
             </button>
           </div>
+          <p class="web-score-signin-prompt" id="quickMatchSignInPrompt" style="margin-top:10px;">
+            Signed users only for saved Quick Match scoring. <button type="button" onclick="openAuthModal('LOGIN')">Sign In.</button>
+          </p>
         </div>
       </div>
     </div>
@@ -316,7 +358,78 @@
 
           <div class="cric-hero-actions" style="margin-top:22px; gap:10px; flex-wrap:wrap;">
             <button class="cric-btn cric-btn-primary" type="button" onclick="showTournamentsScreen()">Open Series Hub</button>
-            <button class="cric-btn cric-btn-secondary" type="button" onclick="showTournamentsScreen(); openNewTournamentModal();">Create New Series</button>
+            <button class="cric-btn cric-btn-secondary" type="button" onclick="openSeriesCreateFlow();">Create New Series</button>
+          </div>
+          <p class="web-score-signin-prompt" id="seriesSignInPrompt" style="margin-top:10px;">
+            Signed users only for Series management and fixtures. <button type="button" onclick="openAuthModal('LOGIN')">Sign In.</button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 0.7: About Page (/about) -->
+    <div id="screenAbout" class="screen">
+      <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-electric); font-weight:700; cursor:pointer; padding:0;">Home</button>
+        <span>›</span>
+        <span style="color:var(--text-color);">About</span>
+      </div>
+
+      <div class="card">
+        <h2 style="margin:0 0 10px; font-size:26px; line-height:1.2;">About CricLeague</h2>
+        <p style="margin:0 0 14px; color:var(--text-muted); line-height:1.65;">
+          CricLeague is a modern cricket scoring app built for gully cricket, academy practice games, and local tournaments.
+          It helps scorers move fast, stay accurate, and share updates live from any device.
+        </p>
+
+        <div class="how-it-works-grid" style="margin-top:14px;">
+          <div class="how-card">
+            <div class="how-step-badge">⚡</div>
+            <h3>Fast Scoring Experience</h3>
+            <p>Ball-by-ball controls with extras, wicket events, over cards, and instant recalculation.</p>
+          </div>
+          <div class="how-card">
+            <div class="how-step-badge">🏆</div>
+            <h3>Built for Series</h3>
+            <p>Create tournaments, attach squads, configure defaults, and run consistent match workflows.</p>
+          </div>
+          <div class="how-card">
+            <div class="how-step-badge">🔗</div>
+            <h3>Live Sharing</h3>
+            <p>Generate spectator links, track live action remotely, and revoke links anytime.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 0.8: Info Page (/info) -->
+    <div id="screenInfo" class="screen">
+      <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-electric); font-weight:700; cursor:pointer; padding:0;">Home</button>
+        <span>›</span>
+        <span style="color:var(--text-color);">Info</span>
+      </div>
+
+      <div class="card">
+        <h2 style="margin:0 0 10px; font-size:26px; line-height:1.2;">CricLeague App Info</h2>
+        <p style="margin:0 0 14px; color:var(--text-muted); line-height:1.65;">
+          Use this quick guide to understand which mode to use, what requires sign in, and how your data behaves.
+        </p>
+
+        <div style="display:grid; gap:10px;">
+          <div class="card" style="margin:0; padding:14px; background:var(--color-surface-soft);">
+            <h3 style="margin:0 0 6px; font-size:16px;">WebScore (No Login Needed)</h3>
+            <p style="margin:0; color:var(--text-muted); line-height:1.55;">Start instantly in browser for quick live scoring and local session flow.</p>
+          </div>
+
+          <div class="card" style="margin:0; padding:14px; background:var(--color-surface-soft);">
+            <h3 style="margin:0 0 6px; font-size:16px;">Quick Match & Series (Sign In Required)</h3>
+            <p style="margin:0; color:var(--text-muted); line-height:1.55;">Sign in to save matches, maintain player history, and manage tournaments across devices.</p>
+          </div>
+
+          <div class="card" style="margin:0; padding:14px; background:var(--color-surface-soft);">
+            <h3 style="margin:0 0 6px; font-size:16px;">Sync & Privacy</h3>
+            <p style="margin:0; color:var(--text-muted); line-height:1.55;">Guest scoring stays on your device. Signed-in scoring syncs securely. Shared spectator links can be revoked at any time.</p>
           </div>
         </div>
       </div>
@@ -1270,6 +1383,6 @@
       navigator.serviceWorker.register('sw.js').catch(console.error);
     }
   </script>
-  <div style="text-align:center; font-size:11px; color:var(--text-muted); padding:10px 16px 14px;">Developed by Ankoji | Version 2.33.28</div>
+  <div style="text-align:center; font-size:11px; color:var(--text-muted); padding:10px 16px 14px;">Developed by Ankoji | Version 1.0.1</div>
 </body>
 </html>

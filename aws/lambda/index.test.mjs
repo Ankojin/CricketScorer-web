@@ -51,7 +51,7 @@ DynamoDBDocumentClient.prototype.send = async function (command) {
 const { handler, legacyHash } = await import('./index.mjs');
 
 // Helper to construct Lambda API Gateway HTTP API v2 Event
-function createEvent(method, path, body = null, token = null, pathParams = {}) {
+function createEvent(method, path, body = null, token = null, pathParams = {}, query = {}) {
   const headers = {
     'content-type': 'application/json'
   };
@@ -66,9 +66,14 @@ function createEvent(method, path, body = null, token = null, pathParams = {}) {
     rawPath: path,
     path,
     pathParameters: pathParams,
+    queryStringParameters: query,
     headers,
     body: body ? JSON.stringify(body) : null
   };
+}
+
+function createToken(userId = 'user_123') {
+  return jwt.sign({ userId }, TEST_JWT_SECRET, { expiresIn: '1h' });
 }
 
 describe('Lambda API Handler & Security Tests', () => {
@@ -250,7 +255,7 @@ describe('Lambda API Handler & Security Tests', () => {
   });
 
   test('8. POST /matches with a valid JWT succeeds', async () => {
-    const validToken = jwt.sign({ userId: 'user_123' }, TEST_JWT_SECRET, { expiresIn: '1h' });
+    const validToken = createToken('user_123');
 
     const event = createEvent('POST', '/matches', {
       id: 'match_999',
@@ -263,6 +268,7 @@ describe('Lambda API Handler & Security Tests', () => {
 
     const body = JSON.parse(res.body);
     assert.equal(body.id, 'match_999');
+    assert.equal(body.ownerUserId, 'user_123');
     assert.ok(mockDb.has('match_999'));
   });
 
@@ -316,8 +322,9 @@ describe('Lambda API Handler & Security Tests', () => {
   });
 
   test('11. Responses do NOT emit duplicate CORS headers but keep Content-Type', async () => {
-    // 1. GET /matches (Public Route)
-    const getRes = await handler(createEvent('GET', '/matches'));
+    // 1. GET /matches (Protected Route)
+    const validToken = createToken('user_123');
+    const getRes = await handler(createEvent('GET', '/matches', null, validToken));
     assert.equal(getRes.statusCode, 200);
     assert.equal(getRes.headers['Content-Type'], 'application/json');
     assert.equal(getRes.headers['Access-Control-Allow-Origin'], undefined);
@@ -325,7 +332,6 @@ describe('Lambda API Handler & Security Tests', () => {
     assert.equal(getRes.headers['Access-Control-Allow-Headers'], undefined);
 
     // 2. POST /matches (Mutating Route Success)
-    const validToken = jwt.sign({ userId: 'user_123' }, TEST_JWT_SECRET, { expiresIn: '1h' });
     const postRes = await handler(createEvent('POST', '/matches', {
       id: 'match_cors_test',
       teamA: { name: 'A', players: [] },
@@ -347,13 +353,15 @@ describe('Lambda API Handler & Security Tests', () => {
     assert.equal(errorRes.headers['Access-Control-Allow-Headers'], undefined);
   });
 
-  test('12. GET /matches/{id} for a valid match record succeeds without Authorization header (Spectator Read Path)', async () => {
+  test('12. GET /matches/{id} without Authorization returns 403 (protected read)', async () => {
     const matchId = 'match_spectator_123';
     mockDb.set(matchId, {
       matchId,
       docType: 'MATCH',
+      ownerUserId: 'user_owner',
       payload: {
         id: matchId,
+        ownerUserId: 'user_owner',
         status: 'LIVE',
         totalRuns: 14,
         totalWickets: 1,
@@ -365,11 +373,7 @@ describe('Lambda API Handler & Security Tests', () => {
     const event = createEvent('GET', `/matches/${matchId}`, null, null, { id: matchId });
     const res = await handler(event);
 
-    assert.equal(res.statusCode, 200);
-    const body = JSON.parse(res.body);
-    assert.equal(body.id, matchId);
-    assert.equal(body.totalRuns, 14);
-    assert.equal(body.teamA.name, 'Rockets');
+    assert.equal(res.statusCode, 403);
   });
 
   test('13. Unauthenticated request CANNOT mutate match via PUT or DELETE (Spectator Mutation Protection)', async () => {
@@ -394,6 +398,162 @@ describe('Lambda API Handler & Security Tests', () => {
     const stored = mockDb.get(matchId);
     assert.ok(stored);
     assert.equal(stored.payload.totalRuns, 10);
+  });
+
+  test('14. GET /matches only returns records owned by the authenticated user', async () => {
+    mockDb.set('match_1', {
+      matchId: 'match_1',
+      docType: 'MATCH',
+      ownerUserId: 'user_a',
+      payload: { id: 'match_1', ownerUserId: 'user_a', status: 'LIVE' }
+    });
+    mockDb.set('match_2', {
+      matchId: 'match_2',
+      docType: 'MATCH',
+      ownerUserId: 'user_b',
+      payload: { id: 'match_2', ownerUserId: 'user_b', status: 'LIVE' }
+    });
+
+    const res = await handler(createEvent('GET', '/matches', null, createToken('user_a')));
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.length, 1);
+    assert.equal(body[0].id, 'match_1');
+  });
+
+  test('15. PUT/DELETE with non-owner token returns 403', async () => {
+    const matchId = 'match_owned';
+    mockDb.set(matchId, {
+      matchId,
+      docType: 'MATCH',
+      ownerUserId: 'user_owner',
+      payload: { id: matchId, ownerUserId: 'user_owner', status: 'LIVE', totalRuns: 12 }
+    });
+
+    const putRes = await handler(createEvent('PUT', `/matches/${matchId}`, { totalRuns: 88 }, createToken('user_other'), { id: matchId }));
+    assert.equal(putRes.statusCode, 403);
+
+    const delRes = await handler(createEvent('DELETE', `/matches/${matchId}`, null, createToken('user_other'), { id: matchId }));
+    assert.equal(delRes.statusCode, 403);
+
+    assert.ok(mockDb.has(matchId));
+  });
+
+  test('16. Owner can create share token and spectator with token can read LIVE match only', async () => {
+    const ownerToken = createToken('user_owner');
+    const matchId = 'match_live_share';
+    mockDb.set(matchId, {
+      matchId,
+      docType: 'MATCH',
+      ownerUserId: 'user_owner',
+      payload: { id: matchId, ownerUserId: 'user_owner', status: 'LIVE', totalRuns: 44 }
+    });
+
+    const shareRes = await handler(createEvent('POST', `/matches/${matchId}/share-token`, null, ownerToken, { id: matchId }));
+    assert.equal(shareRes.statusCode, 200);
+    const shareBody = JSON.parse(shareRes.body);
+    assert.ok(shareBody.spectatorToken);
+
+    const spectateRes = await handler(createEvent('GET', `/matches/${matchId}`, null, null, { id: matchId }, { st: shareBody.spectatorToken }));
+    assert.equal(spectateRes.statusCode, 200);
+    const spectateBody = JSON.parse(spectateRes.body);
+    assert.equal(spectateBody.id, matchId);
+    assert.equal(spectateBody.totalRuns, 44);
+  });
+
+  test('17. Spectator token is rejected for wrong match id or non-live match', async () => {
+    const ownerToken = createToken('user_owner');
+    const liveMatchId = 'match_live_good';
+    const endedMatchId = 'match_ended';
+
+    mockDb.set(liveMatchId, {
+      matchId: liveMatchId,
+      docType: 'MATCH',
+      ownerUserId: 'user_owner',
+      payload: { id: liveMatchId, ownerUserId: 'user_owner', status: 'LIVE' }
+    });
+    mockDb.set(endedMatchId, {
+      matchId: endedMatchId,
+      docType: 'MATCH',
+      ownerUserId: 'user_owner',
+      payload: { id: endedMatchId, ownerUserId: 'user_owner', status: 'COMPLETED' }
+    });
+
+    const shareRes = await handler(createEvent('POST', `/matches/${liveMatchId}/share-token`, null, ownerToken, { id: liveMatchId }));
+    const token = JSON.parse(shareRes.body).spectatorToken;
+
+    const wrongMatchRes = await handler(createEvent('GET', `/matches/other_match`, null, null, { id: 'other_match' }, { st: token }));
+    assert.equal(wrongMatchRes.statusCode, 404);
+
+    const endedShareRes = await handler(createEvent('POST', `/matches/${endedMatchId}/share-token`, null, ownerToken, { id: endedMatchId }));
+    assert.equal(endedShareRes.statusCode, 400);
+  });
+
+  test('18. Generating a new share token invalidates previously generated spectator token', async () => {
+    const ownerToken = createToken('user_owner');
+    const matchId = 'match_rotate_tokens';
+    mockDb.set(matchId, {
+      matchId,
+      docType: 'MATCH',
+      ownerUserId: 'user_owner',
+      payload: { id: matchId, ownerUserId: 'user_owner', status: 'LIVE' }
+    });
+
+    const firstShareRes = await handler(createEvent('POST', `/matches/${matchId}/share-token`, null, ownerToken, { id: matchId }));
+    assert.equal(firstShareRes.statusCode, 200);
+    const token1 = JSON.parse(firstShareRes.body).spectatorToken;
+
+    const secondShareRes = await handler(createEvent('POST', `/matches/${matchId}/share-token`, null, ownerToken, { id: matchId }));
+    assert.equal(secondShareRes.statusCode, 200);
+    const token2 = JSON.parse(secondShareRes.body).spectatorToken;
+
+    const oldTokenRead = await handler(createEvent('GET', `/matches/${matchId}`, null, null, { id: matchId }, { st: token1 }));
+    assert.equal(oldTokenRead.statusCode, 403);
+
+    const newTokenRead = await handler(createEvent('GET', `/matches/${matchId}`, null, null, { id: matchId }, { st: token2 }));
+    assert.equal(newTokenRead.statusCode, 200);
+  });
+
+  test('19. Revoke share endpoint invalidates existing spectator token', async () => {
+    const ownerToken = createToken('user_owner');
+    const matchId = 'match_revoke_tokens';
+    mockDb.set(matchId, {
+      matchId,
+      docType: 'MATCH',
+      ownerUserId: 'user_owner',
+      payload: { id: matchId, ownerUserId: 'user_owner', status: 'LIVE' }
+    });
+
+    const shareRes = await handler(createEvent('POST', `/matches/${matchId}/share-token`, null, ownerToken, { id: matchId }));
+    assert.equal(shareRes.statusCode, 200);
+    const token = JSON.parse(shareRes.body).spectatorToken;
+
+    const revokeRes = await handler(createEvent('POST', `/matches/${matchId}/revoke-share`, null, ownerToken, { id: matchId }));
+    assert.equal(revokeRes.statusCode, 200);
+
+    const readAfterRevoke = await handler(createEvent('GET', `/matches/${matchId}`, null, null, { id: matchId }, { st: token }));
+    assert.equal(readAfterRevoke.statusCode, 403);
+  });
+
+  test('20. Share token endpoint respects allowed custom TTL values', async () => {
+    const ownerToken = createToken('user_owner');
+    const matchId = 'match_custom_ttl';
+    mockDb.set(matchId, {
+      matchId,
+      docType: 'MATCH',
+      ownerUserId: 'user_owner',
+      payload: { id: matchId, ownerUserId: 'user_owner', status: 'LIVE' }
+    });
+
+    const ttlRes = await handler(createEvent('POST', `/matches/${matchId}/share-token`, { ttlMinutes: 15 }, ownerToken, { id: matchId }));
+    assert.equal(ttlRes.statusCode, 200);
+    const ttlBody = JSON.parse(ttlRes.body);
+    assert.equal(ttlBody.expiresInSeconds, 900);
+
+    const fallbackRes = await handler(createEvent('POST', `/matches/${matchId}/share-token`, { ttlMinutes: 7 }, ownerToken, { id: matchId }));
+    assert.equal(fallbackRes.statusCode, 200);
+    const fallbackBody = JSON.parse(fallbackRes.body);
+    assert.equal(fallbackBody.expiresInSeconds, 21600);
   });
 
 });

@@ -22,10 +22,44 @@ let cachedJwtSecret = null;
 const response = (statusCode, body) => ({
   statusCode,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
   },
   body: JSON.stringify(body)
 });
+
+function extractOwnerUserId(item) {
+  return item?.ownerUserId || item?.payload?.ownerUserId || null;
+}
+
+function isOwnedByUser(item, userId) {
+  if (!item || !userId) return false;
+  return extractOwnerUserId(item) === userId;
+}
+
+async function verifySpectatorToken(event, expectedMatchId, expectedTokenVersion) {
+  const headers = event.headers || {};
+  const query = event.queryStringParameters || {};
+  const token = query.st || headers['x-spectator-token'] || headers['X-Spectator-Token'] || null;
+  if (!token) return null;
+
+  try {
+    const secret = await getJwtSecret();
+    const decoded = jwt.verify(token, secret);
+    if (!decoded || decoded.purpose !== 'spectate') return null;
+    if (!decoded.matchId || decoded.matchId !== expectedMatchId) return null;
+    const expectedVersion = Number(expectedTokenVersion || 0);
+    const tokenVersion = Number(decoded.sv);
+    if (!Number.isInteger(tokenVersion) || tokenVersion !== expectedVersion) return null;
+    return decoded;
+  } catch (err) {
+    return null;
+  }
+}
 
 // Legacy hash function retained ONLY for password verification during lazy migration & deterministic key derivation
 export function legacyHash(str) {
@@ -209,14 +243,18 @@ export const handler = async (event) => {
 
     // ------------------- MATCHES ROUTES -------------------
     if (method === 'GET' && path === '/matches') {
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
+
       const data = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
       const items = (data.Items || [])
-        .filter(item => !item.docType || item.docType === 'MATCH')
+        .filter(item => (!item.docType || item.docType === 'MATCH') && isOwnedByUser(item, authUser.userId))
         .map(item => item.payload || item);
       return response(200, items);
     }
 
     if (method === 'GET' && path.startsWith('/matches/') && pathParams.id) {
+      const authUser = await verifyAuthToken(event);
       const data = await docClient.send(new GetCommand({
         TableName: TABLE_NAME,
         Key: { matchId: pathParams.id }
@@ -228,27 +266,170 @@ export const handler = async (event) => {
         return response(404, { error: 'Match not found' });
       }
 
+      if (authUser && isOwnedByUser(data.Item, authUser.userId)) {
+        return response(200, data.Item.payload || data.Item);
+      }
+
+      const matchPayload = data.Item.payload || data.Item;
+      const spectatorTokenVersion = Number(matchPayload?.spectatorTokenVersion || 0);
+      const spectatorToken = await verifySpectatorToken(event, pathParams.id, spectatorTokenVersion);
+      if (!spectatorToken) {
+        return response(403, { error: 'Forbidden' });
+      }
+
+      if ((matchPayload?.status || '').toUpperCase() !== 'LIVE') {
+        return response(410, { error: 'Shared live link expired' });
+      }
+
       return response(200, data.Item.payload || data.Item);
     }
 
+    if (method === 'POST' && path.startsWith('/matches/') && path.endsWith('/share-token') && pathParams.id) {
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
+
+      const existing = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { matchId: pathParams.id }
+      }));
+      const isMatchDoc = existing.Item && (!existing.Item.docType || existing.Item.docType === 'MATCH');
+      if (!isMatchDoc) {
+        return response(404, { error: 'Match not found' });
+      }
+      if (!isOwnedByUser(existing.Item, authUser.userId)) {
+        return response(403, { error: 'Forbidden' });
+      }
+
+      const matchPayload = existing.Item.payload || existing.Item;
+      if ((matchPayload?.status || '').toUpperCase() !== 'LIVE') {
+        return response(400, { error: 'Share token can be created only for LIVE matches' });
+      }
+
+      const requestBody = JSON.parse(event.body || '{}');
+      const requestedTtlMinutes = Number(requestBody?.ttlMinutes || 0);
+      const allowedTtlMinutes = [15, 60, 360];
+      const ttlMinutes = allowedTtlMinutes.includes(requestedTtlMinutes) ? requestedTtlMinutes : 360;
+      const expiresInSeconds = ttlMinutes * 60;
+
+      const nextSpectatorTokenVersion = Number(matchPayload?.spectatorTokenVersion || 0) + 1;
+      const updatedPayload = {
+        ...matchPayload,
+        spectatorTokenVersion: nextSpectatorTokenVersion,
+        spectatorShareActive: true,
+        spectatorShareExpiresInSeconds: expiresInSeconds,
+        spectatorShareIssuedAt: new Date().toISOString(),
+        spectatorShareRevokedAt: null
+      };
+      await docClient.send(new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          ...existing.Item,
+          updatedAt: new Date().toISOString(),
+          payload: updatedPayload,
+          spectatorTokenVersion: nextSpectatorTokenVersion,
+          spectatorShareActive: true,
+          spectatorShareExpiresInSeconds: expiresInSeconds,
+          spectatorShareIssuedAt: updatedPayload.spectatorShareIssuedAt,
+          spectatorShareRevokedAt: null
+        }
+      }));
+
+      const secret = await getJwtSecret();
+      const spectatorToken = jwt.sign(
+        {
+          purpose: 'spectate',
+          matchId: pathParams.id,
+          ownerUserId: authUser.userId,
+          sv: nextSpectatorTokenVersion
+        },
+        secret,
+        { expiresIn: expiresInSeconds }
+      );
+
+      return response(200, {
+        matchId: pathParams.id,
+        spectatorToken,
+        expiresInSeconds,
+        shareStatus: {
+          active: true,
+          ttlMinutes,
+          issuedAt: updatedPayload.spectatorShareIssuedAt
+        }
+      });
+    }
+
+    if (method === 'POST' && path.startsWith('/matches/') && path.endsWith('/revoke-share') && pathParams.id) {
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
+
+      const existing = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { matchId: pathParams.id }
+      }));
+      const isMatchDoc = existing.Item && (!existing.Item.docType || existing.Item.docType === 'MATCH');
+      if (!isMatchDoc) {
+        return response(404, { error: 'Match not found' });
+      }
+      if (!isOwnedByUser(existing.Item, authUser.userId)) {
+        return response(403, { error: 'Forbidden' });
+      }
+
+      const matchPayload = existing.Item.payload || existing.Item;
+      const nextSpectatorTokenVersion = Number(matchPayload?.spectatorTokenVersion || 0) + 1;
+      const updatedPayload = {
+        ...matchPayload,
+        spectatorTokenVersion: nextSpectatorTokenVersion,
+        spectatorShareActive: false,
+        spectatorShareRevokedAt: new Date().toISOString()
+      };
+      await docClient.send(new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          ...existing.Item,
+          updatedAt: new Date().toISOString(),
+          payload: updatedPayload,
+          spectatorTokenVersion: nextSpectatorTokenVersion,
+          spectatorShareActive: false,
+          spectatorShareRevokedAt: updatedPayload.spectatorShareRevokedAt
+        }
+      }));
+
+      return response(200, {
+        matchId: pathParams.id,
+        revoked: true,
+        shareStatus: {
+          active: false,
+          revokedAt: updatedPayload.spectatorShareRevokedAt
+        }
+      });
+    }
+
     if (method === 'POST' && path === '/matches') {
-      const authErr = await enforceAuth();
-      if (authErr.statusCode) return authErr;
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
 
       const payload = JSON.parse(event.body || '{}');
       const matchId = payload.id || payload.matchId || `match_${Date.now()}`;
       payload.id = matchId;
+      payload.ownerUserId = authUser.userId;
 
       await docClient.send(new PutCommand({
         TableName: TABLE_NAME,
-        Item: { matchId, docType: 'MATCH', updatedAt: new Date().toISOString(), status: payload.status || 'LIVE', payload }
+        Item: {
+          matchId,
+          docType: 'MATCH',
+          ownerUserId: authUser.userId,
+          updatedAt: new Date().toISOString(),
+          status: payload.status || 'LIVE',
+          payload
+        }
       }));
       return response(201, payload);
     }
 
     if (method === 'PUT' && pathParams.id) {
-      const authErr = await enforceAuth();
-      if (authErr.statusCode) return authErr;
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
 
       // docType protection: Verify existing item is a MATCH before overwriting
       const existing = await docClient.send(new GetCommand({
@@ -259,20 +440,31 @@ export const handler = async (event) => {
       if (existing.Item && existing.Item.docType && existing.Item.docType !== 'MATCH') {
         return response(404, { error: 'Match not found' });
       }
+      if (!existing.Item || !isOwnedByUser(existing.Item, authUser.userId)) {
+        return response(403, { error: 'Forbidden' });
+      }
 
       const payload = JSON.parse(event.body || '{}');
       payload.id = pathParams.id;
+      payload.ownerUserId = authUser.userId;
 
       await docClient.send(new PutCommand({
         TableName: TABLE_NAME,
-        Item: { matchId: pathParams.id, docType: 'MATCH', updatedAt: new Date().toISOString(), status: payload.status || 'LIVE', payload }
+        Item: {
+          matchId: pathParams.id,
+          docType: 'MATCH',
+          ownerUserId: authUser.userId,
+          updatedAt: new Date().toISOString(),
+          status: payload.status || 'LIVE',
+          payload
+        }
       }));
       return response(200, payload);
     }
 
     if (method === 'DELETE' && path.startsWith('/matches/') && pathParams.id) {
-      const authErr = await enforceAuth();
-      if (authErr.statusCode) return authErr;
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
 
       // docType protection: Refuse unless item exists and is docType === 'MATCH'
       const existing = await docClient.send(new GetCommand({
@@ -284,6 +476,9 @@ export const handler = async (event) => {
       if (!isMatchDoc) {
         return response(404, { error: 'Match not found' });
       }
+      if (!isOwnedByUser(existing.Item, authUser.userId)) {
+        return response(403, { error: 'Forbidden' });
+      }
 
       await docClient.send(new DeleteCommand({
         TableName: TABLE_NAME,
@@ -294,31 +489,41 @@ export const handler = async (event) => {
 
     // ------------------- TOURNAMENTS / SERIES ROUTES -------------------
     if (method === 'GET' && path === '/tournaments') {
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
+
       const data = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
       const items = (data.Items || [])
-        .filter(item => item.docType === 'TOURNAMENT')
+        .filter(item => item.docType === 'TOURNAMENT' && isOwnedByUser(item, authUser.userId))
         .map(item => item.payload || item);
       return response(200, items);
     }
 
     if (method === 'POST' && path === '/tournaments') {
-      const authErr = await enforceAuth();
-      if (authErr.statusCode) return authErr;
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
 
       const payload = JSON.parse(event.body || '{}');
       const tourneyId = payload.id || `tourney_${Date.now()}`;
       payload.id = tourneyId;
+      payload.ownerUserId = authUser.userId;
 
       await docClient.send(new PutCommand({
         TableName: TABLE_NAME,
-        Item: { matchId: tourneyId, docType: 'TOURNAMENT', updatedAt: new Date().toISOString(), payload }
+        Item: {
+          matchId: tourneyId,
+          docType: 'TOURNAMENT',
+          ownerUserId: authUser.userId,
+          updatedAt: new Date().toISOString(),
+          payload
+        }
       }));
       return response(201, payload);
     }
 
     if (method === 'DELETE' && path.startsWith('/tournaments/') && pathParams.id) {
-      const authErr = await enforceAuth();
-      if (authErr.statusCode) return authErr;
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
 
       const tourneyId = pathParams.id;
 
@@ -331,11 +536,15 @@ export const handler = async (event) => {
       if (!existing.Item || existing.Item.docType !== 'TOURNAMENT') {
         return response(404, { error: 'Tournament not found' });
       }
+      if (!isOwnedByUser(existing.Item, authUser.userId)) {
+        return response(403, { error: 'Forbidden' });
+      }
 
       const scanData = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
       const matchesToDelete = (scanData.Items || []).filter(item => {
         const payload = item.payload || item;
         return (item.docType === 'MATCH' || !item.docType) &&
+               isOwnedByUser(item, authUser.userId) &&
                (payload.tournamentId === tourneyId || item.tournamentId === tourneyId);
       });
 
@@ -358,31 +567,41 @@ export const handler = async (event) => {
 
     // ------------------- GLOBAL PLAYERS ROUTES -------------------
     if (method === 'GET' && path === '/players') {
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
+
       const data = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
       const items = (data.Items || [])
-        .filter(item => item.docType === 'PLAYER')
+        .filter(item => item.docType === 'PLAYER' && isOwnedByUser(item, authUser.userId))
         .map(item => item.payload || item);
       return response(200, items);
     }
 
     if (method === 'POST' && path === '/players') {
-      const authErr = await enforceAuth();
-      if (authErr.statusCode) return authErr;
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
 
       const payload = JSON.parse(event.body || '{}');
       const playerId = payload.id || `gp_${Date.now()}`;
       payload.id = playerId;
+      payload.ownerUserId = authUser.userId;
 
       await docClient.send(new PutCommand({
         TableName: TABLE_NAME,
-        Item: { matchId: playerId, docType: 'PLAYER', updatedAt: new Date().toISOString(), payload }
+        Item: {
+          matchId: playerId,
+          docType: 'PLAYER',
+          ownerUserId: authUser.userId,
+          updatedAt: new Date().toISOString(),
+          payload
+        }
       }));
       return response(201, payload);
     }
 
     if (method === 'DELETE' && path.startsWith('/players/') && pathParams.id) {
-      const authErr = await enforceAuth();
-      if (authErr.statusCode) return authErr;
+      const authUser = await enforceAuth();
+      if (authUser.statusCode) return authUser;
 
       // docType protection: Refuse unless item exists and is docType === 'PLAYER'
       const existing = await docClient.send(new GetCommand({
@@ -392,6 +611,9 @@ export const handler = async (event) => {
 
       if (!existing.Item || existing.Item.docType !== 'PLAYER') {
         return response(404, { error: 'Player not found' });
+      }
+      if (!isOwnedByUser(existing.Item, authUser.userId)) {
+        return response(403, { error: 'Forbidden' });
       }
 
       await docClient.send(new DeleteCommand({

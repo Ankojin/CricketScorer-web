@@ -35,6 +35,14 @@ const CricStorage = {
     return [];
   },
 
+  hasCloudApi() {
+    return Boolean(window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0);
+  },
+
+  isStrictCloudMode() {
+    return !this.isGuestUser() && this.hasCloudApi();
+  },
+
   // ------------------- BACKGROUND SYNC QUEUE -------------------
   queuePendingSync(method, endpoint, payload = null) {
     try {
@@ -95,7 +103,11 @@ const CricStorage = {
 
   // ------------------- AUTH -------------------
   async register(email, password, name) {
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.hasCloudApi()) {
+      throw new Error('Cloud sign-up is unavailable right now. Guest mode is available for WebScore.');
+    }
+
+    if (this.hasCloudApi()) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/auth/register`, {
           method: 'POST',
@@ -110,20 +122,21 @@ const CricStorage = {
           this.processPendingSyncQueue();
           return data.user;
         }
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Registration failed (HTTP ${res.status})`);
       } catch (err) {
-        console.warn('API register failed, registering locally:', err);
+        console.warn('API register failed:', err);
+        throw new Error('Unable to register to cloud right now. Please try again.');
       }
     }
-
-    const user = { userId: 'user_' + Date.now(), email, name: name || email.split('@')[0] };
-    localStorage.setItem('cric_auth_token', 'token_local_' + Date.now());
-    localStorage.setItem('cric_auth_user', JSON.stringify(user));
-    localStorage.setItem('cric_user_mode', 'REGISTERED');
-    return user;
   },
 
   async login(email, password) {
-    if (window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
+    if (!this.hasCloudApi()) {
+      throw new Error('Cloud sign-in is unavailable right now. Guest mode is available for WebScore.');
+    }
+
+    if (this.hasCloudApi()) {
       try {
         const res = await fetch(`${window.CRIC_API_BASE}/auth/login`, {
           method: 'POST',
@@ -138,15 +151,13 @@ const CricStorage = {
           this.processPendingSyncQueue();
           return data.user;
         }
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Login failed (HTTP ${res.status})`);
       } catch (err) {
-        console.warn('API login failed, logging in locally:', err);
+        console.warn('API login failed:', err);
+        throw new Error('Unable to sign in to cloud right now. Please try again.');
       }
     }
-
-    const user = { userId: 'user_local', email, name: email.split('@')[0] };
-    localStorage.setItem('cric_auth_token', 'token_local');
-    localStorage.setItem('cric_auth_user', JSON.stringify(user));
-    return user;
   },
 
   logout() {
@@ -194,7 +205,13 @@ const CricStorage = {
             return merged;
           }
         }
+        if (this.isStrictCloudMode()) {
+          throw new Error(`Unable to load matches from cloud (HTTP ${res.status})`);
+        }
       } catch (err) {
+        if (this.isStrictCloudMode()) {
+          throw err;
+        }
         console.warn('API listMatches unreachable, using local storage:', err);
       }
     }
@@ -206,9 +223,21 @@ const CricStorage = {
     const isSpectator = typeof isReadOnlySpectator !== 'undefined' && isReadOnlySpectator;
     if ((!this.isGuestUser() || isSpectator) && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
       try {
-        const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { headers: this.getAuthHeaders() });
+        const params = new URLSearchParams(window.location.search);
+        const spectatorToken = isSpectator ? params.get('st') : null;
+        const url = spectatorToken
+          ? `${window.CRIC_API_BASE}/matches/${matchId}?st=${encodeURIComponent(spectatorToken)}`
+          : `${window.CRIC_API_BASE}/matches/${matchId}`;
+        const headers = spectatorToken ? { 'Content-Type': 'application/json' } : this.getAuthHeaders();
+        const res = await fetch(url, { headers });
         if (res.ok) return await res.json();
+        if (this.isStrictCloudMode() || isSpectator) {
+          throw new Error(`Unable to load match from cloud (HTTP ${res.status})`);
+        }
       } catch (err) {
+        if (this.isStrictCloudMode() || isSpectator) {
+          throw err;
+        }
         console.warn('API getMatch unreachable, using local storage:', err);
       }
     }
@@ -220,6 +249,21 @@ const CricStorage = {
   async createMatch(match) {
     if (!match.id) match.id = 'match_' + Date.now();
     match.updatedAt = new Date().toISOString();
+
+    if (this.isStrictCloudMode()) {
+      const res = await fetch(`${window.CRIC_API_BASE}/matches`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(match)
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Unable to save match to cloud (HTTP ${res.status})`);
+      }
+      this.saveLocalMatchBackup(match);
+      this.notifyToast('🟢 Match saved & synced', 'success');
+      return match;
+    }
 
     this.saveLocalMatchBackup(match);
 
@@ -247,8 +291,61 @@ const CricStorage = {
     return match;
   },
 
+  async createSpectatorShareToken(matchId, ttlMinutes) {
+    if (this.isGuestUser() || !this.hasCloudApi()) {
+      throw new Error('Live sharing requires signed-in cloud mode');
+    }
+
+    const payload = {};
+    if (Number.isFinite(Number(ttlMinutes)) && Number(ttlMinutes) > 0) {
+      payload.ttlMinutes = Number(ttlMinutes);
+    }
+
+    const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}/share-token`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body.error || `Unable to create share token (HTTP ${res.status})`);
+    }
+    return body;
+  },
+
+  async revokeSpectatorShareToken(matchId) {
+    if (this.isGuestUser() || !this.hasCloudApi()) {
+      throw new Error('Share revocation requires signed-in cloud mode');
+    }
+
+    const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}/revoke-share`, {
+      method: 'POST',
+      headers: this.getAuthHeaders()
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body.error || `Unable to revoke share links (HTTP ${res.status})`);
+    }
+    return body;
+  },
+
   async saveMatch(match) {
     match.updatedAt = new Date().toISOString();
+
+    if (this.isStrictCloudMode()) {
+      const res = await fetch(`${window.CRIC_API_BASE}/matches/${match.id}`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(match)
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Unable to update match in cloud (HTTP ${res.status})`);
+      }
+      this.saveLocalMatchBackup(match);
+      this.notifyToast('🟢 Match updated & synced', 'success');
+      return match;
+    }
 
     this.saveLocalMatchBackup(match);
 
@@ -275,6 +372,20 @@ const CricStorage = {
   },
 
   async deleteMatch(matchId) {
+    if (this.isStrictCloudMode()) {
+      const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { method: 'DELETE', headers: this.getAuthHeaders() });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Unable to delete match from cloud (HTTP ${res.status})`);
+      }
+
+      const matches = await this.listMatches();
+      const updated = matches.filter(m => m.id !== matchId);
+      localStorage.setItem('cric_matches', JSON.stringify(updated));
+      this.notifyToast('🟢 Match deleted from Cloud', 'success');
+      return updated;
+    }
+
     let cloudSuccess = true;
 
     if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
@@ -397,7 +508,13 @@ const CricStorage = {
             return merged;
           }
         }
+        if (this.isStrictCloudMode()) {
+          throw new Error(`Unable to load tournaments from cloud (HTTP ${res.status})`);
+        }
       } catch (err) {
+        if (this.isStrictCloudMode()) {
+          throw err;
+        }
         console.warn('API listTournaments unreachable, using local storage:', err);
       }
     }
@@ -408,6 +525,25 @@ const CricStorage = {
   async saveTournament(tournament) {
     if (!tournament.id) tournament.id = 'tourney_' + Date.now();
     tournament.updatedAt = new Date().toISOString();
+
+    if (this.isStrictCloudMode()) {
+      const res = await fetch(`${window.CRIC_API_BASE}/tournaments`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(tournament)
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Unable to save series to cloud (HTTP ${res.status})`);
+      }
+
+      const rawStrict = localStorage.getItem('cric_tournaments');
+      const strictList = rawStrict ? JSON.parse(rawStrict) : [];
+      const strictUpdated = [tournament, ...strictList.filter(t => t.id !== tournament.id)];
+      localStorage.setItem('cric_tournaments', JSON.stringify(strictUpdated));
+      this.notifyToast('🟢 Series saved & synced', 'success');
+      return tournament;
+    }
 
     // 1. Write locally first
     const raw = localStorage.getItem('cric_tournaments');
@@ -442,6 +578,28 @@ const CricStorage = {
   },
 
   async deleteTournament(tournamentId) {
+    if (this.isStrictCloudMode()) {
+      const res = await fetch(`${window.CRIC_API_BASE}/tournaments/${tournamentId}`, { method: 'DELETE', headers: this.getAuthHeaders() });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Unable to delete series from cloud (HTTP ${res.status})`);
+      }
+
+      const tourneysStrict = await this.listTournaments();
+      const updatedTourneysStrict = tourneysStrict.filter(t => t.id !== tournamentId);
+      localStorage.setItem('cric_tournaments', JSON.stringify(updatedTourneysStrict));
+
+      const rawMatchesStrict = localStorage.getItem('cric_matches');
+      if (rawMatchesStrict) {
+        const matchesStrict = JSON.parse(rawMatchesStrict);
+        const updatedMatchesStrict = matchesStrict.filter(m => m.tournamentId !== tournamentId);
+        localStorage.setItem('cric_matches', JSON.stringify(updatedMatchesStrict));
+      }
+
+      this.notifyToast('🟢 Series and associated matches deleted from Cloud', 'success');
+      return updatedTourneysStrict;
+    }
+
     let cloudSuccess = true;
 
     if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
@@ -510,7 +668,13 @@ const CricStorage = {
             return merged;
           }
         }
+        if (this.isStrictCloudMode()) {
+          throw new Error(`Unable to load players from cloud (HTTP ${res.status})`);
+        }
       } catch (err) {
+        if (this.isStrictCloudMode()) {
+          throw err;
+        }
         console.warn('API listGlobalPlayers failed, using local storage:', err);
       }
     }
@@ -521,6 +685,34 @@ const CricStorage = {
   async addGlobalPlayer(player) {
     if (!player.id) player.id = 'gp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
     player.updatedAt = new Date().toISOString();
+
+    if (this.isStrictCloudMode()) {
+      const res = await fetch(`${window.CRIC_API_BASE}/players`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(player)
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Unable to save player to cloud (HTTP ${res.status})`);
+      }
+
+      const rawStrict = localStorage.getItem('cric_global_players');
+      const strictPlayers = rawStrict ? JSON.parse(rawStrict) : [];
+      const incomingNameKeyStrict = `${player?.name || ''}`.trim().toLowerCase();
+      const updatedStrict = [
+        player,
+        ...strictPlayers.filter(p => {
+          const existingNameKey = `${p?.name || ''}`.trim().toLowerCase();
+          if (p.id === player.id) return false;
+          if (incomingNameKeyStrict && existingNameKey === incomingNameKeyStrict) return false;
+          return true;
+        })
+      ];
+      localStorage.setItem('cric_global_players', JSON.stringify(updatedStrict));
+      this.notifyToast('🟢 Player saved & synced', 'success');
+      return player;
+    }
 
     // 1. Write locally first
     const raw = localStorage.getItem('cric_global_players');
@@ -564,6 +756,21 @@ const CricStorage = {
   },
 
   async deleteGlobalPlayer(playerId) {
+    if (this.isStrictCloudMode()) {
+      const res = await fetch(`${window.CRIC_API_BASE}/players/${playerId}`, { method: 'DELETE', headers: this.getAuthHeaders() });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Unable to delete player from cloud (HTTP ${res.status})`);
+      }
+
+      const rawStrict = localStorage.getItem('cric_global_players');
+      const playersStrict = rawStrict ? JSON.parse(rawStrict) : [];
+      const updatedStrict = playersStrict.filter(p => p.id !== playerId);
+      localStorage.setItem('cric_global_players', JSON.stringify(updatedStrict));
+      this.notifyToast('🟢 Player deleted from Cloud', 'success');
+      return updatedStrict;
+    }
+
     let cloudSuccess = true;
 
     if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {

@@ -63,6 +63,15 @@ async function getAllTeamsList() {
   return Array.from(map.values());
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderSquadList(side) {
   const container = document.getElementById(side === 'A' ? 'teamASquadList' : 'teamBSquadList');
   const squad = side === 'A' ? matchSquadA : matchSquadB;
@@ -81,7 +90,7 @@ function renderSquadList(side) {
 
     row.innerHTML = `
       <div class="squad-row-name">
-        <span>${idx + 1}. ${p.name}</span>
+        <span>${idx + 1}. ${escapeHtml(p.name)}</span>
         ${p.isCaptain ? '<span class="badge-c">(C)</span>' : ''}
         ${p.isViceCaptain ? '<span class="badge-vc">(VC)</span>' : ''}
       </div>

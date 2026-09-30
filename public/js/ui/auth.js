@@ -1,4 +1,56 @@
 // auth UI module.
+let authModalKeydownBound = false;
+
+function getAuthModalFocusableElements() {
+  const authModal = document.getElementById('authModal');
+  if (!authModal) return [];
+
+  const selector = [
+    'button:not([disabled])',
+    'input:not([disabled]):not([type="hidden"])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])'
+  ].join(',');
+
+  return [...authModal.querySelectorAll(selector)].filter(el => {
+    const cs = window.getComputedStyle(el);
+    return cs.display !== 'none' && cs.visibility !== 'hidden';
+  });
+}
+
+function trapAuthModalTabKey(event) {
+  if (event.key !== 'Tab') return;
+
+  const authModal = document.getElementById('authModal');
+  if (!authModal || !authModal.classList.contains('active')) return;
+
+  const focusables = getAuthModalFocusableElements();
+  if (focusables.length === 0) return;
+
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement;
+
+  if (event.shiftKey) {
+    if (!authModal.contains(active) || active === first) {
+      event.preventDefault();
+      last.focus();
+    }
+    return;
+  }
+
+  if (!authModal.contains(active) || active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function focusAuthModalPrimaryControl() {
+  const focusables = getAuthModalFocusableElements();
+  if (focusables.length > 0) focusables[0].focus();
+}
+
 function continueAsGuest() {
   const currentUser = window.CricStorage.getCurrentUser();
   const token = localStorage.getItem('cric_auth_token');
@@ -29,6 +81,11 @@ function openAuthModal(defaultTab = 'LOGIN') {
   } else {
     switchAuthTab(defaultTab);
     document.getElementById('authModal').classList.add('active');
+    if (!authModalKeydownBound) {
+      document.addEventListener('keydown', trapAuthModalTabKey);
+      authModalKeydownBound = true;
+    }
+    window.setTimeout(focusAuthModalPrimaryControl, 0);
   }
 }
 

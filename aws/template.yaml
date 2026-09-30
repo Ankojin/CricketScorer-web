@@ -190,6 +190,9 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       Name: CricScoreHttpApi
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 40
+        ThrottlingRateLimit: 20
       CorsConfiguration:
         AllowOrigins: !If
           - HasCustomDomain
@@ -280,6 +283,20 @@ Resources:
             ApiId:
               Ref: CricScoreHttpApi
             Path: /matches
+            Method: POST
+        PostMatchShareToken:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /matches/{id}/share-token
+            Method: POST
+        PostMatchRevokeShare:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /matches/{id}/revoke-share
             Method: POST
         GetMatchById:
           Type: HttpApi

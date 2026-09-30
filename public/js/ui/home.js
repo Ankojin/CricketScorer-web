@@ -16,16 +16,23 @@ function isRegisteredScoringUser() {
 }
 
 function updateScoringModeAccess(isRegistered = isRegisteredScoringUser()) {
-  const quickMatchButton = document.getElementById('featureFullMatchBtn');
   const signInPrompt = document.getElementById('webScoreSignInPrompt');
-  if (quickMatchButton) quickMatchButton.hidden = !isRegistered;
+  const quickSignInPrompt = document.getElementById('quickMatchSignInPrompt');
+  const seriesSignInPrompt = document.getElementById('seriesSignInPrompt');
   if (signInPrompt) signInPrompt.hidden = isRegistered;
+  if (quickSignInPrompt) quickSignInPrompt.hidden = isRegistered;
+  if (seriesSignInPrompt) seriesSignInPrompt.hidden = isRegistered;
 }
 
-function requireRegisteredScoringMode(modeName) {
+function requireRegisteredScoringMode(modeName, options = {}) {
   if (isRegisteredScoringUser()) return true;
-  navigateToRoute('/');
-  showLandingScreen();
+
+  const keepCurrentScreen = options.keepCurrentScreen === true;
+  if (!keepCurrentScreen) {
+    navigateToRoute('/');
+    showLandingScreen();
+  }
+
   showToast(`Sign in or Register to access ${modeName}`, 'info');
   openAuthModal('LOGIN');
   return false;
@@ -33,7 +40,7 @@ function requireRegisteredScoringMode(modeName) {
 
 function startQuickMatch() {
   closeFeaturesMenu();
-  if (!requireRegisteredScoringMode('Quick Match')) return;
+  if (!requireRegisteredScoringMode('Quick Match', { keepCurrentScreen: true })) return;
 
   currentScoringMode = 'FULL';
   showNewMatchScreen('FULL');
@@ -97,10 +104,6 @@ async function renderHomeDashboard() {
       registeredCtas.style.display = 'none';
     }
   }
-  // Guest mode is limited to Web Score; Quick Match requires a signed-in account.
-  const featureQuickMatchBtn = document.getElementById('featureFullMatchBtn');
-  if (featureQuickMatchBtn) featureQuickMatchBtn.hidden = !isRegistered;
-
   recentList.replaceChildren();
   try {
     const matches = await window.CricStorage.listMatches();
@@ -146,6 +149,7 @@ function startWebScore() {
 }
 
 async function loadMatchListScreen() {
+  if (!requireRegisteredScoringMode('Match Center', { keepCurrentScreen: true })) return;
   updateNavState('navMatches');
   showScreen('screenMatchList');
 

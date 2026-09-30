@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cricleague-v3.0.0';
+const CACHE_NAME = 'cricleague-v1.0.1-r2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

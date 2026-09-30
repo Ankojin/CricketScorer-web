@@ -329,6 +329,7 @@ export class ScoringEngine {
           (healedBall.extrasType === 'GRANTED' ? healedBall.extraRuns || 0 : 0);
       }
 
+      const isLastBallOfOver = ballsInOver === 6;
       const shouldRotate =
         physicalRuns % 2 !== 0 !== Boolean(healedBall.hadCrossed) &&
         healedBall.rotateStrike !== false &&
@@ -544,6 +545,31 @@ export class ScoringEngine {
         lastBowlerId: this.ensureTeamPlayer(current.lastBowlerId, currentBowlingTeam)
       };
 
+      if (activeStrikerId || activeNonStrikerId) {
+        const resetRetiredHurt = (players: Player[]) =>
+          players.map(p => {
+            if ((p.id === activeStrikerId || p.id === activeNonStrikerId) && p.battingStats?.isRetiredHurt) {
+              return {
+                ...p,
+                battingStats: {
+                  ...p.battingStats,
+                  isRetiredHurt: false
+                }
+              };
+            }
+            return p;
+          });
+        current = {
+          ...current,
+          teamA: this.isTeamA(current.battingTeamId, current)
+            ? { ...current.teamA, players: resetRetiredHurt(current.teamA.players || []) }
+            : current.teamA,
+          teamB: !this.isTeamA(current.battingTeamId, current)
+            ? { ...current.teamB, players: resetRetiredHurt(current.teamB.players || []) }
+            : current.teamB
+        };
+      }
+
       const batTeam = this.isTeamA(current.battingTeamId, current)
         ? current.teamA
         : current.teamB;
@@ -712,11 +738,27 @@ export class ScoringEngine {
     let ppR = 0, ppW = 0, midR = 0, midW = 0, finR = 0, finW = 0;
     let pB = 0, lB = 0;
 
-    const totalOvers = Math.max(1, Number(options?.oversPerInnings || 20));
-    const configuredPp = Number(options?.powerplayOvers || 0) > 0 ? Number(options?.powerplayOvers) : 6;
-    const powerplayOvers = Math.max(0, Math.min(configuredPp, totalOvers));
+    const totalOvers = Math.max(1, Math.round(Number(options?.oversPerInnings || 20)));
+    let powerplayOvers = 0;
+    if (options?.powerplayOvers !== undefined && options?.powerplayOvers !== null && Number(options.powerplayOvers) > 0) {
+      powerplayOvers = Math.min(Math.round(Number(options.powerplayOvers)), totalOvers);
+    } else {
+      powerplayOvers = Math.max(1, Math.round(totalOvers * 0.3));
+      powerplayOvers = Math.min(powerplayOvers, totalOvers);
+    }
     const powerplayBalls = powerplayOvers * 6;
-    const deathStartOver = Math.max(powerplayOvers, Math.max(0, totalOvers - 5)) + 1;
+
+    // Keep phase boundaries aligned to the configured innings length and avoid PP/Final overlap.
+    const remainingOversAfterPowerplay = Math.max(0, totalOvers - powerplayOvers);
+    const finalOversCount = remainingOversAfterPowerplay === 0
+      ? 0
+      : Math.min(
+          remainingOversAfterPowerplay,
+          Math.max(1, Math.round(totalOvers * 0.25))
+        );
+    const deathStartOver = finalOversCount > 0
+      ? totalOvers - finalOversCount + 1
+      : totalOvers + 1;
     const deathStartBalls = (deathStartOver - 1) * 6;
 
     (balls || []).forEach(b => {
@@ -770,6 +812,8 @@ export class ScoringEngine {
       wickets: w,
       wideCount: wC,
       noBallCount: nbC,
+      powerplayOvers,
+      deathStartOver,
       ppRuns: ppR,
       ppWickets: ppW,
       midRuns: midR,
@@ -779,8 +823,8 @@ export class ScoringEngine {
       boundaryRuns: fR + siR,
       dotPercent: dP,
       totalLegalBalls: lB,
-      hasMid: pB > powerplayBalls && pB > 0,
-      hasFin: pB > deathStartBalls && pB > 0
+      hasMid: powerplayOvers < deathStartOver - 1 && pB > powerplayBalls,
+      hasFin: finalOversCount > 0 && deathStartOver <= totalOvers && pB > deathStartBalls
     };
   }
 

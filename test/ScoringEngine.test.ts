@@ -267,6 +267,26 @@ describe('ScoringEngine Core Rules & Transition Tests', () => {
     assert.equal(res.pendingAction, 'SELECT_STRIKER');
   });
 
+  test('Retired hurt striker cannot be auto-reused and continues to require replacement selection', () => {
+    const retiredHurtBall: Ball = {
+      runs: 0,
+      wicketType: 'RETIRED_HURT',
+      isLegalBall: false,
+      outPlayerId: 'p1',
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1'
+    };
+
+    const matchWithRetired: Match = { ...baseMatch, ballHistory: [retiredHurtBall] };
+    const res = ScoringEngine.recalculateMatchFromHistory(matchWithRetired);
+    const forcedRetiredAsStriker: Match = { ...res, strikerId: 'p1' };
+    const afterRecalc = ScoringEngine.recalculateMatchFromHistory(forcedRetiredAsStriker);
+
+    assert.equal(afterRecalc.strikerId, null);
+    assert.equal(afterRecalc.pendingAction, 'SELECT_STRIKER');
+  });
+
   test('End of Over rotates strike, resets currentBowlerId to null, sets lastBowlerId, and prompts SELECT_BOWLER', () => {
     const overBalls: Ball[] = Array.from({ length: 6 }, () => ({
       runs: 0,
@@ -286,6 +306,25 @@ describe('ScoringEngine Core Rules & Transition Tests', () => {
     assert.equal(res.currentBowlerId, null); // Bowler cleared
     assert.equal(res.lastBowlerId, 'b1');
     assert.equal(res.pendingAction, 'SELECT_BOWLER');
+  });
+
+  test('Last-ball 1G rotates strike once at over end', () => {
+    const overBalls: Ball[] = [
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'NONE', isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+      { runs: 0, extrasType: 'GRANTED', extraRuns: 1, isLegalBall: true, strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' }
+    ];
+
+    const match: Match = { ...baseMatch, oversPerInnings: 2, ballHistory: overBalls };
+    const res = ScoringEngine.recalculateMatchFromHistory(match);
+
+    assert.equal(res.totalBalls, 6);
+    assert.equal(res.totalRuns, 1);
+    assert.equal(res.strikerId, 'p2');
+    assert.equal(res.nonStrikerId, 'p1');
   });
 
   test('Innings 1 to Innings 2 transition sets target = Innings 1 runs + 1', () => {
@@ -837,11 +876,11 @@ describe('ScoringEngine Core Rules & Transition Tests', () => {
   });
 
   test('Innings stats phase buckets follow configured powerplay and innings overs', () => {
-    const balls: Ball[] = Array.from({ length: 40 }, (_, idx) => ({
+    const balls: Ball[] = Array.from({ length: 60 }, (_, idx) => ({
       runs: 1,
       extrasType: 'NONE',
       isLegalBall: true,
-      wicketType: idx === 4 || idx === 19 || idx === 34 ? 'BOWLED' : 'NONE',
+      wicketType: idx === 4 || idx === 24 || idx === 49 ? 'BOWLED' : 'NONE',
       strikerId: 'p1',
       nonStrikerId: 'p2',
       bowlerId: 'b1'
@@ -852,11 +891,11 @@ describe('ScoringEngine Core Rules & Transition Tests', () => {
       oversPerInnings: 10
     });
 
-    // 10-over match -> death starts at over 6 (ball 31). With 40 balls:
-    // PP: first 12 balls, Mid: next 18 balls, Death: remaining 10 balls.
+    // 10-over match with PP=2: final phase starts at over 8.
+    // PP: 12 balls, Mid: 30 balls, Final: 18 balls.
     assert.equal(stats.ppRuns, 12);
-    assert.equal(stats.midRuns, 18);
-    assert.equal(stats.finRuns, 10);
+    assert.equal(stats.midRuns, 30);
+    assert.equal(stats.finRuns, 18);
     assert.equal(stats.ppWickets, 1);
     assert.equal(stats.midWickets, 1);
     assert.equal(stats.finWickets, 1);

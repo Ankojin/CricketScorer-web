@@ -10,6 +10,8 @@ function updateBottomNavVisibility(screenId) {
     'screenLanding',
     'screenWebScoreLanding',
     'screenFullMatchLanding',
+    'screenAbout',
+    'screenInfo',
     'screenNewMatch'
   ];
 
@@ -32,6 +34,8 @@ function updateBottomNavContext(screenId) {
 
   const screenNavIds = {
     screenLanding: 'navHome',
+    screenAbout: 'navHome',
+    screenInfo: 'navHome',
     screenNewMatch: 'navHome',
     screenSeriesLanding: 'navTournaments',
     screenMatchList: 'navMatches',
@@ -44,6 +48,29 @@ function updateBottomNavContext(screenId) {
   };
   const currentNavId = screenNavIds[screenId];
   if (currentNavId) updateNavState(currentNavId);
+}
+
+function showAboutScreen() {
+  const authModal = document.getElementById('authModal');
+  if (authModal) authModal.classList.remove('active');
+  closeFeaturesMenu();
+  navigateToRoute('/about');
+  updateNavState('navHome');
+  showScreen('screenAbout');
+}
+
+function showInfoScreen() {
+  const authModal = document.getElementById('authModal');
+  if (authModal) authModal.classList.remove('active');
+  closeFeaturesMenu();
+  navigateToRoute('/info');
+  updateNavState('navHome');
+  showScreen('screenInfo');
+}
+
+function openPrivacyPolicy() {
+  closeFeaturesMenu();
+  window.location.href = '/web-privacy-policy.html';
 }
 
 function toggleBottomNavMoreMenu() {
@@ -66,11 +93,43 @@ function closeBottomNavMoreMenu() {
   }
 }
 
+function updateTopPageTabs(screenId) {
+  const tabsHost = document.getElementById('topPageTabs');
+  if (!tabsHost) return;
+
+  const showOnScreens = [
+    'screenLanding',
+    'screenWebScoreLanding',
+    'screenFullMatchLanding',
+    'screenSeriesLanding',
+    'screenAbout',
+    'screenInfo'
+  ];
+
+  tabsHost.hidden = !showOnScreens.includes(screenId);
+
+  const tabs = {
+    pageTabHome: ['screenLanding', 'screenWebScoreLanding', 'screenFullMatchLanding', 'screenSeriesLanding'],
+    pageTabAbout: ['screenAbout'],
+    pageTabInfo: ['screenInfo'],
+    pageTabPrivacy: []
+  };
+
+  Object.entries(tabs).forEach(([id, screens]) => {
+    const tab = document.getElementById(id);
+    if (!tab) return;
+    const active = screens.includes(screenId);
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+}
+
 function showScreen(screenId) {
   document.documentElement.classList.remove('session-restoring');
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const screen = document.getElementById(screenId);
   if (screen) screen.classList.add('active');
+  updateTopPageTabs(screenId);
   updateBottomNavVisibility(screenId);
   closeBottomNavMoreMenu();
   updateBottomNavContext(screenId);
@@ -136,19 +195,26 @@ function showOversScreen() {
 }
 
 async function showTournamentsScreen() {
+  if (!requireRegisteredScoringMode('Series', { keepCurrentScreen: true })) return;
   updateNavState('navTournaments');
   showScreen('screenTournaments');
   renderTournaments();
 }
 
 function showSeriesLandingScreen() {
+  const authModal = document.getElementById('authModal');
+  if (authModal) authModal.classList.remove('active');
   closeFeaturesMenu();
   navigateToRoute('/series');
   updateNavState('navTournaments');
   showScreen('screenSeriesLanding');
+  if (!isRegisteredScoringUser()) {
+    showToast('Sign in to create and manage Series', 'info');
+  }
 }
 
 async function showPlayersScreen() {
+  if (!requireRegisteredScoringMode('Teams & Players', { keepCurrentScreen: true })) return;
   updateNavState('navPlayers');
   showScreen('screenPlayers');
   await Promise.all([renderPlayers(), renderGlobalPlayers()]);
@@ -156,6 +222,7 @@ async function showPlayersScreen() {
 }
 
 function showStatsScreen() {
+  if (!requireRegisteredScoringMode('Stats', { keepCurrentScreen: true })) return;
   updateNavState('navStats');
   showScreen('screenStats');
   updateMatchHubHeaders('stats');
@@ -196,7 +263,8 @@ function showWebScoreLandingScreen() {
 }
 
 function showQuickMatchLandingScreen() {
-  if (!requireRegisteredScoringMode('Quick Match')) return;
+  const authModal = document.getElementById('authModal');
+  if (authModal) authModal.classList.remove('active');
   closeFeaturesMenu();
   navigateToRoute('/quick-match');
 
@@ -208,6 +276,9 @@ function showQuickMatchLandingScreen() {
   }
 
   showScreen('screenFullMatchLanding');
+  if (!isRegistered) {
+    showToast('Sign in to start Quick Match', 'info');
+  }
 }
 
 function handleUrlRouting() {
@@ -220,6 +291,12 @@ function handleUrlRouting() {
     return true;
   } else if (path.includes('/series') || search.includes('series') || hash.includes('series')) {
     showSeriesLandingScreen();
+    return true;
+  } else if (path.includes('/about') || search.includes('about') || hash.includes('about')) {
+    showAboutScreen();
+    return true;
+  } else if (path.includes('/info') || search.includes('info') || hash.includes('info')) {
+    showInfoScreen();
     return true;
   } else if (path.includes('/web-score') || search.includes('web-score') || hash.includes('web-score')) {
     showWebScoreLandingScreen();

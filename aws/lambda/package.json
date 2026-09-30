@@ -1,13 +1,13 @@
 {
   "name": "cricscore-lambda-handler",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CricLeague AWS Lambda API Handler",
   "main": "index.mjs",
   "type": "module",
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "latest",
-    "@aws-sdk/client-secrets-manager": "latest",
-    "@aws-sdk/lib-dynamodb": "latest",
+    "@aws-sdk/client-dynamodb": "^3.1141.0",
+    "@aws-sdk/client-secrets-manager": "^3.1141.0",
+    "@aws-sdk/lib-dynamodb": "^3.1141.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2"
   }

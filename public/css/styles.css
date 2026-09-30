@@ -157,6 +157,52 @@ body {
   color: var(--color-warning);
 }
 
+.top-page-tabs {
+  position: sticky;
+  top: 58px;
+  z-index: 96;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: min(550px, 100%);
+  margin: 0 auto;
+  padding: 8px 12px 6px;
+  background: linear-gradient(180deg, rgba(7, 27, 51, 0.98) 0%, rgba(7, 27, 51, 0.88) 100%);
+  border-bottom: 1px solid var(--color-border-dark);
+  backdrop-filter: saturate(1.15) blur(5px);
+}
+
+.top-page-tab {
+  min-height: 38px;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.top-page-tab:hover {
+  color: var(--color-text);
+  background: var(--color-surface-soft);
+  border-color: var(--color-electric);
+}
+
+.top-page-tab.active {
+  color: var(--color-primary-deep);
+  background: var(--color-electric);
+  border-color: var(--color-electric);
+}
+
+.top-page-tab:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 /* Toast Notifications */
 .toast-container {
   position: fixed;
@@ -478,7 +524,7 @@ html.has-app-session #homeDashboard { display: block !important; }
   border-radius: 6px;
   border: 1px solid var(--danger-color);
   background: var(--color-danger-soft);
-  color: var(--color-error);
+  color: var(--color-text);
   cursor: pointer;
 }
 
@@ -2542,7 +2588,7 @@ button.quick-match-progress-step { cursor: pointer; }
 }
 
 .live-more-action:hover { border-color: var(--primary-color); background: var(--color-green-soft); }
-.live-more-danger { color: var(--color-error); background: var(--color-danger-soft); border-color: var(--color-danger-soft); }
+.live-more-danger { color: var(--color-text); background: var(--color-danger-soft); border-color: var(--color-error); }
 
 .btn-primary { background: var(--primary-color); color: var(--color-text-on-green); border: none; width: 100%; min-height: var(--touch-target); padding: 14px; border-radius: var(--radius-control); font-size: 15px; font-weight: 700; cursor: pointer; }
 
@@ -2625,7 +2671,7 @@ button:disabled,
 .toast.danger {
   border-color: var(--color-error);
   background: var(--color-danger-soft);
-  color: var(--color-error);
+  color: var(--color-text);
 }
 
 .toast.info {
@@ -3249,6 +3295,17 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 420px) {
+  .top-page-tabs {
+    top: 54px;
+    gap: 4px;
+    padding: 7px 8px 5px;
+  }
+
+  .top-page-tab {
+    min-height: 36px;
+    font-size: 11px;
+  }
+
   .container { padding-right: 10px; padding-left: 10px; }
   .card { padding: 14px; }
   .rates-row { gap: 6px; }
@@ -3551,5 +3608,573 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   #screenLiveScoring.active #scoringExtraActions .btn {
     min-height: 38px;
     font-size: 11px;
+  }
+}
+
+/* Release polish: richer contrast + safer viewport fit across desktop/mobile. */
+:root {
+  --color-surface-soft: #123153;
+  --color-surface-raised: #15406d;
+  --color-text-muted: #d2deeb;
+  --color-text-subtle: #b8cadd;
+  --color-border: #3a5676;
+  --color-border-dark: #3a5676;
+  --shadow-sm: 0 3px 10px rgba(2, 10, 22, 0.32);
+  --shadow-md: 0 10px 24px rgba(2, 10, 22, 0.38);
+  --shadow-lg: 0 18px 44px rgba(2, 10, 22, 0.44);
+}
+
+body {
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+}
+
+.card,
+.wizard-card,
+.match-hub-header,
+.score-card,
+.modal,
+.features-dropdown,
+.bottom-nav-more-menu,
+.live-more-menu[open] .live-more-grid {
+  border-color: var(--color-border);
+}
+
+.feature-item,
+.more-menu-action,
+.live-more-action,
+.bowler-option,
+.home-recent-match,
+.match-card-item,
+.squad-row,
+.form-control,
+.team-name-input {
+  border-color: var(--color-border);
+}
+
+.feature-info small,
+.landing-subtitle,
+.landing-about,
+.home-section-heading p,
+.web-score-signin-prompt,
+.scorecard-dismissal-text,
+.last-saved-tag,
+.match-teams-title,
+.home-recent-meta {
+  color: var(--color-text-muted);
+}
+
+.status-badge.online {
+  background: rgba(19, 169, 104, 0.28);
+  color: var(--color-text-on-dark);
+}
+
+.status-badge.guest {
+  background: rgba(245, 158, 11, 0.24);
+  color: #ffe7b3;
+}
+
+.app-header,
+.bottom-nav {
+  backdrop-filter: saturate(1.2) blur(6px);
+}
+
+.btn,
+.btn-primary,
+.cric-btn,
+.nav-btn,
+.bottom-nav-item,
+.feature-item,
+.more-menu-action,
+.live-more-action,
+.toss-choice-button {
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.btn-primary,
+.cric-btn-primary,
+.squad-add-btn,
+.wizard-next-btn,
+.overs-pill:hover,
+.overs-pill.active {
+  box-shadow: 0 7px 18px rgba(19, 169, 104, 0.32);
+}
+
+.form-control,
+.team-name-input,
+.web-score-player-count-input {
+  background: #173d66;
+  color: var(--color-text);
+}
+
+.form-control::placeholder,
+.team-name-input::placeholder {
+  color: #c9d7e5;
+}
+
+.home-actions,
+.home-series-actions,
+.quick-match-settings-fields,
+.player-directory-controls,
+.toss-choice-row,
+.toss-action-btns,
+.live-more-grid,
+.scoring-extra-actions {
+  min-width: 0;
+}
+
+.stats-table,
+.scorecard-responsive-table {
+  table-layout: auto;
+}
+
+.stats-table th,
+.stats-table td {
+  overflow-wrap: anywhere;
+}
+
+.modal {
+  width: min(100%, 520px);
+}
+
+@media (max-width: 768px) {
+  .container {
+    max-width: 100%;
+    padding-inline: 10px;
+  }
+
+  .card,
+  .wizard-card,
+  .score-card,
+  .match-hub-header,
+  .modal {
+    border-radius: 14px;
+  }
+
+  .app-header {
+    padding: 8px 10px;
+  }
+
+  .app-header .app-title {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .app-header .app-header-actions {
+    gap: 6px !important;
+    flex-wrap: nowrap;
+  }
+
+  .app-header .nav-btn {
+    min-width: 0;
+    padding: 6px 8px !important;
+  }
+
+  .features-dropdown {
+    top: 54px;
+    right: 10px;
+    width: calc(100vw - 20px);
+    max-height: min(76vh, 640px);
+    overflow-y: auto;
+  }
+
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal,
+  .cricket-action-modal,
+  .toss-modal,
+  .web-score-innings-break .first-innings-modal {
+    max-height: min(88vh, 760px);
+    overflow-y: auto;
+  }
+
+  .home-action {
+    min-height: 74px;
+  }
+}
+
+@media (max-width: 420px) {
+  body {
+    padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+
+  .container {
+    padding-inline: 8px;
+  }
+
+  .card,
+  .wizard-card,
+  .score-card {
+    padding: 12px;
+  }
+
+  .app-header .features-trigger-btn {
+    max-width: 94px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .match-view-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-series-actions,
+  .quick-match-navigation,
+  .player-directory-controls,
+  .toss-action-btns,
+  .toss-choice-row {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .quick-match-navigation > button,
+  .toss-actions > button,
+  .home-series-actions .cric-btn {
+    width: 100%;
+  }
+}
+
+/* Mobile typography rhythm pass (top 5 screens):
+   Home, WebScore landing, Quick Match landing, Series landing, Live Scoring. */
+@media (max-width: 600px) {
+  /* 1) Home */
+  #screenLanding .landing-title {
+    font-size: 24px;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  #screenLanding .landing-subtitle {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  #screenLanding .landing-punchline {
+    font-size: clamp(20px, 6vw, 24px);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+  }
+
+  #screenLanding .landing-about {
+    font-size: 13px;
+    line-height: 1.62;
+  }
+
+  #screenLanding .section-title {
+    font-size: 17px;
+    line-height: 1.3;
+  }
+
+  #screenLanding .how-card h3 {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  #screenLanding .how-card p {
+    font-size: 12px;
+    line-height: 1.52;
+  }
+
+  #screenLanding .strip-item {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  /* 2) WebScore landing */
+  #screenWebScoreLanding .cric-hero-badge {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+
+  #screenWebScoreLanding .web-score-home-title {
+    font-size: clamp(22px, 6.3vw, 30px);
+    line-height: 1.22;
+    letter-spacing: -0.02em;
+  }
+
+  #screenWebScoreLanding .web-score-benefits span {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  #screenWebScoreLanding .web-score-signin-prompt {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  /* 3) Quick Match landing */
+  #screenFullMatchLanding .cric-hero-badge {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+
+  #screenFullMatchLanding .cric-hero-title {
+    font-size: clamp(23px, 6.4vw, 32px);
+    line-height: 1.16;
+    letter-spacing: -0.02em;
+  }
+
+  #screenFullMatchLanding .cric-hero-summary {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+  }
+
+  #screenFullMatchLanding .web-score-signin-prompt {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  /* 4) Series landing */
+  #screenSeriesLanding .cric-hero-badge {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+
+  #screenSeriesLanding .cric-hero-title {
+    font-size: clamp(23px, 6.4vw, 32px);
+    line-height: 1.16;
+    letter-spacing: -0.02em;
+  }
+
+  #screenSeriesLanding .cric-hero-summary {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+  }
+
+  #screenSeriesLanding .web-score-signin-prompt {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  /* 5) Live Scoring */
+  #screenLiveScoring .match-hub-teams h2 {
+    font-size: 15px;
+    line-height: 1.28;
+  }
+
+  #screenLiveScoring .match-hub-score strong {
+    font-size: 20px;
+    line-height: 1.06;
+  }
+
+  #screenLiveScoring .score-main {
+    font-size: clamp(38px, 11vw, 48px) !important;
+    line-height: 1;
+  }
+
+  #screenLiveScoring .overs-main {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  #screenLiveScoring .rates-row span {
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  #screenLiveScoring .stats-table th {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  #screenLiveScoring .stats-table td {
+    font-size: 12px;
+    line-height: 1.42;
+  }
+
+  #screenLiveScoring #scoringKeypad .btn {
+    font-size: 18px;
+    line-height: 1.1;
+  }
+
+  #screenLiveScoring #scoringExtraActions .btn {
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+  }
+}
+
+@media (max-width: 420px) {
+  #screenLanding .landing-title { font-size: 22px; }
+  #screenLanding .landing-punchline { font-size: 20px; }
+
+  #screenWebScoreLanding .web-score-home-title,
+  #screenFullMatchLanding .cric-hero-title,
+  #screenSeriesLanding .cric-hero-title {
+    font-size: 22px;
+    line-height: 1.2;
+  }
+
+  #screenLiveScoring .match-view-tabs button {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  #screenLiveScoring .score-main {
+    font-size: clamp(34px, 10.6vw, 42px) !important;
+  }
+}
+
+/* Mobile modal typography pass:
+   Auth, Toss, and Wicket-related dialogs. */
+@media (max-width: 600px) {
+  #authModal .modal,
+  #tossModal .modal,
+  #wicketModal .modal,
+  #runOutModal .modal,
+  #fielderModal .modal,
+  #droppedCatchFielderModal .modal,
+  #droppedCatchRunsModal .modal {
+    padding: 16px 14px;
+  }
+
+  #authModal h3 {
+    font-size: 20px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  #authModal label {
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 700;
+  }
+
+  #authModal .form-control {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  #authTabLogin,
+  #authTabRegister {
+    font-size: 13px !important;
+    line-height: 1.2;
+    font-weight: 760;
+  }
+
+  #authModal .btn,
+  #authModal .btn-primary {
+    min-height: 44px;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  #tossModal .toss-heading h3 {
+    font-size: 21px;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  #tossModal .toss-heading > p:last-child {
+    font-size: 13px;
+    line-height: 1.48;
+  }
+
+  #tossModal .toss-result {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  #tossModal .toss-choice-heading span {
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  #tossModal .toss-choice-heading small {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  #tossModal .toss-choice-button,
+  #tossModal .toss-actions .btn,
+  #tossModal .toss-actions .btn-primary {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  #wicketModal .action-modal-heading h3,
+  #runOutModal .action-modal-heading h3,
+  #fielderModal .action-modal-heading h3,
+  #droppedCatchFielderModal .action-modal-heading h3,
+  #droppedCatchRunsModal .action-modal-heading h3 {
+    font-size: 19px;
+    line-height: 1.22;
+    letter-spacing: -0.01em;
+  }
+
+  #wicketModal .action-modal-kicker,
+  #runOutModal .action-modal-kicker,
+  #fielderModal .action-modal-kicker,
+  #droppedCatchFielderModal .action-modal-kicker,
+  #droppedCatchRunsModal .action-modal-kicker {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  #wicketModal label,
+  #runOutModal label,
+  #fielderModal label,
+  #droppedCatchFielderModal label {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  #wicketModal .form-control,
+  #runOutModal .form-control,
+  #fielderModal .form-control,
+  #droppedCatchFielderModal .form-control {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  #wicketModal .action-modal-actions .btn,
+  #wicketModal .action-modal-actions .btn-primary,
+  #runOutModal .action-modal-actions .btn,
+  #runOutModal .action-modal-actions .btn-primary,
+  #fielderModal .action-modal-actions .btn,
+  #fielderModal .action-modal-actions .btn-primary,
+  #droppedCatchFielderModal .action-modal-actions .btn,
+  #droppedCatchFielderModal .action-modal-actions .btn-primary,
+  #droppedCatchRunsModal .action-modal-actions .btn,
+  #droppedCatchRunsModal .action-modal-actions .btn-primary,
+  #droppedCatchRunsModal .dropped-catch-run-options button {
+    min-height: 44px;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 420px) {
+  #authModal h3,
+  #tossModal .toss-heading h3 {
+    font-size: 19px;
+  }
+
+  #authModal label,
+  #wicketModal label,
+  #runOutModal label,
+  #fielderModal label,
+  #droppedCatchFielderModal label {
+    font-size: 12px;
+  }
+
+  #authModal .form-control,
+  #wicketModal .form-control,
+  #runOutModal .form-control,
+  #fielderModal .form-control,
+  #droppedCatchFielderModal .form-control {
+    font-size: 14px;
+  }
+
+  #tossModal .toss-choice-button,
+  #tossModal .toss-actions .btn,
+  #tossModal .toss-actions .btn-primary,
+  #wicketModal .action-modal-actions .btn,
+  #wicketModal .action-modal-actions .btn-primary,
+  #runOutModal .action-modal-actions .btn,
+  #runOutModal .action-modal-actions .btn-primary {
+    font-size: 13px;
   }
 }
