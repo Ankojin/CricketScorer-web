@@ -147,7 +147,7 @@ async function renderTournaments() {
 
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h4 style="font-size:16px; font-weight:800; color:var(--color-primary);">🏆 ${escapeHtml(t.name)}</h4>
+        <h4 class="series-card-title" style="font-size:16px; font-weight:800;">🏆 ${escapeHtml(t.name)}</h4>
         <div style="display:flex; gap:6px;">
           <button class="btn" style="background:var(--color-primary); color:var(--color-text-on-dark); border-color:var(--color-primary); padding:4px 8px; font-size:11px;" onclick="exportTournamentSnapshot('${t.id}')">📸 Snapshot</button>
           <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); padding:4px 8px; font-size:11px;" onclick="openEditTournamentModal('${t.id}')">✏️ Edit Defaults</button>
@@ -584,7 +584,7 @@ async function renderPlayers() {
         </div>
       </div>
       <div id="teamSquad_${t.id}" hidden style="margin-top:14px; padding-top:10px; border-top:1px solid var(--color-border);">
-        <div style="font-size:11px; font-weight:800; color:var(--color-primary); letter-spacing:0.05em; text-transform:uppercase; margin-bottom:8px;">Squad Roster</div>
+        <div class="series-roster-title" style="font-size:11px; font-weight:800; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:8px;">Squad Roster</div>
         ${playerListHtml || '<div style="font-size:12px; color:var(--text-muted);">No players in this team squad.</div>'}
       </div>
     `;

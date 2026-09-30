@@ -1867,6 +1867,15 @@ html.has-app-session #homeDashboard { display: block !important; }
   line-height: 1;
 }
 
+/* Series/Tournament contrast guards */
+#tournamentsContainer .series-card-title {
+  color: var(--color-text-on-dark) !important;
+}
+
+#tournamentsContainer .series-roster-title {
+  color: var(--color-electric) !important;
+}
+
 .home-text-action {
   min-height: 40px;
   padding: 6px 10px;
