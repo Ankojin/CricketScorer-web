@@ -1706,7 +1706,7 @@ function checkAndShowOverEndModal() {
       const stats = lastBowler.bowlingStats || { overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
       const inningsRuns = lastOver.teamTotalRuns ?? activeMatch.totalRuns ?? 0;
       const inningsWkts = lastOver.teamTotalWickets ?? activeMatch.totalWickets ?? 0;
-      statsEl.innerHTML = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts<br><span style="font-size:16px; font-weight:900; color:var(--color-primary);">Innings: ${inningsRuns}/${inningsWkts}</span>`;
+      statsEl.innerHTML = `${lastBowler.name}: ${stats.overs}.${stats.balls} Ov - ${stats.runsConceded} Runs - ${stats.wickets} Wkts<br><span style="font-size:16px; font-weight:900; color:var(--color-electric);">Innings: ${inningsRuns}/${inningsWkts}</span>`;
     } else {
       statsEl.innerText = '';
     }

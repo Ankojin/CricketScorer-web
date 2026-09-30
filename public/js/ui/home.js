@@ -191,7 +191,7 @@ async function loadMatchListScreen() {
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:12px;">
-        <div style="font-size:22px; font-weight:900; color:var(--color-primary); cursor:pointer;" onclick="selectMatch('${m.id}')">
+        <div style="font-size:22px; font-weight:900; color:var(--color-electric); cursor:pointer;" onclick="selectMatch('${m.id}')">
           ${m.totalRuns || 0}/${m.totalWickets || 0}
         </div>
         <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:6px 10px; font-size:12px; border-radius:8px;" onclick="handleDeleteMatch('${m.id}', event)">

@@ -1,26 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 :root {
   color-scheme: dark;
 
   /* CricLeague — Navy + Electric Green */
-  --color-primary: #071B33;
+  --color-primary: #071B33;             /* SURFACE ONLY — never body text on dark */
   --color-primary-deep: #041326;
   --color-primary-soft: #0D2A4A;
+  --color-primary-dark: #0A2544;        /* Deeper navy surface, NOT green-dark! */
 
   --color-green: #13A968;
   --color-electric: #49E878;
   --color-green-bright: #39F57A;
-  --color-green-dark: #087A4A;
-  --color-green-soft: #D1FAE5;
+  --color-green-dark: #087A4A;          /* ONLY for text sitting on true light mint chips */
+  --color-green-soft: rgba(73, 232, 120, 0.14); /* Dark-theme soft fill */
+  --color-green-soft-solid: #D1FAE5;    /* Light mint badge fill */
 
   --color-background: #041326;
   --color-surface: #071B33;
   --color-surface-soft: #0D2A4A;
-  --color-surface-raised: #0D2A4A;
+  --color-surface-raised: #0E325A;
 
   --color-text: #F8FAFC;
-  --color-text-muted: #B5C4D5;
-  --color-text-subtle: #94A3B8;
+  --color-text-muted: #C5D0DC;          /* Brighter secondary text */
+  --color-text-subtle: #A8B6C7;         /* Brighter subtle text */
   --color-text-on-dark: #F8FAFC;
+  --color-text-on-green: #041326;       /* Text on solid green/electric fills */
 
   --color-border: #29415B;
   --color-border-dark: #29415B;
@@ -50,21 +55,20 @@
   --touch-target: 44px;
   --focus-ring: 0 0 0 3px rgba(73, 232, 120, .15);
 
-  /* Compatibility aliases used throughout the existing UI/controller. */
+  /* Compatibility aliases */
   --color-surface-muted: var(--color-surface-soft);
   --color-surface-dark: var(--color-primary);
   --color-surface-dark-card: var(--color-primary-soft);
   --color-text-secondary: var(--color-text-muted);
   --color-text-light: var(--color-text-on-dark);
   --color-focus: var(--color-electric);
-  --color-primary-dark: var(--color-green-dark);
   --color-primary-light: var(--color-electric);
 
   --bg-color: var(--color-background);
   --card-bg: var(--color-surface);
   --card-border: var(--color-border);
   --primary-color: var(--color-green);
-  --primary-dark: var(--color-green-dark);
+  --primary-dark: #0A2544;
   --accent-color: var(--color-electric);
   --text-color: var(--color-text);
   --text-muted: var(--color-text-muted);
@@ -305,19 +309,19 @@ html.has-app-session #homeDashboard { display: block !important; }
 .winner-title {
   font-size: 18px;
   font-weight: 900;
-  color: var(--color-green-dark);
+  color: var(--color-electric);
   margin-bottom: 4px;
 }
 
 .margin-text {
   font-size: 13px;
-  color: var(--color-green-dark);
+  color: var(--color-text);
   font-weight: 600;
 }
 
 /* Captain (C) subtle blue & Vice-Captain (VC) subtle amber badges */
 .badge-c {
-  color: var(--color-green-dark);
+  color: var(--color-info);
   background: var(--color-info-soft);
   font-weight: 800;
   font-size: 11px;
@@ -396,7 +400,7 @@ html.has-app-session #homeDashboard { display: block !important; }
 .team-builder-title {
   font-size: 14px;
   font-weight: 800;
-  color: var(--color-primary-dark);
+  color: var(--color-text);
 }
 
 .team-color-input {
@@ -2374,7 +2378,7 @@ button.quick-match-progress-step { cursor: pointer; }
 .keypad-grid .btn-extra { font-size: 17px; }
 
 .btn-run { background: var(--color-surface-soft); }
-.btn-boundary { background: var(--color-success-soft); color: var(--color-green-dark); border-color: var(--color-green); }
+.btn-boundary { background: var(--color-success-soft); color: var(--color-electric); border-color: var(--color-green); }
 .btn-extra { background: var(--color-warning-soft); color: var(--color-warning); border-color: var(--color-warning); }
 .keypad-grid .btn-wicket {
   grid-column: span 2;
@@ -2540,12 +2544,16 @@ button.quick-match-progress-step { cursor: pointer; }
 .live-more-action:hover { border-color: var(--primary-color); background: var(--color-green-soft); }
 .live-more-danger { color: var(--color-error); background: var(--color-danger-soft); border-color: var(--color-danger-soft); }
 
-.btn-primary { background: var(--primary-color); color: white; border: none; width: 100%; min-height: var(--touch-target); padding: 14px; border-radius: var(--radius-control); font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn-primary { background: var(--primary-color); color: var(--color-text-on-green); border: none; width: 100%; min-height: var(--touch-target); padding: 14px; border-radius: var(--radius-control); font-size: 15px; font-weight: 700; cursor: pointer; }
 
-.btn:hover,
+.btn:hover {
+  filter: brightness(0.97);
+}
+
 .btn-primary:hover,
 .squad-add-btn:hover {
-  filter: brightness(0.97);
+  background: var(--color-electric);
+  color: var(--color-text-on-green);
 }
 
 .btn:focus-visible,
@@ -2571,7 +2579,7 @@ button.quick-match-progress-step { cursor: pointer; }
 }
 
 .form-group { margin-bottom: 12px; }
-.form-group label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-bottom: 5px; font-weight: 600; }
+.form-group label { display: block; font-size: 13px; color: var(--color-text); margin-bottom: 5px; font-weight: 600; }
 .form-control {
   width: 100%;
   min-height: var(--touch-target);
@@ -2755,8 +2763,8 @@ button:disabled,
 .bottom-nav {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  background: rgba(255, 255, 255, 0.98);
-  border-top: 1px solid var(--card-border);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
@@ -2764,7 +2772,7 @@ button:disabled,
   z-index: 100;
   max-width: 550px;
   margin: 0 auto;
-  box-shadow: 0 -2px 12px rgba(7, 27, 51, 0.1);
+  box-shadow: 0 -4px 16px rgba(4, 19, 38, 0.4);
 }
 .bottom-nav[data-context="match"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .bottom-nav [hidden] { display: none !important; }
@@ -2775,7 +2783,7 @@ button:disabled,
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -2790,13 +2798,15 @@ button:disabled,
 }
 
 .bottom-nav-item:hover {
-  color: var(--color-primary-dark);
-  background: var(--color-green-soft);
+  color: var(--color-text);
+  background: var(--color-surface-soft);
 }
 
 .bottom-nav-item.active {
-  color: var(--primary-color);
-  background: var(--color-green-soft);
+  color: var(--color-electric);
+  background: rgba(73, 232, 120, 0.14);
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--color-electric);
 }
 
 .bottom-nav-icon {
@@ -3150,9 +3160,8 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .pending-action-banner,
 .toss-result,
 .toss-flip-button,
-.toss-decision-choice.is-selected,
-.toast.warning {
-  color: var(--color-primary);
+.toss-decision-choice.is-selected {
+  color: var(--color-text);
 }
 
 .target-banner {
@@ -3160,20 +3169,18 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   background: var(--color-surface-raised);
   border-color: var(--color-green);
 }
-.toast.info { color: var(--color-primary); }
-.toast.warning { border-color: var(--color-warning); }
+.toast.info { color: var(--color-text); }
+.toast.warning { border-color: var(--color-warning); color: var(--color-text); }
 .toss-decision-choice.is-selected { border-color: var(--color-warning); }
 .role-btn.active-vc { color: var(--color-primary-deep); border-color: var(--color-electric); }
 
 .match-view-tabs button.active,
-.bottom-nav-item.active,
 .more-menu-action.active {
-  color: var(--color-green-dark);
-  background: var(--color-green-soft);
+  color: var(--color-electric);
+  background: var(--color-surface-soft);
 }
 
-.match-view-tabs button.active { box-shadow: inset 0 -2px 0 var(--color-green); }
-.bottom-nav-item.active { box-shadow: inset 0 -2px 0 var(--color-green); }
+.match-view-tabs button.active { box-shadow: inset 0 -2px 0 var(--color-electric); }
 
 .live-more-action,
 .more-menu-action,
@@ -3188,7 +3195,7 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .more-menu-action:focus-visible,
 .bowler-option:hover,
 .bowler-option:focus-visible {
-  background: var(--color-green-soft);
+  background: var(--color-surface-soft);
   border-color: var(--color-green);
 }
 
@@ -3204,15 +3211,15 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 
 .web-score-flip-button,
 .web-score-flip-button:hover {
-  color: var(--color-primary);
+  color: var(--color-text-on-green);
   background: var(--color-green);
   border-color: var(--color-green);
 }
 
-.web-score-flip-button:hover { background: var(--color-electric); }
+.web-score-flip-button:hover { background: var(--color-electric); color: var(--color-text-on-green); }
 
 .web-score-flip-button:disabled {
-  color: var(--color-text);
+  color: var(--color-text-muted);
   background: var(--color-surface-soft);
   border-color: var(--color-border);
 }
@@ -3226,7 +3233,7 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .toss-call-btn.active,
 .toss-call-choice-btn.btn-heads,
 .live-score-hero .ball-chip.four {
-  color: var(--color-primary);
+  color: var(--color-text-on-green);
 }
 
 .btn-primary:hover,

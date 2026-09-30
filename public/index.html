@@ -262,7 +262,7 @@
     <!-- Screen 0.5: Quick Match Mode Landing (/quick-match) -->
     <div id="screenFullMatchLanding" class="screen">
       <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-primary); font-weight:700; cursor:pointer; padding:0;">Home</button>
+        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-electric); font-weight:700; cursor:pointer; padding:0;">Home</button>
         <span>›</span>
         <span>Features</span>
         <span>›</span>
@@ -295,7 +295,7 @@
     <!-- Screen 0.6: Series Landing (/series) -->
     <div id="screenSeriesLanding" class="screen">
       <div class="breadcrumb-bar" style="margin-bottom:14px; font-size:12px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-primary); font-weight:700; cursor:pointer; padding:0;">Home</button>
+        <button type="button" onclick="showLandingScreen()" style="background:none; border:none; color:var(--color-electric); font-weight:700; cursor:pointer; padding:0;">Home</button>
         <span>›</span>
         <span style="color:var(--text-color);">Series</span>
       </div>
@@ -539,7 +539,7 @@
       <!-- Empty State Container when no match is currently active -->
       <div id="liveScoringEmptyContainer" class="card" style="display:none; text-align:center; padding:32px 16px;">
         <div style="font-size:48px; margin-bottom:12px;">🏏</div>
-        <h3 style="font-size:20px; font-weight:800; color:var(--color-primary); margin-bottom:8px;">Live Scoring Center</h3>
+        <h3 style="font-size:20px; font-weight:800; color:var(--color-text); margin-bottom:8px;">Live Scoring Center</h3>
         <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">
           No live match is currently active. Select an existing match from Match Center or create a new match to begin scoring!
         </p>
@@ -621,7 +621,7 @@
         </div>
 
         <!-- Action Prompt Banner -->
-        <div id="actionBanner" class="card" style="background:var(--color-warning-soft); border-color:var(--color-warning); color:var(--color-primary); font-weight:700; display:none; text-align:center;">
+        <div id="actionBanner" class="card" style="background:var(--color-warning-soft); border-color:var(--color-warning); color:var(--color-warning); font-weight:700; display:none; text-align:center;">
           Pending Action
         </div>
 
@@ -700,11 +700,12 @@
     <!-- Screen 7: Saved Teams & Squad Directory -->
     <div id="screenPlayers" class="screen">
       <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h3 style="font-size:18px; font-weight:800; color:var(--color-text);">Teams & Player Directory</h3>
           <button id="playersCreateTeamBtn" class="btn-primary" style="width:auto; padding:8px 14px; font-size:12px;" onclick="openNewTeamModal()">+ Create Team</button>
           <button id="playersAddGlobalBtn" class="btn-primary" hidden style="width:auto; padding:8px 14px; font-size:12px;" onclick="openNewPlayerModal()">+ Add Player</button>
         </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">ℹ️ <b>Global Directory</b> = reusable player/team registry across quick matches. <b>Series Squads</b> are embedded inside each tournament series.</div>
 
         <div style="display:flex; gap:6px; margin-bottom:14px; background:var(--color-primary); padding:4px; border-radius:10px; border:1px solid var(--card-border);">
           <button id="playersTabTeams" class="btn" style="flex:1; padding:8px; font-size:12px; background:var(--primary-color); color:var(--color-text-on-dark);" onclick="setPlayersDirectoryTab('TEAMS')">Teams</button>
@@ -771,7 +772,7 @@
   <!-- Standalone Coin Toss Modal (Only Flip Coin, no teams/match setup) -->
   <div id="standaloneCoinTossModal" class="modal-overlay">
     <div class="modal" style="text-align:center; max-width:400px; padding:28px 20px;">
-      <div style="font-size:11px; font-weight:800; color:var(--color-primary); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px;">ONLINE CRICKET TOSS COIN</div>
+      <div style="font-size:11px; font-weight:800; color:var(--color-electric); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px;">ONLINE CRICKET TOSS COIN</div>
       <h2 style="font-size:28px; font-weight:900; color:var(--color-text); margin-bottom:4px;">FLIP A COIN</h2>
       <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Instant heads or tails for your match</p>
 
@@ -953,7 +954,7 @@
     <div class="modal" style="text-align:center; padding:24px 20px;">
       <div style="font-size:36px; margin-bottom:6px;">⚾</div>
       <h3 id="overEndTitle" style="margin-bottom:8px; font-size:22px; font-weight:800; color:var(--color-text);">End of Over 1</h3>
-      <div id="overEndMatchScores" style="font-size:22px; font-weight:900; color:var(--color-primary); margin-bottom:8px;">Team A 12/0 (1.0 ov)</div>
+      <div id="overEndMatchScores" style="font-size:22px; font-weight:900; color:var(--color-electric); margin-bottom:8px;">Team A 12/0 (1.0 ov)</div>
       <div id="overEndBody" style="font-size:16px; font-weight:800; color:var(--color-text); margin-bottom:8px;">Runs in Over: 12</div>
       <div id="overEndDismissals" style="font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:12px;">Dismissal: None</div>
       <div id="overEndBowlerStats" style="font-size:14px; font-weight:700; color:var(--text-muted); margin-bottom:20px;"></div>
@@ -1126,11 +1127,23 @@
     </div>
   </div>
 
-  <!-- Create Team Modal -->
+  <!-- Create / Add Team Modal -->
   <div id="teamModal" class="modal-overlay">
     <div class="modal">
-      <h3 style="margin-bottom:8px;">Create / Add Series Team</h3>
+      <h3 style="margin-bottom:8px;">Add Team to Series / Directory</h3>
       <div id="teamModalContext" style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Attach a team to tournament series or global roster.</div>
+
+      <!-- Quick Attach Existing Saved Team Section (Visible when adding to a Series) -->
+      <div id="attachSavedTeamSection" style="background:var(--color-surface-soft); border:1px solid var(--color-primary); border-radius:10px; padding:12px; margin-bottom:16px;" hidden>
+        <div style="font-weight:800; font-size:13px; color:var(--color-electric); margin-bottom:4px;">⚡ Attach Existing Saved Team</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">Pick a team from your saved teams directory to attach it to this series:</div>
+        <div style="display:flex; gap:8px;">
+          <select id="savedTeamSelect" aria-label="Select saved team to attach" class="form-control" style="flex:1;"></select>
+          <button class="btn-primary" style="width:auto; padding:8px 14px; font-size:12px;" onclick="handleAttachSavedTeam()">Attach Team</button>
+        </div>
+      </div>
+
+      <div id="newTeamSectionHeader" style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Or Create New Team</div>
 
       <div class="form-group">
         <label for="newTeamName">Team Name</label>

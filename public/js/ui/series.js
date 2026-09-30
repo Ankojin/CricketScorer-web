@@ -55,9 +55,18 @@ async function renderTournaments() {
     `).join('');
 
     const teamsListHtml = (t.teams || []).map(tm => `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--color-surface-soft); padding:8px 12px; border-radius:8px; margin-top:6px;">
-        <div style="font-weight:700; font-size:13px; color:var(--color-text);">
-          <span class="team-badge" style="background:${tm.colorHex||'#38bdf8'}"></span>${tm.name} (${(tm.players||[]).length} Players)
+      <div style="background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:8px; margin-top:6px; padding:8px 12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:700; font-size:13px; color:var(--color-text);">
+            <span class="team-badge" style="background:${tm.colorHex||'#38bdf8'}"></span>${tm.name} (${(tm.players||[]).length} Players)
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="toggleSeriesTeamRoster('${t.id}','${tm.id}')">📋 Squad</button>
+            <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:3px 8px; font-size:11px;" onclick="removeSeriesTeam('${t.id}','${tm.id}')">❌ Detach</button>
+          </div>
+        </div>
+        <div id="seriesTeamRoster_${t.id}_${tm.id}" hidden style="margin-top:8px; padding-top:6px; border-top:1px solid var(--color-border);">
+          ${(tm.players||[]).map((p, i) => `<div style="font-size:11px; padding:2px 0; color:var(--color-text); display:flex; justify-content:space-between;"><span>${i+1}. ${p.name}</span><span style="color:var(--text-muted); font-size:10px;">${p.role||'Batter'}</span></div>`).join('') || '<div style="font-size:11px; color:var(--text-muted);">No players in squad</div>'}
         </div>
       </div>
     `).join('');
@@ -146,7 +155,10 @@ async function renderTournaments() {
       ${activeTourneySubTab === 'SCHEDULE' ? `
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Series Match Schedule</div>
-          <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="startSeriesMatch('${t.id}')">+ Quick Start (No Fixture)</button>
+          <div style="display:flex; gap:6px;">
+            ${teamsForSchedule.length >= 2 ? `<button class="btn" style="background:var(--color-primary-soft); color:var(--color-text-on-dark); border-color:var(--color-primary); padding:4px 8px; font-size:11px;" onclick="autoGenerateRoundRobinFixtures('${t.id}')">⚡ Auto Fixtures</button>` : ''}
+            <button class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px;" onclick="startSeriesMatch('${t.id}')">+ Quick Start (No Fixture)</button>
+          </div>
         </div>
         ${teamsForSchedule.length < 2 ? '<div style="font-size:12px; color:var(--color-warning); margin-top:8px;">Add at least 2 teams before scheduling fixtures.</div>' : `
           <div style="margin-top:8px; padding:10px; background:var(--color-surface-soft); border:1px solid var(--color-border); border-radius:10px;">
@@ -537,9 +549,10 @@ async function renderPlayers() {
             <div style="font-size:12px; color:var(--text-muted);">${pCount} player${pCount !== 1 ? 's' : ''}</div>
           </div>
         </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn" style="background:var(--color-surface-muted); padding:6px 12px; font-size:12px; border-color:var(--color-border);" onclick="toggleTeamSquadView('${t.id}')">📋 Players</button>
-          <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:6px 10px; font-size:12px;" onclick="deleteSavedTeam('${t.id}')">🗑️ Delete</button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn" style="background:var(--color-primary-soft); color:var(--color-text-on-dark); border-color:var(--color-primary); padding:6px 10px; font-size:12px;" onclick="attachSavedTeamToSeries('${t.id}')">🏆 Attach to Series</button>
+          <button class="btn" style="background:var(--color-surface-muted); padding:6px 10px; font-size:12px; border-color:var(--color-border);" onclick="toggleTeamSquadView('${t.id}')">📋 Players</button>
+          <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:6px 8px; font-size:12px;" onclick="deleteSavedTeam('${t.id}')">🗑️</button>
         </div>
       </div>
       <div id="teamSquad_${t.id}" hidden style="margin-top:14px; padding-top:10px; border-top:1px solid var(--color-border);">
@@ -637,7 +650,9 @@ async function handleQuickAddPlayer() {
   await window.CricStorage.addGlobalPlayer(newPlayer);
   nameInput.value = '';
   showToast(`Added "${rawName}" to player directory`, 'success');
+  seriesTeamGlobalPlayerCache = [];
   renderPlayers();
+  await populateSeriesTeamPlayerPicker();
   await refreshPlayerPickOptions();
 }
 
@@ -808,15 +823,44 @@ async function openNewTeamModal(tournamentId = null) {
     if (target) {
       activeTournament = target;
     }
+  } else {
+    activeTournament = null;
   }
 
   const contextEl = document.getElementById('teamModalContext');
   if (contextEl) {
     contextEl.innerText = activeTournament?.name
-      ? `Series = team attached to tournament standings (${activeTournament.name}).`
-      : 'Live/New Match = team for current match (optionally reusable).';
+      ? `Series Squad = embedded in tournament standings (${activeTournament.name}). Players are also saved to Global Directory.`
+      : 'Global Team = reusable across quick matches and available for selection in series squads.';
   }
 
+  // Handle Attach Saved Team section
+  const attachSection = document.getElementById('attachSavedTeamSection');
+  const savedSelect = document.getElementById('savedTeamSelect');
+  if (attachSection && savedSelect) {
+    if (activeTournament) {
+      const savedTeams = await window.CricStorage.listTeams();
+      const attachedIds = (activeTournament.teams || []).map(t => t.id);
+      const attachedNames = (activeTournament.teams || []).map(t => (t.name || '').toLowerCase().trim());
+      const availableSaved = (savedTeams || []).filter(st =>
+        !attachedIds.includes(st.id) && !attachedNames.includes((st.name || '').toLowerCase().trim())
+      );
+
+      if (availableSaved.length > 0) {
+        savedSelect.innerHTML = availableSaved.map(st =>
+          `<option value="${st.id}">${st.name} (${(st.players || []).length} Players)</option>`
+        ).join('');
+        attachSection.hidden = false;
+      } else {
+        attachSection.hidden = true;
+      }
+    } else {
+      attachSection.hidden = true;
+    }
+  }
+
+  const newTeamNameEl = document.getElementById('newTeamName');
+  if (newTeamNameEl) newTeamNameEl.value = '';
   const manualPlayersEl = document.getElementById('newTeamPlayers');
   if (manualPlayersEl) manualPlayersEl.value = '';
   const searchEl = document.getElementById('seriesTeamPlayerSearch');
@@ -826,6 +870,137 @@ async function openNewTeamModal(tournamentId = null) {
   await populateSeriesTeamPlayerPicker();
   renderSeriesTeamSelectedPlayers();
   document.getElementById('teamModal').classList.add('active');
+}
+
+async function handleAttachSavedTeam() {
+  const selectEl = document.getElementById('savedTeamSelect');
+  if (!selectEl) return;
+  const teamId = selectEl.value;
+  if (!teamId || !activeTournament) return;
+
+  const savedTeams = await window.CricStorage.listTeams();
+  const targetTeam = savedTeams.find(t => t.id === teamId);
+  if (!targetTeam) {
+    showToast('Saved team not found', 'warning');
+    return;
+  }
+
+  // Attach saved team to activeTournament
+  activeTournament.teams = [...(activeTournament.teams || []).filter(t => t.id !== targetTeam.id), targetTeam];
+  await window.CricStorage.saveTournament(activeTournament);
+
+  // Mirror team players to global directory
+  for (const p of targetTeam.players || []) {
+    await window.CricStorage.addGlobalPlayer(p);
+  }
+
+  showToast(`Attached "${targetTeam.name}" to ${activeTournament.name}!`, 'success');
+  closeTeamModal();
+  renderTournaments();
+}
+
+async function attachSavedTeamToSeries(teamId) {
+  const tourneys = await window.CricStorage.listTournaments();
+  if (!tourneys || tourneys.length === 0) {
+    showToast('No tournament series created yet. Click "+ New Series" first!', 'warning');
+    return;
+  }
+
+  const savedTeams = await window.CricStorage.listTeams();
+  const team = savedTeams.find(t => t.id === teamId);
+  if (!team) return;
+
+  if (tourneys.length === 1) {
+    const tourney = tourneys[0];
+    tourney.teams = [...(tourney.teams || []).filter(t => t.id !== team.id), team];
+    await window.CricStorage.saveTournament(tourney);
+    showToast(`Attached "${team.name}" to ${tourney.name}!`, 'success');
+    renderPlayers();
+    return;
+  }
+
+  const tourneyListStr = tourneys.map((t, idx) => `${idx + 1}. ${t.name}`).join('\n');
+  const pickIndexStr = prompt(`Select Series number to attach "${team.name}":\n${tourneyListStr}`, '1');
+  const pickIdx = parseInt(pickIndexStr, 10) - 1;
+  if (!isNaN(pickIdx) && tourneys[pickIdx]) {
+    const selectedTourney = tourneys[pickIdx];
+    selectedTourney.teams = [...(selectedTourney.teams || []).filter(t => t.id !== team.id), team];
+    await window.CricStorage.saveTournament(selectedTourney);
+    showToast(`Attached "${team.name}" to ${selectedTourney.name}!`, 'success');
+    renderPlayers();
+  }
+}
+
+function toggleSeriesTeamRoster(tournamentId, teamId) {
+  const el = document.getElementById(`seriesTeamRoster_${tournamentId}_${teamId}`);
+  if (el) el.hidden = !el.hidden;
+}
+
+async function removeSeriesTeam(tournamentId, teamId) {
+  const tourneys = await window.CricStorage.listTournaments();
+  const target = (tourneys || []).find(t => t.id === tournamentId);
+  if (!target) return;
+
+  if (confirm('Are you sure you want to remove this team from the series?')) {
+    target.teams = (target.teams || []).filter(tm => tm.id !== teamId);
+    await window.CricStorage.saveTournament(target);
+    showToast('Team detached from series', 'info');
+    renderTournaments();
+  }
+}
+
+async function autoGenerateRoundRobinFixtures(tournamentId) {
+  const tourneys = await window.CricStorage.listTournaments();
+  const target = (tourneys || []).find(t => t.id === tournamentId);
+  if (!target || !target.teams || target.teams.length < 2) {
+    showToast('Add at least 2 teams to generate fixtures', 'warning');
+    return;
+  }
+
+  const d = getTournamentDefaults(target);
+  const existingFixtures = Array.isArray(target.fixtures) ? target.fixtures : [];
+  const teams = target.teams;
+  let createdCount = 0;
+
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      const teamAId = teams[i].id;
+      const teamBId = teams[j].id;
+
+      const exists = existingFixtures.some(f =>
+        (f.teamAId === teamAId && f.teamBId === teamBId) ||
+        (f.teamAId === teamBId && f.teamBId === teamAId)
+      );
+
+      if (!exists) {
+        existingFixtures.push({
+          id: `fix_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          teamAId,
+          teamBId,
+          scheduledAt: null,
+          oversPerInnings: d.oversPerInnings || 5,
+          maxOversPerBowler: d.maxOversPerBowler || 2,
+          powerplayOvers: d.powerplayOvers || null,
+          quotaBowlersCount: d.quotaBowlersCount || null,
+          quotaMaxOvers: d.quotaMaxOvers || null,
+          status: 'SCHEDULED',
+          linkedMatchId: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        createdCount++;
+      }
+    }
+  }
+
+  if (createdCount > 0) {
+    target.fixtures = existingFixtures;
+    await window.CricStorage.saveTournament(target);
+    showToast(`Generated ${createdCount} round-robin fixture${createdCount !== 1 ? 's' : ''}`, 'success');
+    renderTournaments();
+  } else {
+    showToast('All round-robin fixtures are already scheduled', 'info');
+  }
 }
 
 function closeTeamModal() {
@@ -885,7 +1060,7 @@ async function handleCreateTeam() {
   };
 
   if (activeTournament) {
-    activeTournament.teams = [...(activeTournament.teams || []), newTeam];
+    activeTournament.teams = [...(activeTournament.teams || []).filter(t => t.id !== newTeam.id), newTeam];
     await window.CricStorage.saveTournament(activeTournament);
   }
 
@@ -895,6 +1070,7 @@ async function handleCreateTeam() {
     await window.CricStorage.addGlobalPlayer(p);
   }
 
+  seriesTeamGlobalPlayerCache = [];
   closeTeamModal();
   renderTournaments();
 }
@@ -943,7 +1119,9 @@ async function handleSavePlayer() {
 
   closePlayerModal();
   showToast(`Saved player "${rawName}"`, 'success');
+  seriesTeamGlobalPlayerCache = [];
   renderPlayers();
+  await populateSeriesTeamPlayerPicker();
   await refreshPlayerPickOptions();
 }
 
@@ -951,7 +1129,9 @@ async function deletePlayer(id) {
   if (confirm("Are you sure you want to delete this player from the global directory?")) {
     await window.CricStorage.deleteGlobalPlayer(id);
     showToast("Player deleted", "info");
+    seriesTeamGlobalPlayerCache = [];
     renderPlayers();
+    await populateSeriesTeamPlayerPicker();
     await refreshPlayerPickOptions();
   }
 }
