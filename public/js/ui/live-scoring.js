@@ -405,7 +405,7 @@ function renderLiveScoring() {
   const bowlerCard = document.getElementById('liveBowlerCard');
   const matchTabsNav = document.querySelector('.match-view-tabs');
 
-  if (isQuickMode && activeScreen === 'screenLiveScoring') {
+  if (isQuickMode && activeScreen === 'screenLiveScoring' && !isReadOnlySpectator) {
     if (battersCard) battersCard.style.display = 'none';
     if (bowlerCard) bowlerCard.style.display = 'none';
     if (matchTabsNav) matchTabsNav.style.display = 'none';
@@ -474,6 +474,14 @@ function renderLiveScoring() {
         Batting: <span style="color:${battingTeamColor}; font-weight:800;">${battingTeam?.name || ''}</span>${tossStr}
       </div>
     `;
+  }
+
+  // Header is re-rendered above, so enforce spectator read-only control visibility after render.
+  if (isReadOnlySpectator) {
+    const goLiveBtnRendered = document.getElementById('goLiveBtn');
+    const revokeLiveBtnRendered = document.getElementById('revokeLiveBtn');
+    if (goLiveBtnRendered) goLiveBtnRendered.style.display = 'none';
+    if (revokeLiveBtnRendered) revokeLiveBtnRendered.style.display = 'none';
   }
 
   const shareStatusBadge = document.getElementById('shareStatusBadge');

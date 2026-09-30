@@ -30,10 +30,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Check URL routing for separate navigation pages (/web-score, /quick-match, /series, /coin-toss, /settings-gully-rules)
-  const isRouted = handleUrlRouting();
-
-  // Check URL query parameters for Spectator Live View Mode (?matchId=match_123)
+  // Check URL query parameters for Spectator Live View Mode (?matchId=...&st=...)
+  // This must run before generic route handling so JWT token text never triggers false route matches.
   const urlParams = new URLSearchParams(window.location.search);
   const sharedMatchId = urlParams.get('matchId');
   const spectatorToken = urlParams.get('st');
@@ -93,6 +91,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     await selectMatch(sharedMatchId);
     return;
   }
+
+  // Check URL routing for separate navigation pages (/web-score, /quick-match, /series, /coin-toss, /settings-gully-rules)
+  const isRouted = handleUrlRouting();
 
   // Default to Landing / Home screen if no specific page route was requested
   if (!isRouted) {

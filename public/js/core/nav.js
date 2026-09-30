@@ -283,31 +283,32 @@ function showQuickMatchLandingScreen() {
 
 function handleUrlRouting() {
   const path = window.location.pathname.toLowerCase();
-  const search = window.location.search.toLowerCase();
+  const searchParams = new URLSearchParams(window.location.search);
+  const hasRouteQuery = route => searchParams.has(route) || searchParams.get('route') === route;
   const hash = window.location.hash.toLowerCase();
 
-  if (path.includes('/quick-match') || search.includes('quick-match') || hash.includes('quick-match')) {
+  if (path.includes('/quick-match') || hasRouteQuery('quick-match') || hash.includes('quick-match')) {
     showQuickMatchLandingScreen();
     return true;
-  } else if (path.includes('/series') || search.includes('series') || hash.includes('series')) {
+  } else if (path.includes('/series') || hasRouteQuery('series') || hash.includes('series')) {
     showSeriesLandingScreen();
     return true;
-  } else if (path.includes('/about') || search.includes('about') || hash.includes('about')) {
+  } else if (path.includes('/about') || hasRouteQuery('about') || hash.includes('about')) {
     showAboutScreen();
     return true;
-  } else if (path.includes('/info') || search.includes('info') || hash.includes('info')) {
+  } else if (path.includes('/info') || hasRouteQuery('info') || hash.includes('info')) {
     showInfoScreen();
     return true;
-  } else if (path.includes('/web-score') || search.includes('web-score') || hash.includes('web-score')) {
+  } else if (path.includes('/web-score') || hasRouteQuery('web-score') || hash.includes('web-score')) {
     showWebScoreLandingScreen();
     return true;
-  } else if (path.includes('/full-match') || search.includes('full-match') || hash.includes('full-match')) {
+  } else if (path.includes('/full-match') || hasRouteQuery('full-match') || hash.includes('full-match')) {
     showQuickMatchLandingScreen();
     return true;
-  } else if (path.includes('/coin-toss') || search.includes('coin-toss') || hash.includes('coin-toss')) {
+  } else if (path.includes('/coin-toss') || hasRouteQuery('coin-toss') || hash.includes('coin-toss')) {
     openQuickTossModal();
     return true;
-  } else if (path.includes('/settings-gully-rules') || search.includes('settings-gully-rules') || hash.includes('settings-gully-rules')) {
+  } else if (path.includes('/settings-gully-rules') || hasRouteQuery('settings-gully-rules') || hash.includes('settings-gully-rules')) {
     openMatchSettingsModal();
     return true;
   }

@@ -55,6 +55,20 @@ function isOwnedByUser(item, userId) {
   return extractOwnerUserId(item) === userId;
 }
 
+function preserveSpectatorMetadata(existingPayload, incomingPayload) {
+  const existing = existingPayload || {};
+  const incoming = incomingPayload || {};
+
+  // Share token lifecycle is controlled by dedicated endpoints only.
+  incoming.spectatorTokenVersion = Number(existing.spectatorTokenVersion || 0);
+  incoming.spectatorShareActive = Boolean(existing.spectatorShareActive || false);
+  incoming.spectatorShareExpiresInSeconds = existing.spectatorShareExpiresInSeconds ?? null;
+  incoming.spectatorShareIssuedAt = existing.spectatorShareIssuedAt ?? null;
+  incoming.spectatorShareRevokedAt = existing.spectatorShareRevokedAt ?? null;
+
+  return incoming;
+}
+
 function normalizeEmail(rawEmail) {
   return String(rawEmail || '').trim().toLowerCase();
 }
@@ -487,6 +501,7 @@ export const handler = async (event) => {
       return response(200, {
         matchId: pathParams.id,
         spectatorToken,
+        tokenVersion: nextSpectatorTokenVersion,
         expiresInSeconds,
         shareStatus: {
           active: true,
@@ -564,6 +579,11 @@ export const handler = async (event) => {
 
       payload.id = matchId;
       payload.ownerUserId = authUser.userId;
+      payload.spectatorTokenVersion = Number(payload.spectatorTokenVersion || 0);
+      payload.spectatorShareActive = Boolean(payload.spectatorShareActive || false);
+      payload.spectatorShareExpiresInSeconds = payload.spectatorShareExpiresInSeconds ?? null;
+      payload.spectatorShareIssuedAt = payload.spectatorShareIssuedAt ?? null;
+      payload.spectatorShareRevokedAt = payload.spectatorShareRevokedAt ?? null;
 
       await docClient.send(new PutCommand({
         TableName: TABLE_NAME,
@@ -599,6 +619,9 @@ export const handler = async (event) => {
       const payload = JSON.parse(event.body || '{}');
       payload.id = pathParams.id;
       payload.ownerUserId = authUser.userId;
+
+      const existingPayload = existing.Item?.payload || {};
+      preserveSpectatorMetadata(existingPayload, payload);
 
       await docClient.send(new PutCommand({
         TableName: TABLE_NAME,
