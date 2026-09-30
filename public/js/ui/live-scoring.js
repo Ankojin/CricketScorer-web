@@ -30,7 +30,20 @@ function chooseShareTtlMinutes() {
   const allowed = [15, 60, 360];
   const previous = Number(localStorage.getItem('cric_share_ttl_minutes') || 360);
   const defaultValue = allowed.includes(previous) ? previous : 360;
-  const input = prompt('Share link validity in minutes? Allowed: 15, 60, 360', String(defaultValue));
+  let input = null;
+  try {
+    if (typeof window.prompt === 'function') {
+      input = window.prompt('Share link validity in minutes? Allowed: 15, 60, 360', String(defaultValue));
+    }
+  } catch (err) {
+    console.warn('Share TTL prompt is unavailable; using previous/default value.', err);
+    showToast(`Using default share validity: ${defaultValue} minutes`, 'info');
+    return defaultValue;
+  }
+  if (input === null && typeof window.prompt !== 'function') {
+    showToast(`Using default share validity: ${defaultValue} minutes`, 'info');
+    return defaultValue;
+  }
   if (input === null) return null;
   const parsed = Number(input);
   if (!allowed.includes(parsed)) {
@@ -91,14 +104,14 @@ async function goLiveShare() {
   const m = activeMatch;
   const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
   const scoreStr = `${m.totalRuns || 0}/${m.totalWickets || 0} (${overStr} Ov)`;
-  let matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}`;
+  let matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}&spectator=1`;
   let shareValidityText = 'Valid while match is live';
   const chosenTtlMinutes = chooseShareTtlMinutes();
   if (chosenTtlMinutes === null) return;
 
   try {
     const share = await window.CricStorage.createSpectatorShareToken(m.id, chosenTtlMinutes);
-    matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}&st=${encodeURIComponent(share.spectatorToken)}`;
+    matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}&st=${encodeURIComponent(share.spectatorToken)}&spectator=1`;
     const ttlSeconds = Number(share?.expiresInSeconds || 0);
     shareValidityText = formatShareTtlText(ttlSeconds);
     activeMatch = {
@@ -454,7 +467,7 @@ function renderLiveScoring() {
           <span class="team-badge" style="background:${teamBColor};"></span>${m.teamB?.name || 'Team B'}
         </span>
       </div>
-      <button id="goLiveBtn" class="score-header-live-button" type="button" onclick="goLiveShare()"><span aria-hidden="true">●</span> LIVE</button>
+      <button id="goLiveBtn" class="score-header-live-button" type="button" onclick="goLiveShare()"><span aria-hidden="true">●</span> LIVE SHARE</button>
       <button id="revokeLiveBtn" class="score-header-live-button" type="button" onclick="revokeLiveShare()" style="right:108px; background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error);"><span aria-hidden="true">●</span> REVOKE</button>
       <div id="shareStatusBadge" style="position:absolute; top:54px; right:14px; font-size:10px; font-weight:800; border-radius:10px; padding:3px 8px; border:1px solid var(--color-border); background:var(--panel-bg); color:var(--text-muted);">Share: Not active</div>
       <div style="font-size:12px; color:var(--text-muted); font-weight:600; margin-top:6px;">

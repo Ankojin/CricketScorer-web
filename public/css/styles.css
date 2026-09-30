@@ -1622,7 +1622,9 @@ html.has-app-session #homeDashboard { display: block !important; }
 .toss-call-choice-btn {
   min-height: 52px;
   border-radius: 14px;
-  border: none;
+  border: 1.5px solid var(--color-border-dark);
+  background: var(--color-primary-soft);
+  color: var(--color-text-on-dark);
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
@@ -1630,14 +1632,24 @@ html.has-app-session #homeDashboard { display: block !important; }
 }
 
 .toss-call-choice-btn.btn-heads {
-  background: var(--color-green);
-  color: var(--color-text-on-dark);
-  box-shadow: 0 4px 12px rgba(73, 232, 120, 0.25);
+  border-color: rgba(73, 232, 120, 0.5);
 }
 
 .toss-call-choice-btn.btn-tails {
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+.toss-call-choice-btn.btn-heads.active {
+  background: var(--color-green);
+  color: var(--color-text-on-green);
+  border-color: var(--color-green);
+  box-shadow: 0 4px 12px rgba(73, 232, 120, 0.25);
+}
+
+.toss-call-choice-btn.btn-tails.active {
   background: var(--color-warning);
   color: var(--color-text-on-dark);
+  border-color: var(--color-warning);
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
@@ -1682,9 +1694,32 @@ html.has-app-session #homeDashboard { display: block !important; }
 }
 
 .toss-decision-btn.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-text-on-dark);
+  background: var(--color-green);
+  border-color: var(--color-green);
+  color: var(--color-text-on-green);
+  box-shadow: 0 6px 16px rgba(73, 232, 120, 0.28);
+}
+
+.toss-decision-box .wizard-next-btn {
+  background: var(--color-green);
+  color: var(--color-text-on-green);
+  box-shadow: 0 8px 20px rgba(73, 232, 120, 0.25);
+}
+
+.toss-decision-box .wizard-next-btn:hover {
+  background: var(--color-electric);
+  color: var(--color-text-on-green);
+}
+
+.fixture-settings-note {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(73, 232, 120, 0.55);
+  border-radius: 12px;
+  background: rgba(73, 232, 120, 0.1);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .home-dashboard {
@@ -3286,7 +3321,7 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .overs-pill:hover,
 .overs-pill.active,
 .toss-call-btn.active,
-.toss-call-choice-btn.btn-heads,
+.toss-call-choice-btn.btn-heads.active,
 .live-score-hero .ball-chip.four {
   color: var(--color-text-on-green);
 }

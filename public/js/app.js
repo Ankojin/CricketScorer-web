@@ -37,45 +37,60 @@ window.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const sharedMatchId = urlParams.get('matchId');
   const spectatorToken = urlParams.get('st');
+  const forceSpectator = urlParams.get('spectator') === '1';
+  const canOpenScorerMode = isRegisteredScoringUser();
 
   if (sharedMatchId) {
-    if (!spectatorToken) {
+    if (!spectatorToken && !canOpenScorerMode) {
       showToast('Invalid or expired spectator link', 'warning');
       showLandingScreen();
       return;
     }
 
-    isReadOnlySpectator = true;
-    applySpectatorUiRestrictions();
-    selectMatch(sharedMatchId);
+    if (spectatorToken && (forceSpectator || !canOpenScorerMode)) {
+      isReadOnlySpectator = true;
+      applySpectatorUiRestrictions();
+      selectMatch(sharedMatchId);
 
-    // Auto-poll live score every 5 seconds for spectators
-    spectatorPollInterval = setInterval(async () => {
-      if (activeMatch && isReadOnlySpectator) {
-        try {
-          const fresh = await window.CricStorage.getMatch(activeMatch.id);
-          if (fresh) {
-            activeMatch = window.ScoringEngine.recalculateMatch(fresh);
-            if (activeMatch.status !== 'LIVE') {
-              showToast('Live link expired: match has ended.', 'info');
-              activeMatch = null;
-              clearInterval(spectatorPollInterval);
-              spectatorPollInterval = null;
-              showLandingScreen();
-              return;
+      // Auto-poll live score every 5 seconds for spectators
+      spectatorPollInterval = setInterval(async () => {
+        if (activeMatch && isReadOnlySpectator) {
+          try {
+            const fresh = await window.CricStorage.getMatch(activeMatch.id);
+            if (fresh) {
+              activeMatch = window.ScoringEngine.recalculateMatch(fresh);
+              if (activeMatch.status !== 'LIVE') {
+                showToast('Live link expired: match has ended.', 'info');
+                activeMatch = null;
+                clearInterval(spectatorPollInterval);
+                spectatorPollInterval = null;
+                showLandingScreen();
+                return;
+              }
+              renderLiveScoring();
             }
-            renderLiveScoring();
+          } catch (err) {
+            showToast('Unable to refresh live score. Link may be expired.', 'warning');
+            activeMatch = null;
+            clearInterval(spectatorPollInterval);
+            spectatorPollInterval = null;
+            showLandingScreen();
           }
-        } catch (err) {
-          showToast('Unable to refresh live score. Link may be expired.', 'warning');
-          activeMatch = null;
-          clearInterval(spectatorPollInterval);
-          spectatorPollInterval = null;
-          showLandingScreen();
         }
-      }
-    }, 5000);
+      }, 5000);
 
+      return;
+    }
+
+    isReadOnlySpectator = false;
+    if (spectatorPollInterval) {
+      clearInterval(spectatorPollInterval);
+      spectatorPollInterval = null;
+    }
+    if (spectatorToken && canOpenScorerMode) {
+      showToast('Opened in scorer mode. Add spectator=1 in URL for read-only view.', 'info');
+    }
+    await selectMatch(sharedMatchId);
     return;
   }
 

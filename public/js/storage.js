@@ -39,6 +39,56 @@ const CricStorage = {
     return Boolean(window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0);
   },
 
+  getLocalMatchById(matchId) {
+    const raw = localStorage.getItem('cric_matches');
+    if (!raw) return null;
+    try {
+      const matches = JSON.parse(raw);
+      if (!Array.isArray(matches)) return null;
+      return matches.find(m => m?.id === matchId) || null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async ensureCloudMatchExists(matchId) {
+    if (this.isGuestUser() || !this.hasCloudApi()) {
+      throw new Error('Cloud sync unavailable');
+    }
+
+    const localMatch = this.getLocalMatchById(matchId);
+    if (!localMatch) {
+      throw new Error('Match not found locally');
+    }
+
+    const putRes = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(localMatch)
+    });
+
+    if (putRes.ok) {
+      return true;
+    }
+
+    if (putRes.status === 403 || putRes.status === 404) {
+      const postRes = await fetch(`${window.CRIC_API_BASE}/matches`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(localMatch)
+      });
+      if (postRes.ok) {
+        return true;
+      }
+
+      const postErrBody = await postRes.json().catch(() => ({}));
+      throw new Error(postErrBody.error || `Unable to sync match to cloud (HTTP ${postRes.status})`);
+    }
+
+    const putErrBody = await putRes.json().catch(() => ({}));
+    throw new Error(putErrBody.error || `Unable to sync match to cloud (HTTP ${putRes.status})`);
+  },
+
   isStrictCloudMode() {
     return !this.isGuestUser() && this.hasCloudApi();
   },
@@ -239,10 +289,26 @@ const CricStorage = {
         const headers = spectatorToken ? { 'Content-Type': 'application/json' } : this.getAuthHeaders();
         const res = await fetch(url, { headers });
         if (res.ok) return await res.json();
+        if (!isSpectator && (res.status === 403 || res.status === 404)) {
+          const localFallback = this.getLocalMatchById(matchId);
+          if (localFallback) {
+            this.queuePendingSync('PUT', `/matches/${matchId}`, localFallback);
+            this.notifyToast('Using local match. Cloud sync queued.', 'info');
+            return localFallback;
+          }
+        }
         if (this.isStrictCloudMode() || isSpectator) {
           throw new Error(`Unable to load match from cloud (HTTP ${res.status})`);
         }
       } catch (err) {
+        if (!isSpectator && this.isStrictCloudMode()) {
+          const localFallback = this.getLocalMatchById(matchId);
+          if (localFallback) {
+            this.queuePendingSync('PUT', `/matches/${matchId}`, localFallback);
+            this.notifyToast('Using local match. Cloud sync queued.', 'info');
+            return localFallback;
+          }
+        }
         if (this.isStrictCloudMode() || isSpectator) {
           throw err;
         }
@@ -309,11 +375,21 @@ const CricStorage = {
       payload.ttlMinutes = Number(ttlMinutes);
     }
 
-    const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}/share-token`, {
+    let res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}/share-token`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(payload)
     });
+
+    if (res.status === 403 || res.status === 404) {
+      await this.ensureCloudMatchExists(matchId);
+      res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}/share-token`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+    }
+
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(body.error || `Unable to create share token (HTTP ${res.status})`);
@@ -341,11 +417,18 @@ const CricStorage = {
     match.updatedAt = new Date().toISOString();
 
     if (this.isStrictCloudMode()) {
-      const res = await fetch(`${window.CRIC_API_BASE}/matches/${match.id}`, {
+      let res = await fetch(`${window.CRIC_API_BASE}/matches/${match.id}`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(match)
       });
+      if (res.status === 403 || res.status === 404) {
+        res = await fetch(`${window.CRIC_API_BASE}/matches`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(match)
+        });
+      }
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         throw new Error(errBody.error || `Unable to update match in cloud (HTTP ${res.status})`);
@@ -475,7 +558,24 @@ const CricStorage = {
   async saveTeam(team) {
     if (!team.id) team.id = 'team_' + Date.now();
     const teams = await this.listTeams();
-    const updated = [team, ...teams.filter(t => t.id !== team.id)];
+    const incomingNameKey = `${team?.name || ''}`.trim().toLowerCase();
+    const existingByName = incomingNameKey
+      ? teams.find(t => `${t?.name || ''}`.trim().toLowerCase() === incomingNameKey)
+      : null;
+
+    if (existingByName && existingByName.id !== team.id) {
+      team.id = existingByName.id;
+    }
+
+    const updated = [
+      team,
+      ...teams.filter(t => {
+        const existingNameKey = `${t?.name || ''}`.trim().toLowerCase();
+        if (t.id === team.id) return false;
+        if (incomingNameKey && existingNameKey === incomingNameKey) return false;
+        return true;
+      })
+    ];
     localStorage.setItem('cric_teams', JSON.stringify(updated));
     return team;
   },

@@ -27,6 +27,61 @@ function setQuickMatchStep(step) {
   updateQuickMatchProgress(activeQuickMatchStep);
 }
 
+function isFixtureContextLocked() {
+  return currentMatchSetupSource === 'SERIES' && Boolean(pendingSeriesFixtureContext?.fixtureId);
+}
+
+function syncOversUiFromInputs() {
+  const matchOversInput = document.getElementById('matchOvers');
+  const display = document.getElementById('oversValueDisplay');
+  const maxBowlerInput = document.getElementById('maxBowlerOvers');
+  const oversValue = parseInt(matchOversInput?.value, 10) || 6;
+
+  if (display) display.innerText = `${oversValue}`;
+
+  if (maxBowlerInput) {
+    maxBowlerInput.max = `${oversValue}`;
+    const currentMax = parseInt(maxBowlerInput.value, 10) || 1;
+    maxBowlerInput.value = `${Math.max(1, Math.min(oversValue, currentMax))}`;
+  }
+
+  document.querySelectorAll('.overs-pill').forEach(pill => {
+    pill.classList.toggle('active', parseInt(pill.innerText, 10) === oversValue);
+  });
+}
+
+function applyFixtureSettingsUiState() {
+  const locked = isFixtureContextLocked();
+  const oversPanel = document.getElementById('wizardPanelOvers');
+  const noteId = 'fixtureSettingsLockNote';
+  let note = document.getElementById(noteId);
+
+  if (locked && oversPanel && !note) {
+    note = document.createElement('div');
+    note.id = noteId;
+    note.className = 'fixture-settings-note';
+    note.textContent = 'Fixture settings are prefilled and locked. Continue to toss.';
+    oversPanel.insertBefore(note, oversPanel.firstChild);
+  }
+
+  if (!locked && note) {
+    note.remove();
+  }
+
+  document.querySelectorAll('.overs-stepper-btn, .overs-pill').forEach(control => {
+    control.disabled = locked;
+    control.setAttribute('aria-disabled', `${locked}`);
+  });
+
+  ['matchOvers', 'maxBowlerOvers', 'matchPowerplayOvers', 'quotaBowlersCount', 'quotaMaxOvers'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.disabled = locked;
+      element.setAttribute('aria-disabled', `${locked}`);
+    }
+  });
+}
+
 function nextQuickMatchStep() {
   if (activeQuickMatchStep === 1) {
     if (matchSquadA.length < 1) {
@@ -504,12 +559,17 @@ async function showNewMatchScreen(mode = 'FULL', setupContext = null) {
   const isFullMatch = currentScoringMode === 'FULL';
   const isWebScore = currentScoringMode === 'WEBSCORE';
   const allowGlobalPlayerPicker = currentMatchSetupSource === 'SERIES';
+  const saveForReuseEl = document.getElementById('saveTeamsForReuse');
   document.getElementById('fullMatchSetupIntro')?.toggleAttribute('hidden', !isFullMatch);
   document.getElementById('fullMatchSquadBuilder')?.toggleAttribute('hidden', !isFullMatch);
   document.getElementById('webScoreColorControls')?.toggleAttribute('hidden', !isWebScore);
   document.querySelectorAll('.web-score-player-count').forEach(el => { el.hidden = !isWebScore; });
   document.getElementById('globalPlayerPickerA')?.toggleAttribute('hidden', !allowGlobalPlayerPicker);
   document.getElementById('globalPlayerPickerB')?.toggleAttribute('hidden', !allowGlobalPlayerPicker);
+  if (saveForReuseEl) {
+    // Series fixtures should use already-defined squads and must not duplicate teams/players.
+    saveForReuseEl.checked = currentMatchSetupSource !== 'SERIES';
+  }
   matchSquadA = [];
   matchSquadB = [];
 
@@ -579,6 +639,9 @@ async function showNewMatchScreen(mode = 'FULL', setupContext = null) {
         : '';
     }
   }
+
+  syncOversUiFromInputs();
+  applyFixtureSettingsUiState();
 
   const selectA = document.getElementById('selectTeamA');
   const selectB = document.getElementById('selectTeamB');
@@ -697,7 +760,7 @@ async function handleCreateMatch({ openToss = true } = {}) {
     const seriesTournament = currentMatchSetupSource === 'SERIES' ? activeTournament : null;
     const tourneyDefaults = getTournamentDefaults(seriesTournament);
     const saveForReuseEl = document.getElementById('saveTeamsForReuse');
-    const saveForReuse = saveForReuseEl ? saveForReuseEl.checked : false;
+    const saveForReuse = currentMatchSetupSource !== 'SERIES' && (saveForReuseEl ? saveForReuseEl.checked : true);
     const effectivePowerplay = normalizePowerplayOvers(
       Number.isNaN(powerplayOversRaw) ? tourneyDefaults.powerplayOvers : powerplayOversRaw,
       overs
@@ -934,8 +997,21 @@ async function confirmTossAndStart() {
 
   document.getElementById('tossModal').classList.remove('active');
   activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
-  await window.CricStorage.createMatch(activeMatch);
-  await markSeriesFixtureStartedIfNeeded(activeMatch.id);
+  try {
+    await window.CricStorage.createMatch(activeMatch);
+  } catch (err) {
+    console.warn('Cloud createMatch failed at toss start; proceeding with local backup.', err);
+    if (window.CricStorage?.saveLocalMatchBackup) {
+      window.CricStorage.saveLocalMatchBackup(activeMatch);
+    }
+    showToast('Saved locally. Cloud sync will retry when available.', 'info');
+  }
+
+  try {
+    await markSeriesFixtureStartedIfNeeded(activeMatch.id);
+  } catch (err) {
+    console.warn('Unable to mark series fixture as started immediately.', err);
+  }
 
   updateQuickMatchProgress(4);
   showLiveScreen();
@@ -1004,10 +1080,17 @@ function goToWizardOversStep() {
     }
   }
 
+  if (isFixtureContextLocked()) {
+    goToWizardTossStep();
+    return;
+  }
+
   updateWizardStepUI(1);
 }
 
 function adjustMatchOvers(delta) {
+  if (isFixtureContextLocked()) return;
+
   const matchOversInput = document.getElementById('matchOvers');
   const display = document.getElementById('oversValueDisplay');
   let val = parseInt(matchOversInput.value, 10) || 6;
@@ -1030,6 +1113,8 @@ function adjustMatchOvers(delta) {
 }
 
 function setQuickMatchOvers(num) {
+  if (isFixtureContextLocked()) return;
+
   const matchOversInput = document.getElementById('matchOvers');
   const display = document.getElementById('oversValueDisplay');
 
@@ -1232,8 +1317,21 @@ async function finishWizardAndStartMatch() {
     activeMatch.updatedAt = new Date().toISOString();
 
     activeMatch = window.ScoringEngine.recalculateMatch(activeMatch);
-    await window.CricStorage.saveMatch(activeMatch);
-    await markSeriesFixtureStartedIfNeeded(activeMatch.id);
+    try {
+      await window.CricStorage.saveMatch(activeMatch);
+    } catch (err) {
+      console.warn('Cloud saveMatch failed at wizard toss completion; proceeding with local backup.', err);
+      if (window.CricStorage?.saveLocalMatchBackup) {
+        window.CricStorage.saveLocalMatchBackup(activeMatch);
+      }
+      showToast('Saved locally. Cloud sync will retry when available.', 'info');
+    }
+
+    try {
+      await markSeriesFixtureStartedIfNeeded(activeMatch.id);
+    } catch (err) {
+      console.warn('Unable to mark series fixture as started immediately.', err);
+    }
 
     // Transition to SCORE (Step 4)
     updateWizardStepUI(3);
