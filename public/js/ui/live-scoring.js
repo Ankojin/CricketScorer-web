@@ -10,6 +10,37 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function normalizeHexColor(hex) {
+  const raw = String(hex || '').trim();
+  if (!raw) return null;
+  const shortMatch = /^#([0-9a-fA-F]{3})$/.exec(raw);
+  if (shortMatch) {
+    const s = shortMatch[1];
+    return `#${s[0]}${s[0]}${s[1]}${s[1]}${s[2]}${s[2]}`.toLowerCase();
+  }
+  const longMatch = /^#([0-9a-fA-F]{6})$/.exec(raw);
+  if (longMatch) return `#${longMatch[1].toLowerCase()}`;
+  return null;
+}
+
+function hexToRgbTuple(hex) {
+  const norm = normalizeHexColor(hex);
+  if (!norm) return null;
+  const intVal = parseInt(norm.slice(1), 16);
+  return {
+    r: (intVal >> 16) & 255,
+    g: (intVal >> 8) & 255,
+    b: intVal & 255
+  };
+}
+
+function getReadableTextOnColor(hex) {
+  const rgb = hexToRgbTuple(hex);
+  if (!rgb) return 'var(--color-text-on-dark)';
+  const luminance = (0.299 * rgb.r) + (0.587 * rgb.g) + (0.114 * rgb.b);
+  return luminance > 160 ? 'var(--color-primary-deep)' : 'var(--color-text-on-dark)';
+}
+
 function closeMatchResultModal() {
   const modal = document.getElementById('matchResultModal');
   if (modal) modal.classList.remove('active');
@@ -394,7 +425,19 @@ function renderLiveScoring() {
   // Toggle UI elements for QUICK mode vs FULL mode during live scoring
   const isQuickMode = (m.scoringMode === 'QUICK') || (currentScoringMode === 'QUICK') || isWebScoreMatch(m);
   if (btnSwapBatsmen) {
-    btnSwapBatsmen.style.display = isScoringLockedByStatus || isSingleSideBatting || isQuickMode ? 'none' : 'flex';
+    const shouldShowSwap = !isScoringLockedByStatus && !isSingleSideBatting && !isQuickMode;
+    btnSwapBatsmen.style.display = shouldShowSwap ? 'flex' : 'none';
+
+    if (shouldShowSwap) {
+      const accent = normalizeHexColor(battingTeamColor) || '#f59e0b';
+      const accentRgb = hexToRgbTuple(accent);
+      btnSwapBatsmen.style.background = `linear-gradient(180deg, ${accent} 0%, ${accent} 100%)`;
+      btnSwapBatsmen.style.borderColor = accent;
+      btnSwapBatsmen.style.color = getReadableTextOnColor(accent);
+      btnSwapBatsmen.style.boxShadow = accentRgb
+        ? `0 3px 10px rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, 0.30)`
+        : '0 3px 10px rgba(245, 158, 11, 0.30)';
+    }
   }
   const activeScoringContainer = document.getElementById('liveScoringActiveContainer');
   if (activeScoringContainer) activeScoringContainer.classList.toggle('web-score-compact', isWebScore);

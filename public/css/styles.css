@@ -3099,10 +3099,10 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   width: 100%;
   min-height: 36px;
   margin-top: -4px;
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--card-border);
-  border-left: 1px solid var(--card-border);
+  color: var(--color-primary-deep);
+  background: linear-gradient(180deg, var(--color-warning) 0%, #f8b43a 100%);
+  border: 1px solid #f6c565;
+  border-left: 1px solid #f6c565;
   border-radius: var(--radius-md);
   font-family: inherit;
   font-size: 12px;
@@ -3110,8 +3110,13 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   line-height: 1;
   letter-spacing: .09em;
   cursor: pointer;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.28);
 }
-.live-swap-button:hover { background: var(--color-surface-soft); border-color: var(--color-primary); color: var(--color-text); }
+.live-swap-button:hover {
+  background: linear-gradient(180deg, #f8b43a 0%, #f5a524 100%);
+  border-color: #f7cc77;
+  color: var(--color-primary-deep);
+}
 .scoring-extra-actions {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
