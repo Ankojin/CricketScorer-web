@@ -9,7 +9,9 @@
     "build:engine": "node scripts/build-engine.js",
     "start": "npx http-server public -p 8080",
     "test": "npm run build && node --test dist/test/ScoringEngine.test.js",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "cost:guardrails": "powershell -ExecutionPolicy Bypass -File scripts/aws-cost-guardrails.ps1 -Setup -Report",
+    "cost:check": "powershell -ExecutionPolicy Bypass -File scripts/aws-cost-guardrails.ps1 -Report"
   },
   "keywords": [
     "cricket",
