@@ -44,7 +44,7 @@ async function renderStats() {
         <div>
           <div style="font-size:11px; color:var(--color-electric); font-weight:800; text-transform:uppercase;">MAN OF THE MATCH • ICC RANKED</div>
           <div style="font-size:18px; font-weight:900; color:var(--color-text-on-dark);">${motm.player.name.toUpperCase()}</div>
-          <div style="font-size:12px; color:var(--color-text-on-dark);">Impact Score: <span style="color:var(--color-electric); font-weight:800;">${motm.impactScore} pts</span></div>
+          <div style="font-size:12px; color:var(--color-text-on-dark);">Match Performance: <span style="color:var(--color-electric); font-weight:800;">${motm.statsSummary || window.ScoringEngine.formatPlayerStatsSummary(motm.player)}</span></div>
         </div>
       </div>
     </div>

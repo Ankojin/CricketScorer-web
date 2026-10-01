@@ -3090,6 +3090,30 @@ body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 .score-header-live-button span { color: var(--color-primary-deep); font-size: 9px; }
 .score-header-live-button:hover { filter: brightness(1.04); }
+
+.share-ttl-btn {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+.share-ttl-btn:hover {
+  border-color: var(--color-electric);
+  color: var(--color-text);
+}
+.share-ttl-btn.active {
+  background: var(--color-electric);
+  color: var(--color-primary-deep);
+  border-color: var(--color-electric);
+  box-shadow: 0 2px 8px rgba(0, 230, 153, 0.3);
+}
 .live-score-team-row { flex-wrap: wrap; font-size: 14px !important; }
 .live-swap-button {
   display: flex;

@@ -777,7 +777,8 @@ class ScoringEngine {
     static calculateMotm(match) {
         if (!match)
             return null;
-        const allPlayers = [...(match.teamA?.players || []), ...(match.teamB?.players || [])];
+        const recalc = ScoringEngine.recalculateMatchFromHistory(match);
+        const allPlayers = [...(recalc.teamA?.players || []), ...(recalc.teamB?.players || [])];
         const playerScores = {};
         allPlayers.forEach(p => {
             let score = 0;
@@ -821,8 +822,8 @@ class ScoringEngine {
             score += (f.catches || 0) * 10.0;
             score += (f.stumpings || 0) * 10.0;
             score += (f.runOuts || 0) * 15.0;
-            const isWinner = match.winnerId != null && ((match.teamA?.players.some(x => x.id === p.id) && match.winnerId === match.teamA?.id) ||
-                (match.teamB?.players.some(x => x.id === p.id) && match.winnerId === match.teamB?.id));
+            const isWinner = recalc.winnerId != null && ((recalc.teamA?.players.some(x => x.id === p.id) && recalc.winnerId === recalc.teamA?.id) ||
+                (recalc.teamB?.players.some(x => x.id === p.id) && recalc.winnerId === recalc.teamB?.id));
             if (isWinner)
                 score += 25.0;
             playerScores[p.id] = score;
@@ -836,7 +837,37 @@ class ScoringEngine {
                 bestPlayer = p;
             }
         });
-        return bestPlayer ? { player: bestPlayer, impactScore: Math.round(maxScore) } : null;
+        return bestPlayer ? {
+            player: bestPlayer,
+            impactScore: Math.round(maxScore),
+            statsSummary: ScoringEngine.formatPlayerStatsSummary(bestPlayer)
+        } : null;
+    }
+    static formatPlayerStatsSummary(p) {
+        if (!p) return '';
+        const b = p.battingStats || { runs: 0, balls: 0 };
+        const bw = p.bowlingStats || { overs: 0, balls: 0, wickets: 0, runsConceded: 0 };
+        const f = p.fieldingStats || { catches: 0, stumpings: 0, runOuts: 0 };
+        const parts = [];
+        const runs = Number(b.runs || 0);
+        const balls = Number(b.balls || 0);
+        if (runs > 0 || balls > 0) {
+            parts.push(balls > 0 ? `${runs} (${balls}b)` : `${runs} runs`);
+        }
+        const wickets = Number(bw.wickets || 0);
+        const runsConceded = Number(bw.runsConceded || 0);
+        const overs = Number(bw.overs || 0);
+        const bwBalls = Number(bw.balls || 0);
+        if (wickets > 0 || overs > 0 || bwBalls > 0) {
+            parts.push(`${wickets}/${runsConceded} (${overs}.${bwBalls} ov)`);
+        }
+        const catches = Number(f.catches || 0);
+        const stumpings = Number(f.stumpings || 0);
+        const runOuts = Number(f.runOuts || 0);
+        if (catches > 0) parts.push(`${catches} c`);
+        if (stumpings > 0) parts.push(`${stumpings} st`);
+        if (runOuts > 0) parts.push(`${runOuts} ro`);
+        return parts.length > 0 ? parts.join(' • ') : 'All-round performance';
     }
     static calculateForecaster(match) {
         if (!match)

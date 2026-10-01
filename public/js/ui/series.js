@@ -149,6 +149,7 @@ async function renderTournaments() {
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <h4 class="series-card-title" style="font-size:16px; font-weight:800;">🏆 ${escapeHtml(t.name)}</h4>
         <div style="display:flex; gap:6px;">
+          <button class="btn" style="background:#25D366; color:#000; font-weight:800; border:none; padding:4px 8px; font-size:11px;" onclick="shareSeriesSummary('${t.id}')">🟢 Share Series</button>
           <button class="btn" style="background:var(--color-primary); color:var(--color-text-on-dark); border-color:var(--color-primary); padding:4px 8px; font-size:11px;" onclick="exportTournamentSnapshot('${t.id}')">📸 Snapshot</button>
           <button class="btn" style="background:var(--color-surface-soft); color:var(--color-text); padding:4px 8px; font-size:11px;" onclick="openEditTournamentModal('${t.id}')">✏️ Edit Defaults</button>
           <button class="btn" style="background:var(--color-danger-soft); color:var(--color-error); border-color:var(--color-error); padding:4px 8px; font-size:11px;" onclick="deleteSeries('${t.id}')">🗑️ Delete</button>
@@ -592,12 +593,225 @@ async function renderPlayers() {
   });
 }
 
+let activeCareerProfilePlayer = null;
+let activeCareerProfileStats = null;
+
+function closePlayerCareerModal() {
+  const modal = document.getElementById('playerCareerModal');
+  if (modal) modal.classList.remove('active');
+}
+
+async function calculatePlayerCareerStats(playerId, playerName) {
+  const matches = (await window.CricStorage.listMatches()) || [];
+  const targetName = (playerName || '').trim().toLowerCase();
+
+  let matchesCount = 0;
+  let battingInnings = 0;
+  let runs = 0;
+  let balls = 0;
+  let fours = 0;
+  let sixes = 0;
+  let outs = 0;
+  let highScore = 0;
+  let fifties = 0;
+  let hundreds = 0;
+
+  let bowlingInnings = 0;
+  let totalBowlingBalls = 0;
+  let wickets = 0;
+  let runsConceded = 0;
+  let maidens = 0;
+  let bestWickets = -1;
+  let bestRuns = 999;
+
+  let catches = 0;
+  let stumpings = 0;
+  let runOuts = 0;
+
+  for (const rawMatch of matches) {
+    if (!rawMatch) continue;
+    const mData = rawMatch.payload || rawMatch;
+    const m = window.ScoringEngine.recalculateMatchFromHistory(mData);
+    const allPlayers = [...(m.teamA?.players || []), ...(m.teamB?.players || [])];
+
+    const matchingPlayers = allPlayers.filter(p =>
+      (p.id && p.id === playerId) ||
+      (p.name && p.name.trim().toLowerCase() === targetName)
+    );
+    if (!matchingPlayers.length) continue;
+
+    matchesCount++;
+
+    matchingPlayers.forEach(playerObj => {
+      const b = playerObj.battingStats || {};
+      const bw = playerObj.bowlingStats || {};
+      const f = playerObj.fieldingStats || {};
+
+      const pRuns = Number(b.runs || 0);
+      const pBalls = Number(b.balls || 0);
+      const pFours = Number(b.fours || 0);
+      const pSixes = Number(b.sixes || 0);
+      const pIsOut = Boolean(b.isOut);
+
+      if (pBalls > 0 || pRuns > 0 || pIsOut) {
+        battingInnings++;
+        runs += pRuns;
+        balls += pBalls;
+        fours += pFours;
+        sixes += pSixes;
+        if (pIsOut) outs++;
+        if (pRuns > highScore) highScore = pRuns;
+        if (pRuns >= 100) hundreds++;
+        else if (pRuns >= 50) fifties++;
+      }
+
+      const pOvers = Number(bw.overs || 0);
+      const pBwBalls = Number(bw.balls || 0);
+      const pWkts = Number(bw.wickets || 0);
+      const pConceded = Number(bw.runsConceded || 0);
+      const pMaidens = Number(bw.maidens || 0);
+
+      const totalMatchBwBalls = (pOvers * 6) + pBwBalls;
+      if (totalMatchBwBalls > 0) {
+        bowlingInnings++;
+        totalBowlingBalls += totalMatchBwBalls;
+        wickets += pWkts;
+        runsConceded += pConceded;
+        maidens += pMaidens;
+
+        if (pWkts > bestWickets || (pWkts === bestWickets && pConceded < bestRuns)) {
+          bestWickets = pWkts;
+          bestRuns = pConceded;
+        }
+      }
+
+      catches += Number(f.catches || 0);
+      stumpings += Number(f.stumpings || 0);
+      runOuts += Number(f.runOuts || 0);
+    });
+  }
+
+    catches += Number(f.catches || 0);
+    stumpings += Number(f.stumpings || 0);
+    runOuts += Number(f.runOuts || 0);
+  }
+
+  const notOuts = Math.max(0, battingInnings - outs);
+  const average = outs > 0 ? (runs / outs).toFixed(2) : (runs > 0 ? runs.toFixed(2) : '0.00');
+  const strikeRate = balls > 0 ? ((runs / balls) * 100).toFixed(1) : '0.0';
+
+  const totalOversDec = totalBowlingBalls / 6;
+  const totalOversStr = `${Math.floor(totalBowlingBalls / 6)}.${totalBowlingBalls % 6}`;
+  const economy = totalOversDec > 0 ? (runsConceded / totalOversDec).toFixed(2) : '0.00';
+  const bowlingAverage = wickets > 0 ? (runsConceded / wickets).toFixed(2) : '0.00';
+  const bestBowling = bestWickets >= 0 ? `${bestWickets}/${bestRuns}` : '-';
+
+  return {
+    matchesCount,
+    battingInnings,
+    runs,
+    balls,
+    fours,
+    sixes,
+    outs,
+    notOuts,
+    highScore,
+    fifties,
+    hundreds,
+    average,
+    strikeRate,
+    bowlingInnings,
+    totalOversStr,
+    wickets,
+    runsConceded,
+    maidens,
+    economy,
+    bowlingAverage,
+    bestBowling,
+    catches,
+    stumpings,
+    runOuts
+  };
+}
+
+async function openPlayerCareerProfile(player) {
+  if (!player) return;
+  activeCareerProfilePlayer = player;
+  const stats = await calculatePlayerCareerStats(player.id, player.name);
+  activeCareerProfileStats = stats;
+
+  const initial = (player.name || 'P').charAt(0).toUpperCase();
+  const nameHeader = document.getElementById('careerProfileNameHeader');
+  if (nameHeader) nameHeader.innerText = `${player.name || 'Player'}`;
+
+  const avatar = document.getElementById('careerAvatar');
+  if (avatar) avatar.innerText = initial;
+
+  const nameEl = document.getElementById('careerName');
+  if (nameEl) nameEl.innerText = player.name || 'Player';
+
+  const roleEl = document.getElementById('careerRole');
+  if (roleEl) {
+    const roleStr = player.role || 'Batter';
+    const batStr = player.battingStyle || player.style || 'RHB';
+    const bowlStr = player.bowlingStyle || 'Right arm';
+    roleEl.innerText = `${roleStr} · Bat: ${batStr} · Bowl: ${bowlStr}`;
+  }
+
+  document.getElementById('badgeMatches').innerText = stats.matchesCount;
+  document.getElementById('badgeRuns').innerText = stats.runs;
+  document.getElementById('badgeAvg').innerText = stats.average;
+  document.getElementById('badgeWkts').innerText = stats.wickets;
+  document.getElementById('badgeEco').innerText = stats.economy;
+
+  document.getElementById('batInnings').innerText = stats.battingInnings;
+  document.getElementById('batRuns').innerText = stats.runs;
+  document.getElementById('batHighScore').innerText = stats.highScore;
+  document.getElementById('batNotOuts').innerText = stats.notOuts;
+  document.getElementById('batAvg').innerText = stats.average;
+  document.getElementById('batSr').innerText = stats.strikeRate;
+  document.getElementById('batMilestones').innerText = `${stats.fifties} / ${stats.hundreds}`;
+  document.getElementById('batBoundary').innerText = `${stats.fours} / ${stats.sixes}`;
+
+  document.getElementById('bowlInnings').innerText = stats.bowlingInnings;
+  document.getElementById('bowlOvers').innerText = stats.totalOversStr;
+  document.getElementById('bowlWkts').innerText = stats.wickets;
+  document.getElementById('bowlRuns').innerText = stats.runsConceded;
+  document.getElementById('bowlEco').innerText = stats.economy;
+  document.getElementById('bowlAvg').innerText = stats.bowlingAverage;
+  document.getElementById('bowlMaidens').innerText = stats.maidens;
+  document.getElementById('bowlBest').innerText = stats.bestBowling;
+
+  document.getElementById('fieldCatches').innerText = stats.catches;
+  document.getElementById('fieldStumpings').innerText = stats.stumpings;
+  document.getElementById('fieldRunOuts').innerText = stats.runOuts;
+
+  openPrimaryActionModal('playerCareerModal');
+}
+
+function sharePlayerCareerProfile() {
+  if (!activeCareerProfilePlayer || !activeCareerProfileStats) return;
+  const p = activeCareerProfilePlayer;
+  const s = activeCareerProfileStats;
+
+  const text = `🏏 *Player Career Profile: ${p.name}*\nRole: ${p.role || 'Batter'}\n\n📊 *Career Overview*\nMatches: *${s.matchesCount}* | Runs: *${s.runs}* | Wkts: *${s.wickets}*\n\n🏏 *Batting Stats*\nInnings: ${s.battingInnings} | Runs: ${s.runs} | High Score: ${s.highScore}\nAverage: ${s.average} | Strike Rate: ${s.strikeRate}\n50s/100s: ${s.fifties}/${s.hundreds} | 4s/6s: ${s.fours}/${s.sixes}\n\n⚾ *Bowling Stats*\nOvers: ${s.totalOversStr} | Wickets: ${s.wickets} | Eco: ${s.economy}\nAverage: ${s.bowlingAverage} | Best: ${s.bestBowling}\n\n🧤 *Fielding*: ${s.catches} Catches, ${s.stumpings} Stumpings, ${s.runOuts} Run Outs`;
+
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(whatsappUrl, '_blank');
+}
+
 async function renderGlobalPlayers() {
   const container = document.getElementById('globalPlayersContainer');
   if (!container) return;
 
-  const players = (await window.CricStorage.listGlobalPlayers())
-    .slice()
+  const rawList = (await window.CricStorage.listGlobalPlayers()) || [];
+  const players = rawList
+    .map(p => {
+      if (!p) return null;
+      const item = p.payload || p;
+      return { ...item, id: item.id || p.id || p.playerId };
+    })
+    .filter(p => p && (p.name || p.id))
     .sort((a, b) => (a.name || '').localeCompare((b.name || ''), undefined, { sensitivity: 'base' }));
 
   container.replaceChildren();
@@ -608,23 +822,79 @@ async function renderGlobalPlayers() {
 
   players.forEach(player => {
     const card = document.createElement('div');
-    card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:12px; padding:12px; margin-bottom:8px;';
+    card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:12px; padding:12px; margin-bottom:8px; cursor:pointer; transition:all 0.2s ease;';
+
     const details = document.createElement('div');
+    details.style.cssText = 'flex:1;';
+
+    const nameRow = document.createElement('div');
+    nameRow.style.cssText = 'display:flex; align-items:center; gap:8px;';
+
     const name = document.createElement('div');
     name.style.cssText = 'font-size:14px; font-weight:800; color:var(--color-text);';
     name.textContent = player.name || 'Player';
+
+    const viewBadge = document.createElement('span');
+    viewBadge.style.cssText = 'font-size:10px; font-weight:700; color:var(--color-electric); background:var(--panel-bg); padding:2px 6px; border-radius:6px; border:1px solid var(--color-border);';
+    viewBadge.textContent = '📊 Career Profile';
+
+    nameRow.append(name, viewBadge);
+
     const role = document.createElement('div');
     role.style.cssText = 'font-size:11px; color:var(--text-muted); margin-top:2px;';
     role.textContent = `${player.role || 'Batter'}${player.style ? ` · ${player.style}` : ''}`;
-    details.append(name, role);
+
+    details.append(nameRow, role);
+
     const edit = document.createElement('button');
     edit.className = 'btn';
     edit.style.cssText = 'width:auto; padding:6px 10px; font-size:12px; background:var(--color-surface-muted); color:var(--color-text); border-color:var(--color-border);';
     edit.textContent = 'Edit';
-    edit.addEventListener('click', () => editGlobalPlayer(player.id));
+    edit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      editGlobalPlayer(player.id);
+    });
+
+    card.addEventListener('click', () => {
+      openPlayerCareerProfile(player);
+    });
+
     card.append(details, edit);
     container.appendChild(card);
   });
+}
+
+async function shareSeriesSummary(tournamentId) {
+  const tourneys = (await window.CricStorage.listTournaments()) || [];
+  const t = tourneys.find(x => x.id === tournamentId);
+  if (!t) return;
+
+  const matches = (await window.CricStorage.listMatches()) || [];
+  const pointsTable = window.ScoringEngine.calculatePointsTable(t.teams || [], matches);
+
+  let text = `🏆 *${t.name} — Tournament Series Overview*\n\n`;
+
+  text += `📊 *POINTS TABLE*\n`;
+  if (pointsTable.length > 0) {
+    pointsTable.forEach((row, idx) => {
+      text += `${idx + 1}. *${row.teamName}*: ${row.points} pts (P:${row.played}, W:${row.won}, L:${row.lost}, NRR:${row.nrr})\n`;
+    });
+  } else {
+    text += `No points table available.\n`;
+  }
+
+  const fixtures = t.fixtures || [];
+  if (fixtures.length > 0) {
+    text += `\n🗓 *SCHEDULE & FIXTURES*\n`;
+    fixtures.forEach((f, idx) => {
+      const teamA = (t.teams || []).find(x => x.id === f.teamAId)?.name || 'Team A';
+      const teamB = (t.teams || []).find(x => x.id === f.teamBId)?.name || 'Team B';
+      text += `• M${idx + 1}: ${teamA} vs ${teamB} (${f.status || 'SCHEDULED'})\n`;
+    });
+  }
+
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(whatsappUrl, '_blank');
 }
 
 function setPlayersDirectoryTab(tab) {

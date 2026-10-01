@@ -759,12 +759,24 @@ const CricStorage = {
         const res = await fetch(`${window.CRIC_API_BASE}/players`, { headers: this.getAuthHeaders() });
         if (res.ok) {
           const remotePayload = await res.json();
-          const remotePlayers = this.unwrapListPayload(remotePayload);
+          let remotePlayers = this.unwrapListPayload(remotePayload);
           if (Array.isArray(remotePlayers)) {
+            remotePlayers = remotePlayers.map(rp => {
+              const item = rp.payload || rp;
+              const pId = item.id || rp.id || rp.playerId;
+              return { ...item, id: pId };
+            });
+
             const playerMap = new Map();
-            localPlayers.forEach(p => playerMap.set(p.id, p));
+            localPlayers.forEach(p => {
+              if (!p) return;
+              const item = p.payload || p;
+              const pId = item.id || p.id || p.playerId;
+              if (pId) playerMap.set(pId, { ...item, id: pId });
+            });
 
             remotePlayers.forEach(rp => {
+              if (!rp || !rp.id) return;
               const lp = playerMap.get(rp.id);
               if (!lp || (rp.updatedAt && new Date(rp.updatedAt) > new Date(lp.updatedAt || 0))) {
                 playerMap.set(rp.id, rp);

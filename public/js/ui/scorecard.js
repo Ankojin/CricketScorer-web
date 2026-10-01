@@ -282,6 +282,21 @@ function renderScorecardInnings(tab) {
     `;
   }).join('');
 
+  const didNotBatPlayers = (battingTeam?.players || []).filter(p => {
+    const s = p.battingStats || {};
+    const hasBatted = Number(s.balls || 0) > 0 || Number(s.runs || 0) > 0 || s.isOut || s.isRetiredHurt || p.id === m.strikerId || p.id === m.nonStrikerId;
+    return !hasBatted;
+  });
+
+  const dnbHtml = didNotBatPlayers.length > 0
+    ? didNotBatPlayers.map(p => {
+        const isC = isCaptainPlayer(p, battingTeam?.id, m);
+        const isVC = isViceCaptainPlayer(p, battingTeam?.id, m);
+        const badge = isC ? ' <span class="badge-c">(C)</span>' : (isVC ? ' <span class="badge-vc">(VC)</span>' : '');
+        return `<span style="font-weight:600; color:var(--color-text);">${p.name}${badge}</span>`;
+      }).join(', ')
+    : '<span style="color:var(--text-muted); font-style:italic;">None</span>';
+
   const history = m.wicketHistory || [];
   const statusColor = m.status === 'COMPLETED' ? 'var(--color-success)' : (m.status === 'ABANDONED' ? 'var(--color-warning)' : 'var(--color-info)');
   content.innerHTML = `
@@ -296,6 +311,10 @@ function renderScorecardInnings(tab) {
       </thead>
       <tbody>${batHtml}</tbody>
     </table></div>
+
+    <div style="font-size:12px; color:var(--text-muted); margin-top:10px; margin-bottom:14px; padding:8px 12px; background:var(--panel-bg); border-radius:8px; border:1px solid var(--color-border);">
+      <b style="color:var(--color-electric);">Did Not Bat:</b> ${dnbHtml}
+    </div>
 
     <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-top:16px;">Bowling (${bowlingTeam?.name})</h4>
     <div class="responsive-table-scroll"><table class="stats-table scorecard-responsive-table">
@@ -415,4 +434,113 @@ function renderOvers() {
     return;
   }
   container.innerHTML = inningsHtml[selectedIndex];
+}
+
+function shareScorecardSummary() {
+  if (!activeMatch) return;
+  const m = window.ScoringEngine.recalculateMatchFromHistory(activeMatch);
+  const teamA = m.teamA;
+  const teamB = m.teamB;
+
+  const resultStr = window.ScoringEngine.getMatchResultString(m) || 'In Progress';
+  const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
+
+  let text = `🏏 *Match Scorecard Summary*\n*${teamA?.name || 'Team A'} vs ${teamB?.name || 'Team B'}*\nStatus: *${m.status || 'LIVE'}* (${resultStr})\n\n`;
+
+  // 1st Innings Batting
+  const i1Batting = m.initialBattingTeamId === teamA?.id ? teamA : teamB;
+  const i1Bowling = i1Batting?.id === teamA?.id ? teamB : teamA;
+  text += `📊 *1st Innings (${i1Batting?.name})*\n`;
+
+  const i1Batters = (i1Batting?.players || []).filter(p => (p.battingStats?.balls || 0) > 0 || (p.battingStats?.runs || 0) > 0 || p.battingStats?.isOut);
+  if (i1Batters.length > 0) {
+    i1Batters.forEach(p => {
+      const s = p.battingStats || {};
+      text += `• ${p.name}: *${s.runs}* (${s.balls}b, ${s.fours||0}x4, ${s.sixes||0}x6)\n`;
+    });
+  } else {
+    text += `• No batting records\n`;
+  }
+
+  // 2nd Innings Batting
+  if (m.isSecondInningsStarted || m.currentInnings === 2) {
+    text += `\n📊 *2nd Innings (${i1Bowling?.name})*\n`;
+    const i2Batters = (i1Bowling?.players || []).filter(p => (p.battingStats?.balls || 0) > 0 || (p.battingStats?.runs || 0) > 0 || p.battingStats?.isOut);
+    if (i2Batters.length > 0) {
+      i2Batters.forEach(p => {
+        const s = p.battingStats || {};
+        text += `• ${p.name}: *${s.runs}* (${s.balls}b, ${s.fours||0}x4, ${s.sixes||0}x6)\n`;
+      });
+    } else {
+      text += `• No batting records\n`;
+    }
+  }
+
+  text += `\n🎯 *Current Score*: ${m.totalRuns}/${m.totalWickets} (${overStr} Ov)`;
+
+  if (typeof currentShareUrl !== 'undefined' && currentShareUrl) {
+    text += `\n\n👇 *Live Scorecard Updates:*\n${currentShareUrl}`;
+  }
+
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(whatsappUrl, '_blank');
+}
+
+function shareOversSummary() {
+  if (!activeMatch) return;
+  const m = activeMatch;
+  const history = m.ballHistory || [];
+  const teamA = m.teamA;
+  const teamB = m.teamB;
+
+  let text = `⚾ *Over-By-Over Breakdown*\n*${teamA?.name || 'Team A'} vs ${teamB?.name || 'Team B'}*\nTotal Score: *${m.totalRuns || 0}/${m.totalWickets || 0}*\n\n`;
+
+  // Group balls by overs
+  const overGroups = {};
+  history.forEach(b => {
+    const ovNum = b.overIndex !== undefined ? b.overIndex + 1 : Math.floor((b.ballNumber || 1) / 6) + 1;
+    if (!overGroups[ovNum]) overGroups[ovNum] = [];
+    overGroups[ovNum].push(b);
+  });
+
+  const keys = Object.keys(overGroups).sort((a,b) => Number(a) - Number(b));
+  if (keys.length > 0) {
+    keys.forEach(ov => {
+      const balls = overGroups[ov];
+      const runsInOver = balls.reduce((acc, x) => acc + (x.runs || 0) + (x.extraRuns || 0), 0);
+      const wktsInOver = balls.filter(x => x.wicketType && x.wicketType !== 'NONE').length;
+      text += `*Over ${ov}* (${runsInOver} runs${wktsInOver > 0 ? `, ${wktsInOver} wkt` : ''})\n`;
+    });
+  } else {
+    text += `No overs completed yet.\n`;
+  }
+
+  if (typeof currentShareUrl !== 'undefined' && currentShareUrl) {
+    text += `\n👇 *Watch Live Updates:*\n${currentShareUrl}`;
+  }
+
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(whatsappUrl, '_blank');
+}
+
+function shareStatsSummary() {
+  if (!activeMatch) return;
+  const m = window.ScoringEngine.recalculateMatchFromHistory(activeMatch);
+  const motm = window.ScoringEngine.calculateMotm(m);
+  const resultStr = window.ScoringEngine.getMatchResultString(m) || 'In Progress';
+
+  let text = `📈 *Match Stats & Leaderboard*\n*${m.teamA?.name || 'Team A'} vs ${m.teamB?.name || 'Team B'}*\nResult: *${resultStr}*\n\n`;
+
+  if (motm) {
+    text += `🌟 *MAN OF THE MATCH*: ${motm.player.name.toUpperCase()}\nPerformance: ${motm.statsSummary || window.ScoringEngine.formatPlayerStatsSummary(motm.player)}\n\n`;
+  }
+
+  text += `📊 *Match Overview*\nScore: *${m.totalRuns}/${m.totalWickets}* (${Math.floor((m.totalBalls||0)/6)}.${(m.totalBalls||0)%6} Ov)\n`;
+
+  if (typeof currentShareUrl !== 'undefined' && currentShareUrl) {
+    text += `\n👇 *Full Match Stats Link:*\n${currentShareUrl}`;
+  }
+
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(whatsappUrl, '_blank');
 }

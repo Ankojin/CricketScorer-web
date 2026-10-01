@@ -46,45 +46,6 @@ function closeMatchResultModal() {
   if (modal) modal.classList.remove('active');
 }
 
-function formatShareTtlText(ttlSeconds) {
-  const ttlMinutes = Math.ceil(Number(ttlSeconds || 0) / 60);
-  if (ttlMinutes <= 0) return 'Valid while match is live';
-  if (ttlMinutes >= 60) {
-    const hours = Math.floor(ttlMinutes / 60);
-    const mins = ttlMinutes % 60;
-    return mins > 0 ? `Valid up to ${hours}h ${mins}m (or until match ends)` : `Valid up to ${hours}h (or until match ends)`;
-  }
-  return `Valid up to ${ttlMinutes}m (or until match ends)`;
-}
-
-function chooseShareTtlMinutes() {
-  const allowed = [15, 60, 360];
-  const previous = Number(localStorage.getItem('cric_share_ttl_minutes') || 360);
-  const defaultValue = allowed.includes(previous) ? previous : 360;
-  let input = null;
-  try {
-    if (typeof window.prompt === 'function') {
-      input = window.prompt('Share link validity in minutes? Allowed: 15, 60, 360', String(defaultValue));
-    }
-  } catch (err) {
-    console.warn('Share TTL prompt is unavailable; using previous/default value.', err);
-    showToast(`Using default share validity: ${defaultValue} minutes`, 'info');
-    return defaultValue;
-  }
-  if (input === null && typeof window.prompt !== 'function') {
-    showToast(`Using default share validity: ${defaultValue} minutes`, 'info');
-    return defaultValue;
-  }
-  if (input === null) return null;
-  const parsed = Number(input);
-  if (!allowed.includes(parsed)) {
-    showToast('Choose 15, 60, or 360 minutes', 'warning');
-    return null;
-  }
-  localStorage.setItem('cric_share_ttl_minutes', String(parsed));
-  return parsed;
-}
-
 function maybeShowMatchResultCelebration(match) {
   if (!match || match.status !== 'COMPLETED') return;
 
@@ -114,7 +75,39 @@ function maybeShowMatchResultCelebration(match) {
   lastCelebratedResultToken = resultToken;
 }
 
-async function goLiveShare() {
+function formatShareTtlText(ttlSeconds) {
+  const ttlMinutes = Math.ceil(Number(ttlSeconds || 0) / 60);
+  if (ttlMinutes <= 0) return 'Valid while match is live';
+  if (ttlMinutes >= 60) {
+    const hours = Math.floor(ttlMinutes / 60);
+    const mins = ttlMinutes % 60;
+    return mins > 0 ? `Valid up to ${hours}h ${mins}m (or until match ends)` : `Valid up to ${hours}h (or until match ends)`;
+  }
+  return `Valid up to ${ttlMinutes}m (or until match ends)`;
+}
+
+let currentShareUrl = '';
+let selectedTtlMinutes = 360;
+
+function selectShareTtl(minutes) {
+  selectedTtlMinutes = Number(minutes) || 360;
+  localStorage.setItem('cric_share_ttl_minutes', String(selectedTtlMinutes));
+  document.querySelectorAll('.share-ttl-btn').forEach(btn => {
+    const btnTtl = Number(btn.getAttribute('data-ttl'));
+    if (btnTtl === selectedTtlMinutes) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+function closeShareModal() {
+  const modal = document.getElementById('shareModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function openShareModal() {
   if (!activeMatch) return;
 
   if (window.CricStorage && window.CricStorage.isGuestUser()) {
@@ -133,18 +126,64 @@ async function goLiveShare() {
   }
 
   const m = activeMatch;
-  const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
-  const scoreStr = `${m.totalRuns || 0}/${m.totalWickets || 0} (${overStr} Ov)`;
-  let matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}&spectator=1`;
-  let shareValidityText = 'Valid while match is live';
-  const chosenTtlMinutes = chooseShareTtlMinutes();
-  if (chosenTtlMinutes === null) return;
+  const matchHeaderEl = document.getElementById('shareModalMatchHeader');
+  if (matchHeaderEl) {
+    matchHeaderEl.innerText = `${m.teamA?.name || 'Team A'} vs ${m.teamB?.name || 'Team B'}`;
+  }
+
+  const storedTtl = Number(localStorage.getItem('cric_share_ttl_minutes') || 360);
+  selectShareTtl([15, 60, 360].includes(storedTtl) ? storedTtl : 360);
+
+  updateShareModalState();
+  openPrimaryActionModal('shareModal');
+}
+
+function updateShareModalState() {
+  if (!activeMatch) return;
+  const m = activeMatch;
+  const linkSection = document.getElementById('shareModalLinkSection');
+  const linkInput = document.getElementById('shareModalLinkInput');
+  const statusText = document.getElementById('shareModalStatusText');
+  const generateBtn = document.getElementById('shareModalGenerateBtn');
+  const whatsappBtn = document.getElementById('shareModalWhatsappBtn');
+  const revokeBtn = document.getElementById('shareModalRevokeBtn');
+
+  if (m.spectatorShareActive && currentShareUrl) {
+    if (linkInput) linkInput.value = currentShareUrl;
+    if (statusText) {
+      const validity = formatShareTtlText(m.spectatorShareExpiresInSeconds || 0);
+      statusText.innerText = `🟢 Active • ${validity}`;
+      statusText.style.color = 'var(--color-success)';
+    }
+    if (linkSection) linkSection.style.display = 'block';
+    if (whatsappBtn) whatsappBtn.style.display = 'flex';
+    if (revokeBtn) revokeBtn.style.display = 'flex';
+    if (generateBtn) {
+      const span = generateBtn.querySelector('span');
+      if (span) span.innerText = '🔄 Re-generate Share Link';
+    }
+  } else {
+    if (linkSection) linkSection.style.display = 'none';
+    if (whatsappBtn) whatsappBtn.style.display = 'none';
+    if (revokeBtn) revokeBtn.style.display = 'none';
+    if (generateBtn) {
+      const span = generateBtn.querySelector('span');
+      if (span) span.innerText = '✨ Generate Live Share Link';
+    }
+  }
+}
+
+async function generateAndCopyLiveShare() {
+  if (!activeMatch) return;
+  const m = activeMatch;
+  const chosenTtlMinutes = selectedTtlMinutes || 360;
 
   try {
     const share = await window.CricStorage.createSpectatorShareToken(m.id, chosenTtlMinutes);
-    matchUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}&st=${encodeURIComponent(share.spectatorToken)}&spectator=1`;
+    currentShareUrl = `${window.location.origin}${window.location.pathname}?matchId=${m.id}&st=${encodeURIComponent(share.spectatorToken)}&spectator=1`;
     const ttlSeconds = Number(share?.expiresInSeconds || 0);
-    shareValidityText = formatShareTtlText(ttlSeconds);
+    const shareValidityText = formatShareTtlText(ttlSeconds);
+
     activeMatch = {
       ...activeMatch,
       spectatorShareActive: true,
@@ -152,55 +191,79 @@ async function goLiveShare() {
       spectatorShareIssuedAt: share?.shareStatus?.issuedAt || new Date().toISOString(),
       spectatorShareRevokedAt: null
     };
+
     renderLiveScoring();
+    updateShareModalState();
+
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(currentShareUrl).catch(() => {});
+    }
+
+    showToast(`🟢 Public read-only spectator link copied • ${shareValidityText}`, 'success');
   } catch (err) {
     showToast(err?.message || 'Unable to create live share token', 'danger');
-    return;
   }
+}
+
+function copyShareModalLink() {
+  const linkInput = document.getElementById('shareModalLinkInput');
+  if (!linkInput || !linkInput.value) return;
 
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(matchUrl).catch(() => {});
+    navigator.clipboard.writeText(linkInput.value).then(() => {
+      showToast('📋 Spectator link copied to clipboard', 'success');
+    }).catch(() => {
+      linkInput.select();
+      document.execCommand('copy');
+      showToast('📋 Spectator link copied', 'success');
+    });
+  } else {
+    linkInput.select();
+    document.execCommand('copy');
+    showToast('📋 Spectator link copied', 'success');
   }
+}
 
-  showToast(`🟢 Public read-only spectator link copied • ${shareValidityText}`, 'success');
+function shareLiveScoreWhatsApp() {
+  if (!activeMatch || !currentShareUrl) return;
+  const m = activeMatch;
+  const overStr = `${Math.floor((m.totalBalls || 0) / 6)}.${(m.totalBalls || 0) % 6}`;
+  const scoreStr = `${m.totalRuns || 0}/${m.totalWickets || 0} (${overStr} Ov)`;
+  const shareValidityText = formatShareTtlText(m.spectatorShareExpiresInSeconds || 0);
 
-  const text = `🏏 *Live Cricket Score (Read-Only)*\n*${m.teamA?.name} vs ${m.teamB?.name}*\nScore: *${scoreStr}*\nStatus: ${m.status || 'LIVE'}\n\nIncludes: Live Score, Scorecard, Overs, Stats\n${shareValidityText}.\n\n👇 *Watch Live Score Updates here:*\n${matchUrl}`;
+  const text = `🏏 *Live Cricket Score (Read-Only)*\n*${m.teamA?.name} vs ${m.teamB?.name}*\nScore: *${scoreStr}*\nStatus: ${m.status || 'LIVE'}\n\nIncludes: Live Score, Scorecard, Overs, Stats\n${shareValidityText}.\n\n👇 *Watch Live Score Updates here:*\n${currentShareUrl}`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 
   window.open(whatsappUrl, '_blank');
 }
 
-async function revokeLiveShare() {
-  if (!activeMatch) return;
-  if (window.CricStorage && window.CricStorage.isGuestUser()) {
-    showToast('Sign in to manage shared links', 'warning');
-    return;
-  }
-  if (!window.CricStorage || !window.CricStorage.hasCloudApi || !window.CricStorage.hasCloudApi()) {
-    showToast('Share revocation requires cloud API configuration', 'warning');
-    return;
-  }
-
+async function revokeLiveShareFromModal() {
   if (!confirm('Revoke all previously shared spectator links for this match?')) {
     return;
   }
 
   try {
     await window.CricStorage.revokeSpectatorShareToken(activeMatch.id);
+    currentShareUrl = '';
     activeMatch = {
       ...activeMatch,
       spectatorShareActive: false,
       spectatorShareRevokedAt: new Date().toISOString()
     };
     renderLiveScoring();
+    updateShareModalState();
     showToast('🛑 Previously shared spectator links revoked', 'success');
   } catch (err) {
     showToast(err?.message || 'Unable to revoke shared links', 'danger');
   }
 }
 
-function shareLiveScoreWhatsApp() {
-  goLiveShare();
+function goLiveShare() {
+  openShareModal();
+}
+
+function revokeLiveShare() {
+  openShareModal();
 }
 
 async function selectMatch(matchId) {
@@ -470,7 +533,8 @@ function renderLiveScoring() {
 
       // Calculate Man of the Match
       const motm = window.ScoringEngine.calculateMotm(m);
-      const motmHtml = motm ? `<div style="font-size:13px; color:var(--color-warning); font-weight:800; margin-top:8px;">🌟 MAN OF THE MATCH: ${motm.player.name.toUpperCase()} (Impact: ${motm.impactScore} pts)</div>` : '';
+      const motmStats = motm?.statsSummary || (motm ? window.ScoringEngine.formatPlayerStatsSummary(motm.player) : '');
+      const motmHtml = motm ? `<div style="font-size:13px; color:var(--color-warning); font-weight:800; margin-top:8px;">🌟 MAN OF THE MATCH: ${motm.player.name.toUpperCase()} ${motmStats ? `(${motmStats})` : ''}</div>` : '';
 
       document.getElementById('winnerTitle').innerText = resultStr;
       document.getElementById('marginText').innerHTML = `

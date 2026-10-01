@@ -772,7 +772,13 @@
         </nav>
       </section>
       <div class="card">
-        <h3 style="margin-bottom:12px;">Match Scorecard</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0;">Match Scorecard</h3>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn" style="padding:6px 12px; font-size:12px; background:#25D366; color:#000; font-weight:800; border:none; border-radius:8px;" onclick="shareScorecardSummary()">🟢 Share Scorecard</button>
+            <button type="button" class="btn" style="padding:6px 12px; font-size:12px; background:var(--color-surface-soft); color:var(--color-text); border:1px solid var(--color-border); border-radius:8px;" onclick="exportActiveScorecardSnapshot()">📷 Snapshot</button>
+          </div>
+        </div>
         <div style="display:flex; gap:6px; margin-bottom:14px; background:var(--color-primary); padding:4px; border-radius:10px; border:1px solid var(--card-border);">
           <button id="scorecardTabI1" class="btn" style="flex:1; padding:8px; font-size:12px;" onclick="setScorecardTab('INNINGS1')">1st Innings</button>
           <button id="scorecardTabI2" class="btn" style="flex:1; padding:8px; font-size:12px;" onclick="setScorecardTab('INNINGS2')">2nd Innings</button>
@@ -790,7 +796,10 @@
         </nav>
       </section>
       <div class="card">
-        <h3 style="margin-bottom:12px;">Over-By-Over Breakdown</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0;">Over-By-Over Breakdown</h3>
+          <button type="button" class="btn" style="padding:6px 12px; font-size:12px; background:#25D366; color:#000; font-weight:800; border:none; border-radius:8px;" onclick="shareOversSummary()">🟢 Share Overs</button>
+        </div>
         <div style="display:flex; gap:6px; margin-bottom:14px; background:var(--color-primary); padding:4px; border-radius:10px; border:1px solid var(--card-border);">
           <button id="oversTabI1" class="btn" style="flex:1; padding:8px; font-size:12px;" onclick="setOversInningsTab('INNINGS1')">1st Innings</button>
           <button id="oversTabI2" class="btn" style="flex:1; padding:8px; font-size:12px;" onclick="setOversInningsTab('INNINGS2')">2nd Innings</button>
@@ -814,7 +823,7 @@
     <div id="screenPlayers" class="screen">
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h3 style="font-size:18px; font-weight:800; color:var(--color-text);">Teams & Player Directory</h3>
+          <h3 style="font-size:18px; font-weight:800; color:var(--color-text);">Global Teams & Players Directory</h3>
           <button id="playersCreateTeamBtn" class="btn-primary" style="width:auto; padding:8px 14px; font-size:12px;" onclick="openNewTeamModal()">+ Create Team</button>
           <button id="playersAddGlobalBtn" class="btn-primary" hidden style="width:auto; padding:8px 14px; font-size:12px;" onclick="openNewPlayerModal()">+ Add Player</button>
         </div>
@@ -838,7 +847,10 @@
         </nav>
       </section>
       <div class="card">
-        <h3 style="margin-bottom:12px;">Stats & Leaderboards</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0;">Stats & Leaderboards</h3>
+          <button type="button" class="btn" style="padding:6px 12px; font-size:12px; background:#25D366; color:#000; font-weight:800; border:none; border-radius:8px;" onclick="shareStatsSummary()">🟢 Share Stats</button>
+        </div>
         <div id="statsContainer"></div>
       </div>
     </div>
@@ -1083,6 +1095,162 @@
       <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
         <button class="cric-btn cric-btn-secondary" style="min-height:44px; padding:10px 18px;" onclick="showScorecardScreen(); closeMatchResultModal();">View Scorecard</button>
         <button class="cric-btn cric-btn-primary" style="min-height:44px; padding:10px 18px;" onclick="closeMatchResultModal();">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Live Match Modal -->
+  <div id="shareModal" class="modal-overlay">
+    <div class="modal cricket-action-modal" style="max-width:480px; width:92%;">
+      <div class="action-modal-heading action-modal-heading-between">
+        <div>
+          <p class="action-modal-kicker">SPECTATOR LIVE LINK</p>
+          <h3 style="display:flex; align-items:center; gap:6px;">🔗 Share Live Match</h3>
+        </div>
+        <button class="action-modal-close" aria-label="Close share dialog" onclick="closeShareModal()">✕</button>
+      </div>
+
+      <div style="padding:12px 0 6px;">
+        <div id="shareModalMatchHeader" style="font-size:15px; font-weight:800; color:var(--color-electric); margin-bottom:14px; text-align:center; background:var(--panel-bg); padding:8px 12px; border-radius:10px; border:1px solid var(--color-border);">
+          Sunrisers vs RCB
+        </div>
+
+        <div class="form-group action-form-group" style="margin-bottom:16px;">
+          <label style="font-size:13px; font-weight:700; color:var(--color-text); margin-bottom:8px; display:block;">
+            ⏱ Link Validity Duration
+          </label>
+          <div style="display:flex; gap:8px; justify-content:space-between;">
+            <button type="button" class="share-ttl-btn" data-ttl="15" onclick="selectShareTtl(15)">15 Mins</button>
+            <button type="button" class="share-ttl-btn" data-ttl="60" onclick="selectShareTtl(60)">1 Hour</button>
+            <button type="button" class="share-ttl-btn active" data-ttl="360" onclick="selectShareTtl(360)">6 Hours</button>
+          </div>
+        </div>
+
+        <div id="shareModalLinkSection" style="margin-bottom:16px; display:none;">
+          <label style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:6px; display:block;">
+            Spectator Link
+          </label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="shareModalLinkInput" class="form-control" readonly style="font-size:11px; font-family:monospace; padding:8px 10px; background:var(--panel-bg); color:var(--color-electric); border:1px solid var(--color-border); border-radius:8px; flex:1;" />
+            <button type="button" class="cric-btn cric-btn-secondary" style="min-height:38px; padding:6px 14px; font-size:12px; white-space:nowrap;" onclick="copyShareModalLink()">📋 Copy</button>
+          </div>
+          <div id="shareModalStatusText" style="font-size:11px; font-weight:700; color:var(--color-success); margin-top:6px;"></div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:14px;">
+          <button type="button" id="shareModalGenerateBtn" class="cric-btn cric-btn-primary" style="width:100%; min-height:44px; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="generateAndCopyLiveShare()">
+            <span>✨ Generate Live Share Link</span>
+          </button>
+          <button type="button" id="shareModalWhatsappBtn" class="cric-btn" style="width:100%; min-height:44px; font-size:14px; font-weight:800; background:#25D366; color:#000; border:none; display:none; align-items:center; justify-content:center; gap:8px;" onclick="shareLiveScoreWhatsApp()">
+            <span>🟢 Share on WhatsApp</span>
+          </button>
+          <button type="button" id="shareModalRevokeBtn" class="cric-btn" style="width:100%; min-height:38px; font-size:12px; font-weight:700; background:var(--color-danger-soft); color:var(--color-error); border:1px solid var(--color-error); display:none; align-items:center; justify-content:center; gap:6px;" onclick="revokeLiveShareFromModal()">
+            <span>🛑 Revoke Active Share Links</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Career Profile Modal -->
+  <div id="playerCareerModal" class="modal-overlay">
+    <div class="modal cricket-action-modal" style="max-width:500px; width:94%; max-height:90vh; overflow-y:auto; padding:20px;">
+      <div class="action-modal-heading action-modal-heading-between" style="margin-bottom:12px;">
+        <div>
+          <p class="action-modal-kicker" style="color:var(--color-electric); font-weight:800;">PLAYER CAREER PROFILE</p>
+          <h3 id="careerProfileNameHeader" style="margin:0; font-size:20px; font-weight:900;">Player Profile</h3>
+        </div>
+        <button class="action-modal-close" aria-label="Close career profile" onclick="closePlayerCareerModal()">✕</button>
+      </div>
+
+      <button type="button" class="cric-btn" style="width:100%; min-height:42px; background:#25D366; color:#000; font-weight:800; border:none; border-radius:10px; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="sharePlayerCareerProfile()">
+        <span>🟢 SHARE PLAYER PROFILE</span>
+      </button>
+
+      <!-- Player Header Card -->
+      <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:12px; padding:14px; display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+        <div id="careerAvatar" style="width:48px; height:48px; border-radius:50%; background:var(--color-electric); color:var(--color-primary-deep); font-size:22px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          P
+        </div>
+        <div>
+          <div id="careerName" style="font-size:18px; font-weight:900; color:var(--color-text);">Player Name</div>
+          <div id="careerRole" style="font-size:12px; color:var(--text-muted); margin-top:2px;">Batter · Bat: RHB · Bowl: Right arm</div>
+          <div id="careerTeamBadge" style="font-size:11px; font-weight:700; color:var(--color-electric); margin-top:3px;">Global Player Registry</div>
+        </div>
+      </div>
+
+      <!-- Key Stats Badges Grid -->
+      <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:16px; text-align:center;">
+        <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:8px; padding:8px 4px;">
+          <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">MATCHES</div>
+          <div id="badgeMatches" style="font-size:15px; font-weight:900; color:var(--color-electric); margin-top:2px;">0</div>
+        </div>
+        <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:8px; padding:8px 4px;">
+          <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">RUNS</div>
+          <div id="badgeRuns" style="font-size:15px; font-weight:900; color:var(--color-electric); margin-top:2px;">0</div>
+        </div>
+        <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:8px; padding:8px 4px;">
+          <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">AVG</div>
+          <div id="badgeAvg" style="font-size:15px; font-weight:900; color:var(--color-electric); margin-top:2px;">0.00</div>
+        </div>
+        <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:8px; padding:8px 4px;">
+          <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">WKTS</div>
+          <div id="badgeWkts" style="font-size:15px; font-weight:900; color:var(--color-electric); margin-top:2px;">0</div>
+        </div>
+        <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:8px; padding:8px 4px;">
+          <div style="font-size:9px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">ECO</div>
+          <div id="badgeEco" style="font-size:15px; font-weight:900; color:var(--color-electric); margin-top:2px;">0.00</div>
+        </div>
+      </div>
+
+      <!-- Batting Stats Card -->
+      <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:12px; padding:14px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:900; color:var(--color-electric); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+          🏏 BATTING STATS
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; text-align:center; margin-bottom:10px;">
+          <div><div style="font-size:10px; color:var(--text-muted);">Innings</div><div id="batInnings" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Runs</div><div id="batRuns" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">High Score</div><div id="batHighScore" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Not Outs</div><div id="batNotOuts" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; text-align:center; padding-top:8px; border-top:1px solid var(--color-border);">
+          <div><div style="font-size:10px; color:var(--text-muted);">Average</div><div id="batAvg" style="font-size:14px; font-weight:800; color:var(--color-text);">0.00</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Strike Rate</div><div id="batSr" style="font-size:14px; font-weight:800; color:var(--color-text);">0.0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">50s / 100s</div><div id="batMilestones" style="font-size:14px; font-weight:800; color:var(--color-text);">0 / 0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">4s / 6s</div><div id="batBoundary" style="font-size:14px; font-weight:800; color:var(--color-text);">0 / 0</div></div>
+        </div>
+      </div>
+
+      <!-- Bowling Stats Card -->
+      <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:12px; padding:14px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:900; color:var(--color-electric); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+          ⚾ BOWLING STATS
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; text-align:center; margin-bottom:10px;">
+          <div><div style="font-size:10px; color:var(--text-muted);">Innings</div><div id="bowlInnings" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Overs</div><div id="bowlOvers" style="font-size:14px; font-weight:800; color:var(--color-text);">0.0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Wickets</div><div id="bowlWkts" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Runs</div><div id="bowlRuns" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; text-align:center; padding-top:8px; border-top:1px solid var(--color-border);">
+          <div><div style="font-size:10px; color:var(--text-muted);">Economy</div><div id="bowlEco" style="font-size:14px; font-weight:800; color:var(--color-text);">0.00</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Average</div><div id="bowlAvg" style="font-size:14px; font-weight:800; color:var(--color-text);">0.00</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Maidens</div><div id="bowlMaidens" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Best</div><div id="bowlBest" style="font-size:14px; font-weight:800; color:var(--color-text);">-</div></div>
+        </div>
+      </div>
+
+      <!-- Fielding Stats Card -->
+      <div style="background:var(--panel-bg); border:1px solid var(--color-border); border-radius:12px; padding:14px;">
+        <div style="font-size:13px; font-weight:900; color:var(--color-electric); margin-bottom:10px;">
+          🧤 FIELDING STATS
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; text-align:center;">
+          <div><div style="font-size:10px; color:var(--text-muted);">Catches</div><div id="fieldCatches" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Stumpings</div><div id="fieldStumpings" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+          <div><div style="font-size:10px; color:var(--text-muted);">Run Outs</div><div id="fieldRunOuts" style="font-size:14px; font-weight:800; color:var(--color-text);">0</div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1339,7 +1507,7 @@
       <span class="bottom-nav-icon" aria-hidden="true">📋</span><span>Matches</span>
     </button>
     <button class="bottom-nav-item" id="navPlayers" data-nav-context="general" type="button" onclick="showPlayersScreen()">
-      <span class="bottom-nav-icon" aria-hidden="true">👥</span><span>Teams</span>
+      <span class="bottom-nav-icon" aria-hidden="true">👥</span><span>Global Teams & Players</span>
     </button>
     <button class="bottom-nav-item" id="navTournaments" data-nav-context="general" type="button" onclick="showSeriesLandingScreen()">
       <span class="bottom-nav-icon" aria-hidden="true">🏆</span><span>Series</span>
