@@ -361,6 +361,55 @@ Resources:
               Ref: CricScoreHttpApi
             Path: /players/{id}
             Method: DELETE
+        AdminUsers:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /admin/users
+            Method: GET
+        AdminHealth:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /admin/system-health
+            Method: GET
+        AdminAuthSync:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /admin/auth-sync
+            Method: GET
+        AdminErrorDashboard:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /admin/error-dashboard
+            Method: GET
+        AdminAuditLogs:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /admin/audit-logs
+            Method: GET
+        AdminErrorLog:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /admin/error-log
+            Method: POST
+        AdminProxyAny:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: CricScoreHttpApi
+            Path: /admin/{proxy+}
+            Method: ANY
 
 Outputs:
   WebUrl:

@@ -287,7 +287,10 @@ function handleUrlRouting() {
   const hasRouteQuery = route => searchParams.has(route) || searchParams.get('route') === route;
   const hash = window.location.hash.toLowerCase();
 
-  if (path.includes('/quick-match') || hasRouteQuery('quick-match') || hash.includes('quick-match')) {
+  if (path.includes('/admin') || hasRouteQuery('admin') || hash.includes('admin')) {
+    showAdminScreen();
+    return true;
+  } else if (path.includes('/quick-match') || hasRouteQuery('quick-match') || hash.includes('quick-match')) {
     showQuickMatchLandingScreen();
     return true;
   } else if (path.includes('/series') || hasRouteQuery('series') || hash.includes('series')) {

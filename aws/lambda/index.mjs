@@ -248,6 +248,105 @@ export async function verifyAuthToken(event) {
   }
 }
 
+const DESIGNATED_ADMIN_EMAILS = new Set([
+  'ankoji@gmail.com',
+  ...(process.env.ADMIN_EMAILS || '').split(',').map(e => normalizeEmail(e)).filter(Boolean)
+]);
+
+function isAdminEmail(email) {
+  if (!email) return false;
+  return DESIGNATED_ADMIN_EMAILS.has(normalizeEmail(email));
+}
+
+export async function enforceAdminAuth(event) {
+  const authUser = await verifyAuthToken(event);
+  if (!authUser) {
+    return { statusCode: 401, body: response(401, { error: 'Authentication required' }) };
+  }
+
+  const userDoc = await docClient.send(new GetCommand({
+    TableName: TABLE_NAME,
+    Key: { matchId: authUser.userId }
+  }));
+
+  const userEmail = normalizeEmail(userDoc.Item?.payload?.email || userDoc.Item?.email || authUser.email || '');
+  const isAdminRole = userDoc.Item?.payload?.role === 'ADMIN' || userDoc.Item?.role === 'ADMIN' || userDoc.Item?.payload?.isAdmin === true;
+
+  if (!isAdminEmail(userEmail) && !isAdminRole) {
+    return { statusCode: 403, body: response(403, { error: 'Admin access required' }) };
+  }
+
+  return { userId: authUser.userId, email: userEmail, userDoc: userDoc.Item };
+}
+
+export async function logAuditEvent({ action, actorUserId, actorEmail, targetId, metadata }) {
+  try {
+    const logId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const now = new Date();
+    const ttlSeconds = Math.floor(now.getTime() / 1000) + (30 * 24 * 60 * 60);
+
+    const auditDoc = {
+      id: logId,
+      docType: 'AUDIT_LOG',
+      action,
+      actorUserId: actorUserId || 'SYSTEM',
+      actorEmail: actorEmail || 'system',
+      targetId: targetId || null,
+      metadata: metadata || {},
+      timestamp: now.toISOString(),
+      ttlSeconds
+    };
+
+    await docClient.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        matchId: logId,
+        docType: 'AUDIT_LOG',
+        payload: auditDoc,
+        createdAt: auditDoc.timestamp,
+        ttlSeconds
+      }
+    }));
+  } catch (err) {
+    console.warn('Failed to record audit log:', err);
+  }
+}
+
+export async function logSystemError({ source, error, userId, userEmail, path, statusCode }) {
+  try {
+    const logId = `err_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const now = new Date();
+    const ttlSeconds = Math.floor(now.getTime() / 1000) + (30 * 24 * 60 * 60);
+
+    const errorDoc = {
+      id: logId,
+      docType: 'ERROR_LOG',
+      source: source || 'LAMBDA',
+      errorMessage: String(error?.message || error || 'Unknown error'),
+      stack: String(error?.stack || ''),
+      userId: userId || null,
+      userEmail: userEmail || null,
+      path: path || null,
+      statusCode: statusCode || 500,
+      timestamp: now.toISOString(),
+      ttlSeconds
+    };
+
+    await docClient.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        matchId: logId,
+        docType: 'ERROR_LOG',
+        payload: errorDoc,
+        createdAt: errorDoc.timestamp,
+        ttlSeconds
+      }
+    }));
+  } catch (err) {
+    console.warn('Failed to record error log:', err);
+  }
+}
+
 export const handler = async (event) => {
   const method = event.requestContext?.http?.method || event.httpMethod;
   const path = event.rawPath || event.path;
@@ -259,6 +358,144 @@ export const handler = async (event) => {
   }
 
   try {
+    // ------------------- ADMIN ROUTES -------------------
+    if (method === 'GET' && path === '/admin/users') {
+      const adminAuth = await enforceAdminAuth(event);
+      if (adminAuth.statusCode) return adminAuth.body;
+
+      const scanResult = await docClient.send(new ScanCommand({
+        TableName: TABLE_NAME
+      }));
+
+      const matchItems = (scanResult.Items || []).filter(item => !item.docType || item.docType === 'MATCH');
+      const userItems = (scanResult.Items || []).filter(item => item.docType === 'USER');
+
+      const userMatchCounts = new Map();
+      const userLastActive = new Map();
+
+      matchItems.forEach(item => {
+        const ownerId = extractOwnerUserId(item);
+        if (ownerId) {
+          userMatchCounts.set(ownerId, (userMatchCounts.get(ownerId) || 0) + 1);
+          const itemUpdated = item.updatedAt || item.payload?.updatedAt || item.createdAt;
+          if (itemUpdated) {
+            const prev = userLastActive.get(ownerId);
+            if (!prev || new Date(itemUpdated) > new Date(prev)) {
+              userLastActive.set(ownerId, itemUpdated);
+            }
+          }
+        }
+      });
+
+      const usersList = userItems.map(item => {
+        const payload = item.payload || item;
+        const uId = payload.userId || item.matchId;
+        return {
+          userId: uId,
+          email: payload.email || 'N/A',
+          name: payload.name || 'User',
+          createdAt: payload.createdAt || item.createdAt || null,
+          matchCount: userMatchCounts.get(uId) || 0,
+          lastActiveAt: userLastActive.get(uId) || payload.createdAt || null
+        };
+      }).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+      return response(200, { users: usersList, totalUsers: usersList.length });
+    }
+
+    if (method === 'GET' && path === '/admin/system-health') {
+      const adminAuth = await enforceAdminAuth(event);
+      if (adminAuth.statusCode) return adminAuth.body;
+
+      const dbStart = Date.now();
+      const scanResult = await docClient.send(new ScanCommand({
+        TableName: TABLE_NAME,
+        Select: 'COUNT'
+      }));
+      const dbLatencyMs = Date.now() - dbStart;
+
+      return response(200, {
+        status: 'HEALTHY',
+        dbLatencyMs,
+        tableName: TABLE_NAME,
+        totalItemsCount: scanResult.Count || 0,
+        memoryUsage: process.memoryUsage(),
+        uptimeSeconds: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (method === 'GET' && path === '/admin/auth-sync') {
+      const adminAuth = await enforceAdminAuth(event);
+      if (adminAuth.statusCode) return adminAuth.body;
+
+      const scanResult = await docClient.send(new ScanCommand({
+        TableName: TABLE_NAME
+      }));
+
+      const items = scanResult.Items || [];
+      const userCount = items.filter(item => item.docType === 'USER').length;
+      const matchCount = items.filter(item => !item.docType || item.docType === 'MATCH').length;
+      const activeShares = items.filter(item => {
+        const p = item.payload || item;
+        return p.spectatorShareActive === true;
+      }).length;
+
+      return response(200, {
+        totalUsers: userCount,
+        totalMatches: matchCount,
+        activeSpectatorShares: activeShares,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (method === 'GET' && path === '/admin/error-dashboard') {
+      const adminAuth = await enforceAdminAuth(event);
+      if (adminAuth.statusCode) return adminAuth.body;
+
+      const scanResult = await docClient.send(new ScanCommand({
+        TableName: TABLE_NAME
+      }));
+
+      const errorLogs = (scanResult.Items || [])
+        .filter(item => item.docType === 'ERROR_LOG')
+        .map(item => item.payload || item)
+        .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+        .slice(0, 100);
+
+      return response(200, { errors: errorLogs });
+    }
+
+    if (method === 'GET' && path === '/admin/audit-logs') {
+      const adminAuth = await enforceAdminAuth(event);
+      if (adminAuth.statusCode) return adminAuth.body;
+
+      const scanResult = await docClient.send(new ScanCommand({
+        TableName: TABLE_NAME
+      }));
+
+      const auditLogs = (scanResult.Items || [])
+        .filter(item => item.docType === 'AUDIT_LOG')
+        .map(item => item.payload || item)
+        .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+        .slice(0, 100);
+
+      return response(200, { auditLogs });
+    }
+
+    if (method === 'POST' && path === '/admin/error-log') {
+      const body = JSON.parse(event.body || '{}');
+      await logSystemError({
+        source: body.source || 'FRONTEND',
+        error: body.error || 'Client Reported Error',
+        userId: body.userId || null,
+        userEmail: body.userEmail || null,
+        path: body.path || null,
+        statusCode: body.statusCode || 500
+      });
+      return response(200, { status: 'LOGGED' });
+    }
+
     // ------------------- AUTH ROUTES -------------------
     if (method === 'POST' && path === '/auth/register') {
       const body = JSON.parse(event.body || '{}');

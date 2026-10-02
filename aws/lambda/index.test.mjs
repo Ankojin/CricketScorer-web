@@ -556,4 +556,59 @@ describe('Lambda API Handler & Security Tests', () => {
     assert.equal(fallbackBody.expiresInSeconds, 21600);
   });
 
+  test('21. Non-admin user attempting /admin/users returns 403 Forbidden', async () => {
+    const normalToken = createToken('user_normal');
+    mockDb.set('user_normal', {
+      matchId: 'user_normal',
+      docType: 'USER',
+      payload: { userId: 'user_normal', email: 'regular@example.com', name: 'Regular User' }
+    });
+
+    const res = await handler(createEvent('GET', '/admin/users', null, normalToken));
+    assert.equal(res.statusCode, 403);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error, 'Admin access required');
+  });
+
+  test('22. Admin user (ankoji@gmail.com) can access all /admin/* endpoints', async () => {
+    const adminUserId = 'user_admin';
+    const adminToken = createToken(adminUserId);
+    mockDb.set(adminUserId, {
+      matchId: adminUserId,
+      docType: 'USER',
+      payload: { userId: adminUserId, email: 'ankoji@gmail.com', name: 'Ankoji Admin' }
+    });
+
+    const usersRes = await handler(createEvent('GET', '/admin/users', null, adminToken));
+    assert.equal(usersRes.statusCode, 200);
+    const usersBody = JSON.parse(usersRes.body);
+    assert.ok(Array.isArray(usersBody.users));
+
+    const healthRes = await handler(createEvent('GET', '/admin/system-health', null, adminToken));
+    assert.equal(healthRes.statusCode, 200);
+    const healthBody = JSON.parse(healthRes.body);
+    assert.equal(healthBody.status, 'HEALTHY');
+
+    const authSyncRes = await handler(createEvent('GET', '/admin/auth-sync', null, adminToken));
+    assert.equal(authSyncRes.statusCode, 200);
+
+    const errorsRes = await handler(createEvent('GET', '/admin/error-dashboard', null, adminToken));
+    assert.equal(errorsRes.statusCode, 200);
+
+    const auditRes = await handler(createEvent('GET', '/admin/audit-logs', null, adminToken));
+    assert.equal(auditRes.statusCode, 200);
+  });
+
+  test('23. POST /admin/error-log records client error logs with 30-day TTL', async () => {
+    const res = await handler(createEvent('POST', '/admin/error-log', {
+      source: 'FRONTEND',
+      error: 'Uncaught TypeError in scorecard.js',
+      path: '/scorecard'
+    }));
+
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.status, 'LOGGED');
+  });
+
 });

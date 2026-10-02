@@ -193,14 +193,21 @@ function updateAuthUI() {
   const btn = document.getElementById('authBtn');
   const syncBadge = document.getElementById('syncBadge');
 
+  const currentEmail = (window.CricStorage.getAuthEmail() || user?.email || '').trim().toLowerCase();
+  const isAdmin = currentEmail === 'ankoji@gmail.com';
+  const featureAdminBtn = document.getElementById('featureAdminBtn');
+  if (featureAdminBtn) {
+    featureAdminBtn.hidden = !isAdmin;
+  }
+
   if (user) {
     if (btn) {
-      btn.innerText = `👤 ${user.name || user.email.split('@')[0]}`;
+      btn.innerText = isAdmin ? `🛡️ ${user.name || 'Admin'}` : `👤 ${user.name || user.email.split('@')[0]}`;
       btn.style.background = 'var(--color-primary-soft)';
     }
     if (syncBadge) {
       syncBadge.className = 'status-badge online';
-      syncBadge.innerText = `🟢 Sync: ${user.name || 'User'}`;
+      syncBadge.innerText = isAdmin ? '🛡️ Admin Online' : `🟢 Sync: ${user.name || 'User'}`;
     }
   } else {
     const isGuest = localStorage.getItem('cric_user_mode') === 'GUEST';

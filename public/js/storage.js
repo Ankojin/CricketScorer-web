@@ -152,6 +152,17 @@ const CricStorage = {
   },
 
   // ------------------- AUTH -------------------
+  getAuthUser() {
+    const raw = localStorage.getItem('cric_auth_user');
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (e) { return null; }
+  },
+
+  getAuthEmail() {
+    const user = this.getAuthUser();
+    return user ? (user.email || '').trim().toLowerCase() : '';
+  },
+
   async register(email, password, name) {
     if (!this.hasCloudApi()) {
       throw new Error('Cloud sign-up is unavailable right now. Guest mode is available for WebScore.');
@@ -920,6 +931,75 @@ const CricStorage = {
     }
 
     return updated;
+  },
+
+  // ------------------- ADMIN CONSOLE API -------------------
+  async fetchAdminUsers() {
+    if (!window.CRIC_API_BASE) throw new Error('Cloud API base URL not configured');
+    const res = await fetch(`${window.CRIC_API_BASE}/admin/users`, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to fetch users (HTTP ${res.status})`);
+    }
+    return await res.json();
+  },
+
+  async fetchAdminSystemHealth() {
+    if (!window.CRIC_API_BASE) throw new Error('Cloud API base URL not configured');
+    const res = await fetch(`${window.CRIC_API_BASE}/admin/system-health`, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to fetch system health (HTTP ${res.status})`);
+    }
+    return await res.json();
+  },
+
+  async fetchAdminAuthSyncMetrics() {
+    if (!window.CRIC_API_BASE) throw new Error('Cloud API base URL not configured');
+    const res = await fetch(`${window.CRIC_API_BASE}/admin/auth-sync`, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to fetch auth sync metrics (HTTP ${res.status})`);
+    }
+    return await res.json();
+  },
+
+  async fetchAdminErrorDashboard() {
+    if (!window.CRIC_API_BASE) throw new Error('Cloud API base URL not configured');
+    const res = await fetch(`${window.CRIC_API_BASE}/admin/error-dashboard`, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to fetch error dashboard (HTTP ${res.status})`);
+    }
+    return await res.json();
+  },
+
+  async fetchAdminAuditLogs() {
+    if (!window.CRIC_API_BASE) throw new Error('Cloud API base URL not configured');
+    const res = await fetch(`${window.CRIC_API_BASE}/admin/audit-logs`, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to fetch audit logs (HTTP ${res.status})`);
+    }
+    return await res.json();
+  },
+
+  async reportFrontendError(errorDetail) {
+    if (!window.CRIC_API_BASE) return;
+    try {
+      await fetch(`${window.CRIC_API_BASE}/admin/error-log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'FRONTEND',
+          error: String(errorDetail?.message || errorDetail || 'Frontend Exception'),
+          path: window.location.pathname,
+          statusCode: 500
+        })
+      });
+    } catch (_) {
+      // Ignore background error reporting failures
+    }
   },
 
   async resetAllData() {
