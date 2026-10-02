@@ -602,7 +602,19 @@ function closePlayerCareerModal() {
 }
 
 async function calculatePlayerCareerStats(playerId, playerName) {
-  const matches = (await window.CricStorage.listMatches()) || [];
+  let matches = [];
+  try {
+    matches = (await window.CricStorage.listMatches()) || [];
+  } catch (e) {
+    console.warn('CricStorage.listMatches failed in career stats, using local fallback:', e);
+  }
+  if (!matches || matches.length === 0) {
+    const raw = localStorage.getItem('cric_matches');
+    if (raw) {
+      try { matches = JSON.parse(raw); } catch (e) { matches = []; }
+    }
+  }
+
   const targetName = (playerName || '').trim().toLowerCase();
 
   let matchesCount = 0;
@@ -631,7 +643,19 @@ async function calculatePlayerCareerStats(playerId, playerName) {
   for (const rawMatch of matches) {
     if (!rawMatch) continue;
     const mData = rawMatch.payload || rawMatch;
-    const m = window.ScoringEngine.recalculateMatchFromHistory(mData);
+    const historyLen = (mData.ballHistory || []).length;
+    const i1RecordedCount = mData.innings1Data?.recordedBallsCount || 0;
+    const hasSecondInnings = (i1RecordedCount > 0 && historyLen > i1RecordedCount) ||
+      mData.currentInnings === 2 ||
+      mData.isSecondInningsStarted === true;
+
+    const m = window.ScoringEngine.recalculateMatchFromHistory({
+      ...mData,
+      status: 'LIVE',
+      winnerId: null,
+      currentInnings: hasSecondInnings ? 2 : (mData.currentInnings || 1),
+      isSecondInningsStarted: hasSecondInnings
+    });
     const allPlayers = [...(m.teamA?.players || []), ...(m.teamB?.players || [])];
 
     const matchingPlayers = allPlayers.filter(p =>
@@ -689,11 +713,6 @@ async function calculatePlayerCareerStats(playerId, playerName) {
       stumpings += Number(f.stumpings || 0);
       runOuts += Number(f.runOuts || 0);
     });
-  }
-
-    catches += Number(f.catches || 0);
-    stumpings += Number(f.stumpings || 0);
-    runOuts += Number(f.runOuts || 0);
   }
 
   const notOuts = Math.max(0, battingInnings - outs);
