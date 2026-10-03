@@ -195,7 +195,6 @@ function showOversScreen() {
 }
 
 async function showTournamentsScreen() {
-  if (!requireRegisteredScoringMode('Series', { keepCurrentScreen: true })) return;
   updateNavState('navTournaments');
   showScreen('screenTournaments');
   renderTournaments();
@@ -208,13 +207,9 @@ function showSeriesLandingScreen() {
   navigateToRoute('/series');
   updateNavState('navTournaments');
   showScreen('screenSeriesLanding');
-  if (!isRegisteredScoringUser()) {
-    showToast('Sign in to create and manage Series', 'info');
-  }
 }
 
 async function showPlayersScreen() {
-  if (!requireRegisteredScoringMode('Teams & Players', { keepCurrentScreen: true })) return;
   updateNavState('navPlayers');
   showScreen('screenPlayers');
   await Promise.all([renderPlayers(), renderGlobalPlayers()]);
@@ -222,7 +217,6 @@ async function showPlayersScreen() {
 }
 
 function showStatsScreen() {
-  if (!requireRegisteredScoringMode('Stats', { keepCurrentScreen: true })) return;
   updateNavState('navStats');
   showScreen('screenStats');
   updateMatchHubHeaders('stats');
@@ -269,16 +263,11 @@ function showQuickMatchLandingScreen() {
   navigateToRoute('/quick-match');
 
   const btn = document.getElementById('fullMatchLandingBtn');
-  const isRegistered = isRegisteredScoringUser();
-
   if (btn) {
-    btn.innerText = isRegistered ? '📋 Start Quick Match Now →' : '🔑 Sign In / Register to Start Quick Match →';
+    btn.innerText = '📋 Start Quick Match →';
   }
 
   showScreen('screenFullMatchLanding');
-  if (!isRegistered) {
-    showToast('Sign in to start Quick Match', 'info');
-  }
 }
 
 function handleUrlRouting() {

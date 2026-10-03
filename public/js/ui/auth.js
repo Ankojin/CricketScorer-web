@@ -92,22 +92,6 @@ function focusAuthModalPrimaryControl() {
   if (focusables.length > 0) focusables[0].focus();
 }
 
-function continueAsGuest() {
-  const currentUser = window.CricStorage.getCurrentUser();
-  const token = localStorage.getItem('cric_auth_token');
-  const hasRegisteredSession = currentUser || (token && !token.startsWith('token_local'));
-
-  if (hasRegisteredSession) {
-    activeMatch = null;
-    window.CricStorage.logout();
-  }
-
-  localStorage.setItem('cric_user_mode', 'GUEST');
-  updateAuthUI();
-  showToast('Entered Guest Mode (Temporary Local Scoring)', 'info');
-  showLandingScreen();
-}
-
 function openAuthModal(defaultTab = 'LOGIN') {
   const user = window.CricStorage.getCurrentUser();
   if (user) {
@@ -189,7 +173,6 @@ async function handleAuthSubmit() {
 
 function updateAuthUI() {
   const user = window.CricStorage.getCurrentUser();
-  updateScoringModeAccess(Boolean(user) || localStorage.getItem('cric_user_mode') === 'REGISTERED');
   const btn = document.getElementById('authBtn');
   const syncBadge = document.getElementById('syncBadge');
 
@@ -210,19 +193,14 @@ function updateAuthUI() {
       syncBadge.innerText = isAdmin ? '🛡️ Admin Online' : `🟢 Sync: ${user.name || 'User'}`;
     }
   } else {
-    const isGuest = localStorage.getItem('cric_user_mode') === 'GUEST';
+    localStorage.removeItem('cric_user_mode');
     if (btn) {
-      btn.innerText = '🔑 Sign In';
+      btn.innerText = '☁ Cloud Sync';
       btn.style.background = 'var(--color-primary)';
     }
     if (syncBadge) {
-      if (isGuest) {
-        syncBadge.className = 'status-badge guest';
-        syncBadge.innerText = '🟡 Guest Mode';
-      } else {
-        syncBadge.className = 'status-badge';
-        syncBadge.innerText = '⚪ Sync Inactive';
-      }
+      syncBadge.className = 'status-badge';
+      syncBadge.innerText = '⚪ Cloud Sync Off';
     }
   }
 }

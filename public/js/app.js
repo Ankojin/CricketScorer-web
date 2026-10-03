@@ -35,17 +35,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const sharedMatchId = urlParams.get('matchId');
   const spectatorToken = urlParams.get('st');
-  const forceSpectator = urlParams.get('spectator') === '1';
-  const canOpenScorerMode = isRegisteredScoringUser();
 
   if (sharedMatchId) {
-    if (!spectatorToken && !canOpenScorerMode) {
-      showToast('Invalid or expired spectator link', 'warning');
-      showLandingScreen();
-      return;
-    }
-
-    if (spectatorToken && (forceSpectator || !canOpenScorerMode)) {
+    // Any URL carrying a spectator token must remain read-only.
+    if (spectatorToken) {
+      isPublicSpectator = true;
       isReadOnlySpectator = true;
       applySpectatorUiRestrictions();
       selectMatch(sharedMatchId);
@@ -81,12 +75,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     isReadOnlySpectator = false;
+    isPublicSpectator = false;
     if (spectatorPollInterval) {
       clearInterval(spectatorPollInterval);
       spectatorPollInterval = null;
-    }
-    if (spectatorToken && canOpenScorerMode) {
-      showToast('Opened in scorer mode. Add spectator=1 in URL for read-only view.', 'info');
     }
     await selectMatch(sharedMatchId);
     return;
@@ -101,7 +93,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (!sharedMatchId) {
-    const savedMatchId = localStorage.getItem('cric_active_match_id');
+    const savedMatchId = window.CricStorage.getActiveMatchId();
     if (savedMatchId) {
       try {
         const savedMatch = await window.CricStorage.getMatch(savedMatchId);

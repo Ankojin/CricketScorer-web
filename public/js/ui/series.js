@@ -8,12 +8,7 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function ensureSeriesAccess() {
-  return requireRegisteredScoringMode('Series', { keepCurrentScreen: true });
-}
-
 async function openSeriesCreateFlow() {
-  if (!ensureSeriesAccess()) return;
   await showTournamentsScreen();
   openNewTournamentModal();
 }
@@ -31,7 +26,6 @@ function buildSeriesFixtureStatus(fixture, linkedMatch) {
 }
 
 async function renderTournaments() {
-  if (!ensureSeriesAccess()) return;
   const container = document.getElementById('tournamentsContainer');
   const tourneys = await window.CricStorage.listTournaments();
   const matches = await window.CricStorage.listMatches();
@@ -609,10 +603,7 @@ async function calculatePlayerCareerStats(playerId, playerName) {
     console.warn('CricStorage.listMatches failed in career stats, using local fallback:', e);
   }
   if (!matches || matches.length === 0) {
-    const raw = localStorage.getItem('cric_matches');
-    if (raw) {
-      try { matches = JSON.parse(raw); } catch (e) { matches = []; }
-    }
+    matches = window.CricStorage.getLocalMatchesSnapshot();
   }
 
   const targetName = (playerName || '').trim().toLowerCase();

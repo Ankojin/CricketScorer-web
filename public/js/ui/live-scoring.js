@@ -267,6 +267,8 @@ function revokeLiveShare() {
 }
 
 async function selectMatch(matchId) {
+  isPublicSpectator = new URLSearchParams(window.location.search).has('st');
+  isReadOnlySpectator = isPublicSpectator;
   try {
     activeMatch = await window.CricStorage.getMatch(matchId);
     if (!activeMatch) {
@@ -279,6 +281,10 @@ async function selectMatch(matchId) {
       return;
     }
 
+    if (activeMatch.cloudReadOnly && !activeMatch.localOnly) {
+      isReadOnlySpectator = true;
+    }
+
     currentScoringMode = activeMatch.scoringMode === 'WEBSCORE'
       ? 'WEBSCORE'
       : activeMatch.scoringMode === 'FULL' ? 'FULL' : 'QUICK';
@@ -287,7 +293,7 @@ async function selectMatch(matchId) {
       await continueWebScoreParticipants();
     }
 
-    if (isReadOnlySpectator && activeMatch.status !== 'LIVE') {
+    if (isPublicSpectator && activeMatch.status !== 'LIVE') {
       showToast('This live link has expired because the match has ended.', 'warning');
       activeMatch = null;
       if (spectatorPollInterval) {
@@ -464,10 +470,12 @@ function renderLiveScoring() {
   const isSingleSideBatting = Boolean(m.gullyRules?.singleSideBatting);
   if (isReadOnlySpectator) {
     if (spectatorBanner) spectatorBanner.style.display = 'block';
-    if (spectatorBanner) spectatorBanner.innerText = '👀 Public Spectator View: Live Score, Scorecard, Overs & Stats only (Read-Only). Link auto-expires when match ends.';
+    if (spectatorBanner) spectatorBanner.innerText = isPublicSpectator
+      ? '👀 Public Spectator View: Live Score, Scorecard, Overs & Stats only (Read-Only). Link auto-expires when match ends.'
+      : '☁ Cloud match view: scoring is read-only on Web. Use the Android app to update the score.';
     if (scoringKeypad) scoringKeypad.style.display = 'none';
-    if (goLiveBtn) goLiveBtn.style.display = 'none';
-    if (revokeLiveBtn) revokeLiveBtn.style.display = 'none';
+    if (isPublicSpectator && goLiveBtn) goLiveBtn.style.display = 'none';
+    if (isPublicSpectator && revokeLiveBtn) revokeLiveBtn.style.display = 'none';
     if (btnSwapBatsmen) btnSwapBatsmen.style.display = 'none';
     if (extraScoringActions) extraScoringActions.style.display = 'none';
   } else {
@@ -584,7 +592,7 @@ function renderLiveScoring() {
   }
 
   // Header is re-rendered above, so enforce spectator read-only control visibility after render.
-  if (isReadOnlySpectator) {
+  if (isPublicSpectator) {
     const goLiveBtnRendered = document.getElementById('goLiveBtn');
     const revokeLiveBtnRendered = document.getElementById('revokeLiveBtn');
     if (goLiveBtnRendered) goLiveBtnRendered.style.display = 'none';
@@ -593,7 +601,7 @@ function renderLiveScoring() {
 
   const shareStatusBadge = document.getElementById('shareStatusBadge');
   if (shareStatusBadge) {
-    if (isReadOnlySpectator) {
+    if (isPublicSpectator) {
       shareStatusBadge.style.display = 'none';
     } else if (m.spectatorShareActive) {
       const validity = formatShareTtlText(m.spectatorShareExpiresInSeconds || 0).replace('Valid up to ', 'TTL ');

@@ -1,6 +1,6 @@
 # CricLeague Complete Architecture Document (Android + Web)
 
-Date: 2026-09-30
+Date: 2026-10-03
 
 ## 1. Scope and Purpose
 This document describes:
@@ -74,29 +74,30 @@ flowchart TD
     A4 --> A5[ScoringViewModel updates match state]
     A5 --> A6[ScoringEngine recalculates deterministic state]
     A6 --> A7[TournamentRepository persists to Room]
-    A7 --> A8{Sync mode?}
-    A8 -->|Nearby Broadcaster| A9[NearbyManager broadcasts updates]
-    A8 -->|Cloud signed-in| A10[CloudSyncManager enqueue + push]
-    A8 -->|Local only| A11[Local persistence only]
-    A9 --> A12([END Match completed or paused])
+    A7 --> A8{Cloud sync signed in?}
+    A8 -->|No| A11[Local persistence only]
+    A8 -->|Yes| A10[CloudSyncManager enqueue + push matches and series]
+    A7 --> A9{Nearby sync enabled?}
+    A9 -->|Yes| A13[NearbyManager broadcasts updates]
+    A9 -->|No| A12([END Match completed or paused])
     A10 --> A12
     A11 --> A12
+    A13 --> A12
 ```
 
 ### 4.2 Web Individual Flow (Start to End)
 ```mermaid
 flowchart TD
     W0([START Web load]) --> W1[app.js boot + route handling]
-    W1 --> W2[Auth/guest handling in ui/auth + storage]
-    W2 --> W3[Home/Quick/Full/Series/Settings pages]
-    W3 --> W4[Live scoring interactions]
-    W4 --> W5[ScoringEngine.js recalculation]
-    W5 --> W6[CricStorage local save]
-    W6 --> W7{Registered and cloud available?}
-    W7 -->|Yes| W8[API sync via storage.js]
-    W7 -->|No| W9[Local-only state]
-    W8 --> W10([END Completed + synced])
-    W9 --> W11([END Completed local-only])
+  W1 --> W2{Cloud account signed in?}
+  W2 -->|Yes| W3[Read owner-scoped cloud matches]
+  W3 --> W4[View cloud match data read-only]
+  W4 --> W5([END Cloud data viewed])
+  W2 -->|No| W6[Home/Quick/Full/Series/Settings pages]
+  W6 --> W7[Local scoring interactions]
+  W7 --> W8[ScoringEngine.js recalculation]
+  W8 --> W9[CricStorage local save]
+  W9 --> W10([END Match saved locally])
 ```
 
 ### 4.3 Android-Web Live Share Flow
@@ -107,6 +108,7 @@ sequenceDiagram
     participant API as Cloud API
     participant Web as Web/Android Spectator
 
+    Android->>Android: Match owner signs in for cloud sharing
     Android->>Android: Start live share
     Android->>API: Create/refresh spectator share token
     API-->>Android: Token + TTL
@@ -124,32 +126,50 @@ sequenceDiagram
     Web->>Web: END read-only stream
 ```
 
-### 4.4 Cloud Sync Flow (Signed User)
+### 4.4 Android Cloud Sync and Web Read Flow
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Client as Android/Web Client
-    participant Queue as Pending Queue
+    participant Android as Android App
+    participant Queue as Android Pending Queue
     participant API as Lambda API
     participant DB as DynamoDB
+    participant Web as Web App
 
-    Client->>Client: Signed user session active
-    Client->>Queue: Enqueue upsert/delete
+    Android->>Android: Score locally in Room without sign-in
+    opt User signs in for cloud sync
+      Android->>Queue: Enqueue match upsert/delete
 
-    loop Pending operations
-      Client->>API: Send operation
-      API->>DB: Validate owner and apply write
-      DB-->>API: Result
-      API-->>Client: Success or failure
-      Client->>Queue: Remove or retry later
+      loop Pending operations
+        Queue->>API: Send match operation with Bearer JWT
+        API->>DB: Validate owner and apply Android write
+        DB-->>API: Result
+        API-->>Queue: Success or failure
+        Queue->>Queue: Remove or retry later
+      end
+
+      Android->>API: Upsert owner-scoped series metadata
+      API->>DB: Validate series owner and save metadata
+      DB-->>API: Series metadata result
+      API-->>Android: Saved series snapshot
+
+      Android->>API: Pull latest owner-scoped matches
+      Android->>API: Pull owner-scoped series metadata
+      API->>DB: Read user dataset
+      DB-->>API: Snapshot
+      API-->>Android: Cloud matches
+      Android->>Android: Import/reconcile locally
     end
 
-    Client->>API: Pull latest matches
-    API->>DB: Read user dataset
-    DB-->>API: Data
-    API-->>Client: Snapshot list
-    Client->>Client: Merge/import
-    Client->>Client: END synced or safely queued
+    opt Web user signs in to access cloud data
+      Web->>API: GET owner-scoped matches with Bearer JWT
+      API->>DB: Read user dataset
+      DB-->>API: Snapshot
+      API-->>Web: Cloud matches (read-only)
+      Web->>API: Create/update/delete owner-scoped series metadata
+      API->>DB: Validate series owner and apply metadata write
+      DB-->>API: Series metadata result
+    end
 ```
 
 ## 5. Configuration Architecture
@@ -171,8 +191,8 @@ Primary config files:
   - Compose + KSP + Room schema generation
   - Release signing/proguard/resource shrinking
 - version.properties:
-  - VERSION_CODE=6
-  - VERSION_NAME=1.0.5
+  - VERSION_CODE=25
+  - VERSION_NAME=1.0.24
 - app/src/main/AndroidManifest.xml:
   - INTERNET permission for cloud APIs
   - Bluetooth/Wi-Fi/location permissions for Nearby
@@ -318,8 +338,9 @@ The Lambda API layer includes:
 ## 10. Security and Access Model
 
 ### 10.1 Authentication and Authorization
-- Registered mode uses JWT bearer tokens.
-- Guest mode is local-first and restricted from privileged cloud operations.
+- App use and local scoring do not require an account.
+- Optional cloud sign-in uses JWT bearer tokens for protected cloud operations.
+- Android writes match-score and series metadata to cloud; signed-in Web reads cloud matches and may write owner-scoped series metadata, but does not write scoring state.
 - Spectator links use scoped spectator tokens with match binding and version checks.
 
 ### 10.2 Ownership and Data Isolation
@@ -331,8 +352,8 @@ The Lambda API layer includes:
 - Lambda responses include security headers (content-type options, frame/referrer/policy headers).
 
 ## 11. Persistence Strategy
-- Android: Room as source of persisted local truth, with import/export and sync overlays.
-- Web: LocalStorage source with optional strict cloud mode for signed users.
+- Android: Profile-scoped Room database as local truth (legacy database remains the guest profile), with import/export and sync overlays.
+- Web: LocalStorage for local scoring and account-scoped cache; optional sign-in enables read-only cloud match access.
 - Cloud: DynamoDB table keyed by matchId with per-user ownership semantics.
 
 ## 12. Build, Test, and Release Summary

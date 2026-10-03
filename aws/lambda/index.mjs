@@ -46,6 +46,204 @@ const response = (statusCode, body) => ({
   body: JSON.stringify(body)
 });
 
+function getClientPlatform(event) {
+  const headers = event?.headers || {};
+  const raw = headers['x-client-platform'] || headers['X-Client-Platform'] || '';
+  return String(raw).trim().toLowerCase();
+}
+
+function isAndroidWriteEnforced() {
+  return String(process.env.ENFORCE_ANDROID_MATCH_WRITES || 'false').toLowerCase() === 'true';
+}
+
+function isStrictRevisionEnforced() {
+  return String(process.env.ENFORCE_STRICT_MATCH_REVISION || 'false').toLowerCase() === 'true';
+}
+
+function isAuthRateLimitEnabled() {
+  return String(process.env.ENABLE_AUTH_RATE_LIMIT || 'true').toLowerCase() !== 'false';
+}
+
+function getAuthRateLimitMaxRequests() {
+  const parsed = Number(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || 12);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 12;
+  return Math.trunc(parsed);
+}
+
+function getAuthRateLimitWindowSeconds() {
+  const parsed = Number(process.env.AUTH_RATE_LIMIT_WINDOW_SECONDS || 60);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 60;
+  return Math.trunc(parsed);
+}
+
+function getMatchWriteMaxBodyBytes() {
+  const parsed = Number(process.env.MATCH_WRITE_MAX_BODY_BYTES || 262144);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 262144;
+  return Math.trunc(parsed);
+}
+
+function getMatchWriteMaxBallEvents() {
+  const parsed = Number(process.env.MATCH_WRITE_MAX_BALL_EVENTS || 3000);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 3000;
+  return Math.trunc(parsed);
+}
+
+function getMatchWriteMaxWicketEvents() {
+  const parsed = Number(process.env.MATCH_WRITE_MAX_WICKET_EVENTS || 400);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 400;
+  return Math.trunc(parsed);
+}
+
+function getRequestBodyByteSize(event) {
+  const rawBody = event?.body || '';
+  if (!rawBody) return 0;
+
+  if (event?.isBase64Encoded) {
+    try {
+      return Buffer.from(rawBody, 'base64').byteLength;
+    } catch {
+      return Buffer.byteLength(String(rawBody), 'utf8');
+    }
+  }
+
+  return Buffer.byteLength(String(rawBody), 'utf8');
+}
+
+function getClientIpAddress(event) {
+  const sourceIp = event?.requestContext?.http?.sourceIp;
+  if (sourceIp) return String(sourceIp).trim();
+
+  const headers = event?.headers || {};
+  const forwarded = headers['x-forwarded-for'] || headers['X-Forwarded-For'] || '';
+  const first = String(forwarded).split(',')[0]?.trim();
+  return first || 'unknown';
+}
+
+async function enforceAuthRateLimit(event, routeKey, identityKey = null) {
+  if (!isAuthRateLimitEnabled()) return null;
+
+  const now = Date.now();
+  const windowMs = getAuthRateLimitWindowSeconds() * 1000;
+  const maxRequests = getAuthRateLimitMaxRequests();
+  const ip = getClientIpAddress(event);
+  const principal = String(identityKey || '').trim().toLowerCase() || `ip:${ip || 'unknown'}`;
+  const principalKey = legacyHash(principal);
+  const limiterId = `rl_${routeKey}_${principalKey}`;
+  const nowIso = new Date(now).toISOString();
+  const ttlSeconds = Math.floor(now / 1000) + Math.max(120, Math.ceil((windowMs * 2) / 1000));
+
+  try {
+    const existing = await docClient.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { matchId: limiterId }
+    }));
+
+    const payload = existing.Item?.payload || {};
+    const existingWindowStartMs = Number(payload.windowStartMs || 0);
+    const existingCount = Number(payload.count || 0);
+    const withinWindow = existingWindowStartMs > 0 && (now - existingWindowStartMs) < windowMs;
+
+    let nextWindowStartMs = now;
+    let nextCount = 1;
+
+    if (withinWindow) {
+      nextWindowStartMs = existingWindowStartMs;
+      nextCount = existingCount + 1;
+    }
+
+    if (withinWindow && existingCount >= maxRequests) {
+      return {
+        limited: true,
+        retryAfterSeconds: Math.max(1, Math.ceil((windowMs - (now - existingWindowStartMs)) / 1000))
+      };
+    }
+
+    await docClient.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        matchId: limiterId,
+        docType: 'RATE_LIMIT',
+        updatedAt: nowIso,
+        ttlSeconds,
+        payload: {
+          routeKey,
+          principalKey,
+          count: nextCount,
+          windowStartMs: nextWindowStartMs,
+          updatedAt: nowIso
+        }
+      }
+    }));
+  } catch (err) {
+    console.warn('Auth rate-limit check failed, allowing request:', err?.message || err);
+  }
+
+  return null;
+}
+
+function enforceAndroidMatchWritePolicy(event) {
+  if (!isAndroidWriteEnforced()) return null;
+  const clientPlatform = getClientPlatform(event);
+  if (clientPlatform !== 'android') {
+    return response(403, {
+      error: 'Match scoring writes are allowed only from Android app clients',
+      code: 'ANDROID_CLIENT_REQUIRED'
+    });
+  }
+  return null;
+}
+
+function toRevisionNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const normalized = Math.trunc(parsed);
+  return normalized >= 0 ? normalized : fallback;
+}
+
+function buildSyncMetadata({ accepted, revision, serverUpdatedAt, reason = null, legacyAutoBump = false }) {
+  return {
+    accepted: Boolean(accepted),
+    revision: toRevisionNumber(revision, 0),
+    serverUpdatedAt,
+    rejectionReason: reason,
+    legacyAutoBump: Boolean(legacyAutoBump)
+  };
+}
+
+function buildMatchSnapshotCondition(existingItem) {
+  if (!existingItem) {
+    return {
+      ConditionExpression: 'attribute_not_exists(#matchId)',
+      ExpressionAttributeNames: { '#matchId': 'matchId' }
+    };
+  }
+
+  const names = { '#revision': 'revision', '#shareVersion': 'spectatorTokenVersion' };
+  const values = {};
+  const conditions = [];
+  for (const [field, alias, valueAlias] of [
+    ['revision', '#revision', ':expectedRevision'],
+    ['spectatorTokenVersion', '#shareVersion', ':expectedShareVersion']
+  ]) {
+    if (existingItem[field] === undefined || existingItem[field] === null) {
+      conditions.push(`attribute_not_exists(${alias})`);
+    } else {
+      conditions.push(`${alias} = ${valueAlias}`);
+      values[valueAlias] = existingItem[field];
+    }
+  }
+
+  return {
+    ConditionExpression: conditions.join(' AND '),
+    ExpressionAttributeNames: names,
+    ...(Object.keys(values).length ? { ExpressionAttributeValues: values } : {})
+  };
+}
+
+function isConditionalCheckFailed(error) {
+  return error?.name === 'ConditionalCheckFailedException';
+}
+
 function extractOwnerUserId(item) {
   return item?.ownerUserId || item?.payload?.ownerUserId || null;
 }
@@ -67,6 +265,69 @@ function preserveSpectatorMetadata(existingPayload, incomingPayload) {
   incoming.spectatorShareRevokedAt = existing.spectatorShareRevokedAt ?? null;
 
   return incoming;
+}
+
+async function enforceMatchWritePayloadLimits({ event, payload, method, path, actorUserId, actorEmail, matchId }) {
+  const requestSizeBytes = getRequestBodyByteSize(event);
+  const maxBodyBytes = getMatchWriteMaxBodyBytes();
+  if (requestSizeBytes > maxBodyBytes) {
+    await logAuditEvent({
+      action: 'MATCH_WRITE_REJECT_PAYLOAD_TOO_LARGE',
+      actorUserId,
+      actorEmail,
+      targetId: matchId,
+      metadata: {
+        method,
+        path,
+        requestSizeBytes,
+        maxBodyBytes
+      }
+    });
+
+    return response(413, {
+      error: 'Match payload exceeds allowed size',
+      code: 'MATCH_PAYLOAD_TOO_LARGE',
+      limits: {
+        maxBodyBytes,
+        requestSizeBytes
+      }
+    });
+  }
+
+  const ballHistoryCount = Array.isArray(payload?.ballHistory) ? payload.ballHistory.length : 0;
+  const wicketHistoryCount = Array.isArray(payload?.wicketHistory) ? payload.wicketHistory.length : 0;
+  const maxBallEvents = getMatchWriteMaxBallEvents();
+  const maxWicketEvents = getMatchWriteMaxWicketEvents();
+
+  if (ballHistoryCount > maxBallEvents || wicketHistoryCount > maxWicketEvents) {
+    await logAuditEvent({
+      action: 'MATCH_WRITE_REJECT_EVENT_LIMIT_EXCEEDED',
+      actorUserId,
+      actorEmail,
+      targetId: matchId,
+      metadata: {
+        method,
+        path,
+        ballHistoryCount,
+        wicketHistoryCount,
+        maxBallEvents,
+        maxWicketEvents
+      }
+    });
+
+    return response(422, {
+      error: 'Match event history exceeds allowed limits',
+      code: 'MATCH_SYNC_LIMIT_EXCEEDED',
+      limits: {
+        maxBallEvents,
+        maxWicketEvents,
+        ballHistoryCount,
+        wicketHistoryCount
+      }
+    });
+  }
+
+  return null;
 }
 
 function normalizeEmail(rawEmail) {
@@ -505,6 +766,27 @@ export const handler = async (event) => {
       }
 
       const emailLower = normalizeEmail(email);
+
+      const registerLimit = await enforceAuthRateLimit(event, 'auth_register', emailLower);
+      if (registerLimit?.limited) {
+        await logAuditEvent({
+          action: 'AUTH_RATE_LIMIT_HIT',
+          actorUserId: null,
+          actorEmail: emailLower,
+          targetId: 'auth/register',
+          metadata: {
+            route: '/auth/register',
+            clientIp: getClientIpAddress(event),
+            retryAfterSeconds: registerLimit.retryAfterSeconds
+          }
+        });
+        return response(429, {
+          error: 'Too many registration attempts. Please try again later.',
+          code: 'RATE_LIMIT_EXCEEDED',
+          retryAfterSeconds: registerLimit.retryAfterSeconds
+        });
+      }
+
       if (!isValidEmailSyntax(emailLower)) {
         return response(400, { error: 'Please enter a valid email address' });
       }
@@ -564,6 +846,27 @@ export const handler = async (event) => {
       }
 
       const emailLower = normalizeEmail(email);
+
+      const loginLimit = await enforceAuthRateLimit(event, 'auth_login', emailLower);
+      if (loginLimit?.limited) {
+        await logAuditEvent({
+          action: 'AUTH_RATE_LIMIT_HIT',
+          actorUserId: null,
+          actorEmail: emailLower,
+          targetId: 'auth/login',
+          metadata: {
+            route: '/auth/login',
+            clientIp: getClientIpAddress(event),
+            retryAfterSeconds: loginLimit.retryAfterSeconds
+          }
+        });
+        return response(429, {
+          error: 'Too many login attempts. Please try again later.',
+          code: 'RATE_LIMIT_EXCEEDED',
+          retryAfterSeconds: loginLimit.retryAfterSeconds
+        });
+      }
+
       if (!isValidEmailSyntax(emailLower)) {
         return response(400, { error: 'Please enter a valid email address' });
       }
@@ -666,6 +969,10 @@ export const handler = async (event) => {
         return response(403, { error: 'Forbidden' });
       }
 
+      if (matchPayload?.spectatorShareActive !== true) {
+        return response(410, { error: 'Shared live link has been revoked' });
+      }
+
       if ((matchPayload?.status || '').toUpperCase() !== 'LIVE') {
         return response(410, { error: 'Shared live link expired' });
       }
@@ -709,19 +1016,27 @@ export const handler = async (event) => {
         spectatorShareIssuedAt: new Date().toISOString(),
         spectatorShareRevokedAt: null
       };
-      await docClient.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          ...existing.Item,
-          updatedAt: new Date().toISOString(),
-          payload: updatedPayload,
-          spectatorTokenVersion: nextSpectatorTokenVersion,
-          spectatorShareActive: true,
-          spectatorShareExpiresInSeconds: expiresInSeconds,
-          spectatorShareIssuedAt: updatedPayload.spectatorShareIssuedAt,
-          spectatorShareRevokedAt: null
+      try {
+        await docClient.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: {
+            ...existing.Item,
+            updatedAt: new Date().toISOString(),
+            payload: updatedPayload,
+            spectatorTokenVersion: nextSpectatorTokenVersion,
+            spectatorShareActive: true,
+            spectatorShareExpiresInSeconds: expiresInSeconds,
+            spectatorShareIssuedAt: updatedPayload.spectatorShareIssuedAt,
+            spectatorShareRevokedAt: null
+          },
+          ...buildMatchSnapshotCondition(existing.Item)
+        }));
+      } catch (err) {
+        if (isConditionalCheckFailed(err)) {
+          return response(409, { error: 'Match changed while creating the share link', code: 'SHARE_STATE_CHANGED' });
         }
-      }));
+        throw err;
+      }
 
       const secret = await getJwtSecret();
       const spectatorToken = jwt.sign(
@@ -772,17 +1087,25 @@ export const handler = async (event) => {
         spectatorShareActive: false,
         spectatorShareRevokedAt: new Date().toISOString()
       };
-      await docClient.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          ...existing.Item,
-          updatedAt: new Date().toISOString(),
-          payload: updatedPayload,
-          spectatorTokenVersion: nextSpectatorTokenVersion,
-          spectatorShareActive: false,
-          spectatorShareRevokedAt: updatedPayload.spectatorShareRevokedAt
+      try {
+        await docClient.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: {
+            ...existing.Item,
+            updatedAt: new Date().toISOString(),
+            payload: updatedPayload,
+            spectatorTokenVersion: nextSpectatorTokenVersion,
+            spectatorShareActive: false,
+            spectatorShareRevokedAt: updatedPayload.spectatorShareRevokedAt
+          },
+          ...buildMatchSnapshotCondition(existing.Item)
+        }));
+      } catch (err) {
+        if (isConditionalCheckFailed(err)) {
+          return response(409, { error: 'Match changed while revoking the share link', code: 'SHARE_STATE_CHANGED' });
         }
-      }));
+        throw err;
+      }
 
       return response(200, {
         matchId: pathParams.id,
@@ -798,8 +1121,22 @@ export const handler = async (event) => {
       const authUser = await enforceAuth();
       if (authUser.statusCode) return authUser;
 
+      const platformDenied = enforceAndroidMatchWritePolicy(event);
+      if (platformDenied) return platformDenied;
+
       const payload = JSON.parse(event.body || '{}');
       const matchId = payload.id || payload.matchId || `match_${Date.now()}`;
+
+      const payloadLimitDenied = await enforceMatchWritePayloadLimits({
+        event,
+        payload,
+        method: 'POST',
+        path: '/matches',
+        actorUserId: authUser.userId,
+        actorEmail: authUser.email,
+        matchId
+      });
+      if (payloadLimitDenied) return payloadLimitDenied;
 
       const existing = await docClient.send(new GetCommand({
         TableName: TABLE_NAME,
@@ -811,34 +1148,131 @@ export const handler = async (event) => {
         return response(404, { error: 'Match not found' });
       }
       if (existing.Item && !isOwnedByUser(existing.Item, authUser.userId)) {
+        await logAuditEvent({
+          action: 'MATCH_WRITE_REJECT_OWNER_MISMATCH',
+          actorUserId: authUser.userId,
+          actorEmail: authUser.email,
+          targetId: matchId,
+          metadata: { method: 'POST', path: '/matches' }
+        });
         return response(403, { error: 'Forbidden' });
       }
 
       payload.id = matchId;
       payload.ownerUserId = authUser.userId;
+      const existingPayload = existing.Item?.payload || {};
+      const existingRevision = toRevisionNumber(existingPayload.revision, 0);
+      const hasIncomingRevision = payload.revision !== undefined && payload.revision !== null;
+
+      if (isStrictRevisionEnforced() && !hasIncomingRevision) {
+        await logAuditEvent({
+          action: 'MATCH_WRITE_REJECT_REVISION_REQUIRED',
+          actorUserId: authUser.userId,
+          actorEmail: authUser.email,
+          targetId: matchId,
+          metadata: { method: 'POST', path: '/matches' }
+        });
+        return response(400, {
+          error: 'Revision is required for match writes',
+          code: 'REVISION_REQUIRED'
+        });
+      }
+
+      const incomingRevisionRaw = hasIncomingRevision
+        ? toRevisionNumber(payload.revision, existingRevision)
+        : (existingRevision + 1);
+
+      if (existing.Item && hasIncomingRevision && incomingRevisionRaw <= existingRevision) {
+        await logAuditEvent({
+          action: 'MATCH_WRITE_REJECT_STALE_REVISION',
+          actorUserId: authUser.userId,
+          actorEmail: authUser.email,
+          targetId: matchId,
+          metadata: {
+            method: 'POST',
+            path: '/matches',
+            incomingRevision: incomingRevisionRaw,
+            existingRevision
+          }
+        });
+        return response(409, {
+          error: 'Stale match update rejected',
+          code: 'STALE_REVISION',
+          sync: buildSyncMetadata({
+            accepted: false,
+            revision: existingRevision,
+            serverUpdatedAt: existing.Item.updatedAt || existingPayload.updatedAt || null,
+            reason: `incoming_revision_${incomingRevisionRaw}_not_newer_than_${existingRevision}`
+          })
+        });
+      }
+
+      const appliedRevision = existing.Item
+        ? (hasIncomingRevision ? incomingRevisionRaw : existingRevision + 1)
+        : (hasIncomingRevision ? Math.max(incomingRevisionRaw, 1) : 1);
+      const serverUpdatedAt = new Date().toISOString();
+
+      payload.revision = appliedRevision;
+      payload.updatedAt = serverUpdatedAt;
+      payload.lastWriterPlatform = getClientPlatform(event) === 'android' ? 'ANDROID' : 'UNKNOWN';
       payload.spectatorTokenVersion = Number(payload.spectatorTokenVersion || 0);
       payload.spectatorShareActive = Boolean(payload.spectatorShareActive || false);
       payload.spectatorShareExpiresInSeconds = payload.spectatorShareExpiresInSeconds ?? null;
       payload.spectatorShareIssuedAt = payload.spectatorShareIssuedAt ?? null;
       payload.spectatorShareRevokedAt = payload.spectatorShareRevokedAt ?? null;
 
-      await docClient.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          matchId,
-          docType: 'MATCH',
-          ownerUserId: authUser.userId,
-          updatedAt: new Date().toISOString(),
-          status: payload.status || 'LIVE',
-          payload
+      try {
+        await docClient.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: {
+            matchId,
+            docType: 'MATCH',
+            ownerUserId: authUser.userId,
+            updatedAt: serverUpdatedAt,
+            revision: appliedRevision,
+            spectatorTokenVersion: payload.spectatorTokenVersion,
+            lastWriterPlatform: payload.lastWriterPlatform,
+            status: payload.status || 'LIVE',
+            payload
+          },
+          ...buildMatchSnapshotCondition(existing.Item)
+        }));
+      } catch (err) {
+        if (isConditionalCheckFailed(err)) {
+          const latest = await docClient.send(new GetCommand({ TableName: TABLE_NAME, Key: { matchId } }));
+          const latestPayload = latest.Item?.payload || {};
+          const latestRevision = toRevisionNumber(latest.Item?.revision ?? latestPayload.revision, existingRevision);
+          return response(409, {
+            error: 'Stale match update rejected',
+            code: 'STALE_REVISION',
+            sync: buildSyncMetadata({
+              accepted: false,
+              revision: latestRevision,
+              serverUpdatedAt: latest.Item?.updatedAt || latestPayload.updatedAt || null,
+              reason: 'concurrent_match_or_share_update'
+            })
+          });
         }
-      }));
-      return response(existing.Item ? 200 : 201, payload);
+        throw err;
+      }
+
+      return response(existing.Item ? 200 : 201, {
+        ...payload,
+        sync: buildSyncMetadata({
+          accepted: true,
+          revision: appliedRevision,
+          serverUpdatedAt,
+          legacyAutoBump: !hasIncomingRevision
+        })
+      });
     }
 
     if (method === 'PUT' && pathParams.id) {
       const authUser = await enforceAuth();
       if (authUser.statusCode) return authUser;
+
+      const platformDenied = enforceAndroidMatchWritePolicy(event);
+      if (platformDenied) return platformDenied;
 
       // docType protection: Verify existing item is a MATCH before overwriting
       const existing = await docClient.send(new GetCommand({
@@ -850,6 +1284,13 @@ export const handler = async (event) => {
         return response(404, { error: 'Match not found' });
       }
       if (!existing.Item || !isOwnedByUser(existing.Item, authUser.userId)) {
+        await logAuditEvent({
+          action: 'MATCH_WRITE_REJECT_OWNER_MISMATCH',
+          actorUserId: authUser.userId,
+          actorEmail: authUser.email,
+          targetId: pathParams.id,
+          metadata: { method: 'PUT', path: `/matches/${pathParams.id}` }
+        });
         return response(403, { error: 'Forbidden' });
       }
 
@@ -857,26 +1298,127 @@ export const handler = async (event) => {
       payload.id = pathParams.id;
       payload.ownerUserId = authUser.userId;
 
+      const payloadLimitDenied = await enforceMatchWritePayloadLimits({
+        event,
+        payload,
+        method: 'PUT',
+        path: `/matches/${pathParams.id}`,
+        actorUserId: authUser.userId,
+        actorEmail: authUser.email,
+        matchId: pathParams.id
+      });
+      if (payloadLimitDenied) return payloadLimitDenied;
+
       const existingPayload = existing.Item?.payload || {};
+      const existingRevision = toRevisionNumber(existingPayload.revision, 0);
+      const hasIncomingRevision = payload.revision !== undefined && payload.revision !== null;
+
+      if (isStrictRevisionEnforced() && !hasIncomingRevision) {
+        await logAuditEvent({
+          action: 'MATCH_WRITE_REJECT_REVISION_REQUIRED',
+          actorUserId: authUser.userId,
+          actorEmail: authUser.email,
+          targetId: pathParams.id,
+          metadata: { method: 'PUT', path: `/matches/${pathParams.id}` }
+        });
+        return response(400, {
+          error: 'Revision is required for match writes',
+          code: 'REVISION_REQUIRED'
+        });
+      }
+
+      const incomingRevisionRaw = hasIncomingRevision
+        ? toRevisionNumber(payload.revision, existingRevision)
+        : (existingRevision + 1);
+
+      if (hasIncomingRevision && incomingRevisionRaw <= existingRevision) {
+        await logAuditEvent({
+          action: 'MATCH_WRITE_REJECT_STALE_REVISION',
+          actorUserId: authUser.userId,
+          actorEmail: authUser.email,
+          targetId: pathParams.id,
+          metadata: {
+            method: 'PUT',
+            path: `/matches/${pathParams.id}`,
+            incomingRevision: incomingRevisionRaw,
+            existingRevision
+          }
+        });
+        return response(409, {
+          error: 'Stale match update rejected',
+          code: 'STALE_REVISION',
+          sync: buildSyncMetadata({
+            accepted: false,
+            revision: existingRevision,
+            serverUpdatedAt: existing.Item.updatedAt || existingPayload.updatedAt || null,
+            reason: `incoming_revision_${incomingRevisionRaw}_not_newer_than_${existingRevision}`
+          })
+        });
+      }
+
+      const appliedRevision = hasIncomingRevision ? incomingRevisionRaw : (existingRevision + 1);
+      const serverUpdatedAt = new Date().toISOString();
+
+      payload.revision = appliedRevision;
+      payload.updatedAt = serverUpdatedAt;
+      payload.lastWriterPlatform = getClientPlatform(event) === 'android' ? 'ANDROID' : 'UNKNOWN';
       preserveSpectatorMetadata(existingPayload, payload);
 
-      await docClient.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          matchId: pathParams.id,
-          docType: 'MATCH',
-          ownerUserId: authUser.userId,
-          updatedAt: new Date().toISOString(),
-          status: payload.status || 'LIVE',
-          payload
+      try {
+        await docClient.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: {
+            matchId: pathParams.id,
+            docType: 'MATCH',
+            ownerUserId: authUser.userId,
+            updatedAt: serverUpdatedAt,
+            revision: appliedRevision,
+            spectatorTokenVersion: payload.spectatorTokenVersion,
+            lastWriterPlatform: payload.lastWriterPlatform,
+            status: payload.status || 'LIVE',
+            payload
+          },
+          ...buildMatchSnapshotCondition(existing.Item)
+        }));
+      } catch (err) {
+        if (isConditionalCheckFailed(err)) {
+          const latest = await docClient.send(new GetCommand({
+            TableName: TABLE_NAME,
+            Key: { matchId: pathParams.id }
+          }));
+          const latestPayload = latest.Item?.payload || {};
+          const latestRevision = toRevisionNumber(latest.Item?.revision ?? latestPayload.revision, existingRevision);
+          return response(409, {
+            error: 'Stale match update rejected',
+            code: 'STALE_REVISION',
+            sync: buildSyncMetadata({
+              accepted: false,
+              revision: latestRevision,
+              serverUpdatedAt: latest.Item?.updatedAt || latestPayload.updatedAt || null,
+              reason: 'concurrent_match_or_share_update'
+            })
+          });
         }
-      }));
-      return response(200, payload);
+        throw err;
+      }
+
+      return response(200, {
+        ...payload,
+        sync: buildSyncMetadata({
+          accepted: true,
+          revision: appliedRevision,
+          serverUpdatedAt,
+          legacyAutoBump: !hasIncomingRevision
+        })
+      });
     }
 
     if (method === 'DELETE' && path.startsWith('/matches/') && pathParams.id) {
       const authUser = await enforceAuth();
       if (authUser.statusCode) return authUser;
+
+      const platformDenied = enforceAndroidMatchWritePolicy(event);
+      if (platformDenied) return platformDenied;
 
       // docType protection: Refuse unless item exists and is docType === 'MATCH'
       const existing = await docClient.send(new GetCommand({
@@ -889,6 +1431,13 @@ export const handler = async (event) => {
         return response(404, { error: 'Match not found' });
       }
       if (!isOwnedByUser(existing.Item, authUser.userId)) {
+        await logAuditEvent({
+          action: 'MATCH_WRITE_REJECT_OWNER_MISMATCH',
+          actorUserId: authUser.userId,
+          actorEmail: authUser.email,
+          targetId: pathParams.id,
+          metadata: { method: 'DELETE', path: `/matches/${pathParams.id}` }
+        });
         return response(403, { error: 'Forbidden' });
       }
 
@@ -917,20 +1466,58 @@ export const handler = async (event) => {
 
       const payload = JSON.parse(event.body || '{}');
       const tourneyId = payload.id || `tourney_${Date.now()}`;
+      const existing = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { matchId: tourneyId }
+      }));
+      if (existing.Item && existing.Item.docType !== 'TOURNAMENT') {
+        return response(404, { error: 'Tournament not found' });
+      }
+      if (existing.Item && !isOwnedByUser(existing.Item, authUser.userId)) {
+        return response(403, { error: 'Forbidden' });
+      }
+
       payload.id = tourneyId;
       payload.ownerUserId = authUser.userId;
+      const serverUpdatedAt = new Date().toISOString();
+      payload.updatedAt = serverUpdatedAt;
 
-      await docClient.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          matchId: tourneyId,
-          docType: 'TOURNAMENT',
-          ownerUserId: authUser.userId,
-          updatedAt: new Date().toISOString(),
-          payload
+      try {
+        await docClient.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: {
+            matchId: tourneyId,
+            docType: 'TOURNAMENT',
+            ownerUserId: authUser.userId,
+            updatedAt: serverUpdatedAt,
+            payload
+          },
+          ...(existing.Item
+            ? {
+                ConditionExpression: '#docType = :docType AND #ownerUserId = :ownerUserId AND #updatedAt = :expectedUpdatedAt',
+                ExpressionAttributeNames: {
+                  '#docType': 'docType',
+                  '#ownerUserId': 'ownerUserId',
+                  '#updatedAt': 'updatedAt'
+                },
+                ExpressionAttributeValues: {
+                  ':docType': 'TOURNAMENT',
+                  ':ownerUserId': authUser.userId,
+                  ':expectedUpdatedAt': existing.Item.updatedAt
+                }
+              }
+            : {
+                ConditionExpression: 'attribute_not_exists(#matchId)',
+                ExpressionAttributeNames: { '#matchId': 'matchId' }
+              })
+        }));
+      } catch (err) {
+        if (isConditionalCheckFailed(err)) {
+          return response(409, { error: 'Tournament changed during save', code: 'STALE_TOURNAMENT' });
         }
-      }));
-      return response(201, payload);
+        throw err;
+      }
+      return response(existing.Item ? 200 : 201, payload);
     }
 
     if (method === 'DELETE' && path.startsWith('/tournaments/') && pathParams.id) {

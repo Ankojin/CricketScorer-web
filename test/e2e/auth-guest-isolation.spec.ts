@@ -4,6 +4,7 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
 process.env.JWT_SECRET = 'test_jwt_secret_key_64_bytes_long_mock_secret_string_1234567890_abcdef';
 process.env.TABLE_NAME = 'CricMatches';
+process.env.ENFORCE_EMAIL_DOMAIN_DNS = 'false';
 
 const mockDb = new Map<string, any>();
 
@@ -120,7 +121,115 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
     }
   });
 
-  test('Registered account data is purged on sign-out, leaving Guest mode clean', async ({ page }) => {
+  test('Signed-in Web scoring stays local and does not write match data to cloud', async ({ page }) => {
+    await page.addInitScript(apiUrl => {
+      (window as any).CRIC_API_BASE = apiUrl;
+    }, API_BASE_URL);
+    await page.goto('http://localhost:8080');
+
+    const matchId = `web_local_${Date.now()}`;
+    const localMatch = await page.evaluate(async ({ apiUrl, id }) => {
+      const win = window as any;
+      win.CRIC_API_BASE = apiUrl;
+      await win.CricStorage.register(`web_local_${Date.now()}@nrkmart.in`, 'LocalScorePassword123!', 'Local Scorer');
+      const match = await win.CricStorage.createMatch({
+        id,
+        status: 'LIVE',
+        teamA: { id: 'local_a', name: 'Local A', players: [] },
+        teamB: { id: 'local_b', name: 'Local B', players: [] },
+        ballHistory: [],
+        totalRuns: 0
+      });
+      const recalculated = win.ScoringEngine.recalculateMatch(match);
+      await win.CricStorage.saveMatch({ ...recalculated, totalRuns: 4 });
+      return win.CricStorage.getLocalMatchById(id);
+    }, { apiUrl: API_BASE_URL, id: matchId });
+
+    expect(localMatch.localOnly).toBe(true);
+    expect(localMatch.totalRuns).toBe(4);
+    expect(mockDb.has(matchId)).toBe(false);
+  });
+
+  test('Owner-scoped cloud matches are read-only in the Web scoring UI', async ({ page }) => {
+    await page.addInitScript(apiUrl => {
+      (window as any).CRIC_API_BASE = apiUrl;
+    }, API_BASE_URL);
+    await page.goto('http://localhost:8080');
+
+    const matchId = `web_cloud_readonly_${Date.now()}`;
+    const state = await page.evaluate(async ({ apiUrl, id }) => {
+      const win = window as any;
+      win.CRIC_API_BASE = apiUrl;
+      await win.CricStorage.register(`cloud_view_${Date.now()}@nrkmart.in`, 'CloudViewPassword123!', 'Cloud Viewer');
+      const token = localStorage.getItem('cric_auth_token');
+      let matchWriteRequests = 0;
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input), window.location.href);
+        if (url.pathname.startsWith('/matches') && ['POST', 'PUT', 'DELETE'].includes((init?.method || 'GET').toUpperCase())) {
+          matchWriteRequests++;
+        }
+        return originalFetch(input, init);
+      };
+      const response = await originalFetch(`${apiUrl}/matches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          id,
+          status: 'LIVE',
+          revision: 1,
+          currentInnings: 1,
+          totalRuns: 0,
+          totalWickets: 0,
+          totalBalls: 0,
+          oversPerInnings: 6,
+          teamA: { id: 'cloud_a', name: 'Cloud A', players: [] },
+          teamB: { id: 'cloud_b', name: 'Cloud B', players: [] },
+          battingTeamId: 'cloud_a',
+          bowlingTeamId: 'cloud_b',
+          ballHistory: [],
+          wicketHistory: []
+        })
+      });
+      if (!response.ok) throw new Error(`Unable to seed cloud match: ${response.status}`);
+      await win.selectMatch(id);
+      return {
+        scoringKeypadHidden: (document.getElementById('scoringKeypad') as HTMLElement | null)?.style.display === 'none',
+        localOnly: win.activeMatch?.localOnly === true,
+        matchWriteRequests
+      };
+    }, { apiUrl: API_BASE_URL, id: matchId });
+
+    expect(state.scoringKeypadHidden).toBe(true);
+    expect(state.localOnly).toBe(false);
+    expect(state.matchWriteRequests).toBe(0);
+    await expect(page.locator('#scoringKeypad')).toBeHidden();
+  });
+
+  test('Pending cloud writes survive expired credentials for retry after sign-in', async ({ page }) => {
+    await page.addInitScript(apiUrl => {
+      (window as any).CRIC_API_BASE = apiUrl;
+    }, API_BASE_URL);
+    await page.goto('http://localhost:8080');
+
+    const pendingCount = await page.evaluate(async apiUrl => {
+      const win = window as any;
+      win.CRIC_API_BASE = apiUrl;
+      await win.CricStorage.register(`pending_retry_${Date.now()}@nrkmart.in`, 'RetryQueuePassword123!', 'Retry User');
+      localStorage.setItem('cric_auth_token', 'expired-token');
+      win.CricStorage.queuePendingSync('PUT', '/matches/pending_retry_match', { id: 'pending_retry_match' });
+      await win.CricStorage.processPendingSyncQueue();
+      const raw = win.CricStorage.readScopedDataValue('cric_pending_sync');
+      return raw ? JSON.parse(raw).length : 0;
+    }, API_BASE_URL);
+
+    expect(pendingCount).toBe(1);
+  });
+
+  test('Signed-out local workspace cannot read the signed-in account cache', async ({ page }) => {
     await page.addInitScript(apiUrl => {
       (window as any).CRIC_API_BASE = apiUrl;
     }, API_BASE_URL);
@@ -132,76 +241,21 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
       const win = window as any;
       win.CRIC_API_BASE = apiUrl;
       const res = await win.CricStorage.register(
-        `user_isolation_${Date.now()}@example.com`,
+        `user_isolation_${Date.now()}@gmail.com`,
         'SecretPassword123!',
         'User Isolation'
       );
       if (typeof win.updateAuthUI === 'function') win.updateAuthUI();
-      return res;
+      const scopedKey = win.CricStorage.getScopedDataKey('cric_matches');
+      localStorage.setItem(scopedKey, JSON.stringify([
+        { id: 'account_only_match', teamA: { name: 'Private A' }, teamB: { name: 'Private B' } }
+      ]));
+      return { user: res, scopedKey };
     }, API_BASE_URL);
 
-    expect(user?.userId).toBeTruthy();
-
-    // Navigate to Create Match screen
-    await page.evaluate(async () => {
-      const win = window as any;
-      if (typeof win.showNewMatchScreen === 'function') {
-        await win.showNewMatchScreen();
-      }
-    });
-
-    // Create match as registered user
-    await page.evaluate(async () => {
-      const win = window as any;
-      const elA = document.getElementById('teamAName') as HTMLInputElement | null;
-      const elB = document.getElementById('teamBName') as HTMLInputElement | null;
-      if (elA) elA.value = 'Isolation Rockets';
-      if (elB) elB.value = 'Isolation Thunder';
-
-      if (typeof win.addPlayerObjectToSquad === 'function') {
-        win.addPlayerObjectToSquad('A', { id: 'pa_1', name: 'AliceIso' });
-        win.addPlayerObjectToSquad('A', { id: 'pa_2', name: 'AmyIso' });
-        win.addPlayerObjectToSquad('B', { id: 'pb_1', name: 'BobIso' });
-      }
-
-      if (typeof win.renderSquadList === 'function') {
-        win.renderSquadList('A');
-        win.renderSquadList('B');
-      }
-
-      if (typeof win.handleCreateMatch === 'function') {
-        await win.handleCreateMatch();
-      }
-    });
-
-    const tossModal = page.locator('#tossModal');
-    await expect(tossModal).toBeVisible();
-
-    await page.click('#tossModal button:has-text("Start match")');
-
-    // Confirm initial selection prompts
-    for (let i = 0; i < 3; i++) {
-      const selectionModal = page.locator('#selectionModal');
-      if (await selectionModal.isVisible()) {
-        const confirmBtn = page.locator('#btnConfirmGenericSelection');
-        if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
-          await confirmBtn.click();
-        } else {
-          const bowlerOpt = page.locator('#bowlerListContainer .bowler-option').first();
-          if (await bowlerOpt.isVisible()) {
-            await bowlerOpt.click();
-          }
-        }
-        await page.waitForTimeout(300);
-      }
-    }
-
-    // Verify match exists in localStorage
-    const matchesBeforeSignout = await page.evaluate(() => {
-      const raw = localStorage.getItem('cric_matches');
-      return raw ? JSON.parse(raw) : [];
-    });
-    expect(matchesBeforeSignout.length).toBeGreaterThan(0);
+    expect(user.user?.userId).toBeTruthy();
+    await expect(page.locator('#homeDashboard')).toBeVisible();
+    await expect(page.locator('#homeRecentMatches')).toContainText('No saved matches yet');
 
     // Auto-confirm window.confirm dialogs during Sign Out
     page.on('dialog', dialog => dialog.accept());
@@ -213,40 +267,16 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
     const landingScreen = page.locator('#screenLanding');
     await expect(landingScreen).toBeVisible();
 
-    // Click Continue as Guest
-    await page.click('button:has-text("Continue as Guest")');
-
-    // Assert match list is empty ("No matches found" or 0 matches)
-    const matchesAfterGuestSwitch = await page.evaluate(() => {
-      const raw = localStorage.getItem('cric_matches');
-      return raw ? JSON.parse(raw) : [];
-    });
-    expect(matchesAfterGuestSwitch.length).toBe(0);
-
-    // Assert cached collections in localStorage are null/empty
-    const storageState = await page.evaluate(() => ({
-      cric_matches: localStorage.getItem('cric_matches'),
-      cric_teams: localStorage.getItem('cric_teams'),
-      cric_tournaments: localStorage.getItem('cric_tournaments'),
-      cric_global_players: localStorage.getItem('cric_global_players'),
-      cric_active_match_id: localStorage.getItem('cric_active_match_id')
-    }));
-
-    expect(storageState.cric_matches).toBeNull();
-    expect(storageState.cric_teams).toBeNull();
-    expect(storageState.cric_tournaments).toBeNull();
-    expect(storageState.cric_global_players).toBeNull();
-    expect(storageState.cric_active_match_id).toBeNull();
+    const guestState = await page.evaluate(scopedKey => ({
+      guestMatches: (window as any).CricStorage.getLocalMatchesSnapshot(),
+      accountMatches: localStorage.getItem(scopedKey)
+    }), user.scopedKey);
+    expect(guestState.guestMatches).toEqual([]);
+    expect(guestState.accountMatches).toContain('account_only_match');
   });
 
   test('Genuine guest user match data is retained when continuing guest session', async ({ page }) => {
     await page.goto('http://localhost:8080');
-
-    // Continue as Guest
-    const guestBtn = page.locator('button:has-text("Continue as Guest")');
-    if (await guestBtn.isVisible()) {
-      await guestBtn.click();
-    }
 
     // Create a local Guest match
     await page.click('button.cric-btn:has-text("Quick Match")');
@@ -313,8 +343,7 @@ test.describe('Account Logout & Guest Mode Data Isolation E2E Tests', () => {
 
     // Assert Guest match data is NOT wiped
     const guestMatches = await page.evaluate(() => {
-      const raw = localStorage.getItem('cric_matches');
-      return raw ? JSON.parse(raw) : [];
+      return (window as any).CricStorage.getLocalMatchesSnapshot();
     });
 
     expect(guestMatches.length).toBeGreaterThan(0);

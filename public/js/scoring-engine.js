@@ -844,7 +844,8 @@ class ScoringEngine {
         } : null;
     }
     static formatPlayerStatsSummary(p) {
-        if (!p) return '';
+        if (!p)
+            return '';
         const b = p.battingStats || { runs: 0, balls: 0 };
         const bw = p.bowlingStats || { overs: 0, balls: 0, wickets: 0, runsConceded: 0 };
         const f = p.fieldingStats || { catches: 0, stumpings: 0, runOuts: 0 };
@@ -864,9 +865,12 @@ class ScoringEngine {
         const catches = Number(f.catches || 0);
         const stumpings = Number(f.stumpings || 0);
         const runOuts = Number(f.runOuts || 0);
-        if (catches > 0) parts.push(`${catches} c`);
-        if (stumpings > 0) parts.push(`${stumpings} st`);
-        if (runOuts > 0) parts.push(`${runOuts} ro`);
+        if (catches > 0)
+            parts.push(`${catches} c`);
+        if (stumpings > 0)
+            parts.push(`${stumpings} st`);
+        if (runOuts > 0)
+            parts.push(`${runOuts} ro`);
         return parts.length > 0 ? parts.join(' • ') : 'All-round performance';
     }
     static calculateForecaster(match) {

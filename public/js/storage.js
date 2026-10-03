@@ -4,6 +4,15 @@ window.CRIC_API_BASE = window.CRIC_API_BASE || "";
 
 const CricStorage = {
 
+  scopedDataKeys: new Set([
+    'cric_matches',
+    'cric_teams',
+    'cric_tournaments',
+    'cric_global_players',
+    'cric_active_match_id',
+    'cric_pending_sync'
+  ]),
+
   onToast: null, // Callback for Toast Notifications: (msg, type) => void
 
   notifyToast(msg, type = 'info') {
@@ -27,6 +36,64 @@ const CricStorage = {
     return headers;
   },
 
+  getStorageScopeId() {
+    const user = this.getAuthUser();
+    const userId = String(user?.userId || '').trim();
+    const email = String(user?.email || '').trim().toLowerCase();
+    const identity = userId || email;
+    if (!identity) return 'anon';
+    return identity.replace(/[^a-z0-9@._-]/gi, '_');
+  },
+
+  getScopedDataKey(baseKey, scopeId = this.getStorageScopeId()) {
+    if (!this.scopedDataKeys.has(baseKey)) return baseKey;
+    return `${baseKey}::${scopeId}`;
+  },
+
+  readScopedDataValue(baseKey) {
+    if (!this.scopedDataKeys.has(baseKey)) {
+      return localStorage.getItem(baseKey);
+    }
+
+    const scopeId = this.getStorageScopeId();
+    const scopedKey = this.getScopedDataKey(baseKey, scopeId);
+    const scopedValue = localStorage.getItem(scopedKey);
+    if (scopedValue !== null) return scopedValue;
+
+    // Safe migration path for legacy unauthenticated data only.
+    if (scopeId !== 'anon') return null;
+
+    const legacyValue = localStorage.getItem(baseKey);
+    if (legacyValue !== null) {
+      localStorage.setItem(scopedKey, legacyValue);
+      localStorage.removeItem(baseKey);
+    }
+    return legacyValue;
+  },
+
+  writeScopedDataValue(baseKey, value) {
+    localStorage.setItem(this.getScopedDataKey(baseKey), value);
+  },
+
+  removeScopedDataValue(baseKey) {
+    localStorage.removeItem(this.getScopedDataKey(baseKey));
+  },
+
+  getLocalMatchesSnapshot() {
+    const raw = this.readScopedDataValue('cric_matches');
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  },
+
+  getActiveMatchId() {
+    return this.readScopedDataValue('cric_active_match_id');
+  },
+
   unwrapListPayload(payload) {
     if (Array.isArray(payload)) return payload;
     if (payload && Array.isArray(payload.items)) return payload.items;
@@ -40,63 +107,22 @@ const CricStorage = {
   },
 
   getLocalMatchById(matchId) {
-    const raw = localStorage.getItem('cric_matches');
-    if (!raw) return null;
-    try {
-      const matches = JSON.parse(raw);
-      if (!Array.isArray(matches)) return null;
-      return matches.find(m => m?.id === matchId) || null;
-    } catch (e) {
-      return null;
-    }
-  },
-
-  async ensureCloudMatchExists(matchId) {
-    if (this.isGuestUser() || !this.hasCloudApi()) {
-      throw new Error('Cloud sync unavailable');
-    }
-
-    const localMatch = this.getLocalMatchById(matchId);
-    if (!localMatch) {
-      throw new Error('Match not found locally');
-    }
-
-    const putRes = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, {
-      method: 'PUT',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(localMatch)
-    });
-
-    if (putRes.ok) {
-      return true;
-    }
-
-    if (putRes.status === 403 || putRes.status === 404) {
-      const postRes = await fetch(`${window.CRIC_API_BASE}/matches`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(localMatch)
-      });
-      if (postRes.ok) {
-        return true;
-      }
-
-      const postErrBody = await postRes.json().catch(() => ({}));
-      throw new Error(postErrBody.error || `Unable to sync match to cloud (HTTP ${postRes.status})`);
-    }
-
-    const putErrBody = await putRes.json().catch(() => ({}));
-    throw new Error(putErrBody.error || `Unable to sync match to cloud (HTTP ${putRes.status})`);
+    const matches = this.getLocalMatchesSnapshot();
+    return matches.find(m => m?.id === matchId) || null;
   },
 
   isStrictCloudMode() {
     return !this.isGuestUser() && this.hasCloudApi();
   },
 
+  throwWebReadOnlyError() {
+    throw new Error('Web scoring is read-only. Use Android app to create or update match scoring, then refresh web view.');
+  },
+
   // ------------------- BACKGROUND SYNC QUEUE -------------------
   queuePendingSync(method, endpoint, payload = null) {
     try {
-      const raw = localStorage.getItem('cric_pending_sync');
+      const raw = this.readScopedDataValue('cric_pending_sync');
       const queue = raw ? JSON.parse(raw) : [];
       queue.push({
         id: 'sync_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
@@ -105,7 +131,7 @@ const CricStorage = {
         payload,
         createdAt: new Date().toISOString()
       });
-      localStorage.setItem('cric_pending_sync', JSON.stringify(queue));
+      this.writeScopedDataValue('cric_pending_sync', JSON.stringify(queue));
     } catch (e) {
       console.warn('Failed to queue pending sync:', e);
     }
@@ -114,7 +140,7 @@ const CricStorage = {
   async processPendingSyncQueue() {
     if (this.isGuestUser() || !window.CRIC_API_BASE || !window.CRIC_API_BASE.trim()) return;
 
-    const raw = localStorage.getItem('cric_pending_sync');
+    const raw = this.readScopedDataValue('cric_pending_sync');
     if (!raw) return;
 
     let queue = [];
@@ -133,6 +159,8 @@ const CricStorage = {
         });
         if (res.ok) {
           syncedCount++;
+        } else if ([401, 409, 429].includes(res.status)) {
+          remaining.push(item);
         } else if (res.status >= 400 && res.status < 500) {
           // Client request error - discard unprocessable payload
           console.warn(`Pending sync discarded (HTTP ${res.status}):`, item);
@@ -145,7 +173,7 @@ const CricStorage = {
       }
     }
 
-    localStorage.setItem('cric_pending_sync', JSON.stringify(remaining));
+    this.writeScopedDataValue('cric_pending_sync', JSON.stringify(remaining));
     if (syncedCount > 0) {
       this.notifyToast(`🟢 Synced ${syncedCount} pending change${syncedCount > 1 ? 's' : ''} to cloud`, 'success');
     }
@@ -232,12 +260,9 @@ const CricStorage = {
   logout() {
     localStorage.removeItem('cric_auth_token');
     localStorage.removeItem('cric_auth_user');
-    localStorage.removeItem('cric_matches');
-    localStorage.removeItem('cric_teams');
-    localStorage.removeItem('cric_tournaments');
-    localStorage.removeItem('cric_global_players');
-    localStorage.removeItem('cric_active_match_id');
-    localStorage.removeItem('cric_pending_sync');
+    localStorage.removeItem('cric_user_mode');
+    this.removeScopedDataValue('cric_active_match_id');
+    this.removeScopedDataValue('cric_pending_sync');
   },
 
   getCurrentUser() {
@@ -248,7 +273,7 @@ const CricStorage = {
   // ------------------- MATCHES -------------------
   async listMatches() {
     let localMatches = [];
-    const raw = localStorage.getItem('cric_matches');
+    const raw = this.readScopedDataValue('cric_matches');
     if (raw) {
       try { localMatches = JSON.parse(raw); } catch (e) { localMatches = []; }
     }
@@ -270,7 +295,7 @@ const CricStorage = {
             });
 
             const merged = Array.from(matchMap.values());
-            localStorage.setItem('cric_matches', JSON.stringify(merged));
+            this.writeScopedDataValue('cric_matches', JSON.stringify(merged));
             return merged;
           }
         }
@@ -299,12 +324,15 @@ const CricStorage = {
           : `${window.CRIC_API_BASE}/matches/${matchId}`;
         const headers = spectatorToken ? { 'Content-Type': 'application/json' } : this.getAuthHeaders();
         const res = await fetch(url, { headers });
-        if (res.ok) return await res.json();
+        if (res.ok) {
+          const match = await res.json();
+          if (!isSpectator) match.cloudReadOnly = true;
+          return match;
+        }
         if (!isSpectator && (res.status === 403 || res.status === 404)) {
           const localFallback = this.getLocalMatchById(matchId);
-          if (localFallback) {
-            this.queuePendingSync('PUT', `/matches/${matchId}`, localFallback);
-            this.notifyToast('Using local match. Cloud sync queued.', 'info');
+          if (localFallback?.localOnly) {
+            this.notifyToast('Opened local-only match. Cloud matches are read-only on Web.', 'info');
             return localFallback;
           }
         }
@@ -314,9 +342,8 @@ const CricStorage = {
       } catch (err) {
         if (!isSpectator && this.isStrictCloudMode()) {
           const localFallback = this.getLocalMatchById(matchId);
-          if (localFallback) {
-            this.queuePendingSync('PUT', `/matches/${matchId}`, localFallback);
-            this.notifyToast('Using local match. Cloud sync queued.', 'info');
+          if (localFallback?.localOnly) {
+            this.notifyToast('Opened local-only match. Cloud matches are read-only on Web.', 'info');
             return localFallback;
           }
         }
@@ -334,45 +361,14 @@ const CricStorage = {
   async createMatch(match) {
     if (!match.id) match.id = 'match_' + Date.now();
     match.updatedAt = new Date().toISOString();
-
-    if (this.isStrictCloudMode()) {
-      const res = await fetch(`${window.CRIC_API_BASE}/matches`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(match)
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || `Unable to save match to cloud (HTTP ${res.status})`);
-      }
-      this.saveLocalMatchBackup(match);
-      this.notifyToast('🟢 Match saved & synced', 'success');
-      return match;
-    }
-
+    match.localOnly = true;
     this.saveLocalMatchBackup(match);
 
-    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
-      try {
-        const res = await fetch(`${window.CRIC_API_BASE}/matches`, {
-          method: 'POST',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(match)
-        });
-        if (res.ok) {
-          this.notifyToast('🟢 Match saved & synced', 'success');
-        } else {
-          this.notifyToast('💾 Saved locally (Cloud sync failed)', 'info');
-          this.queuePendingSync('POST', '/matches', match);
-        }
-      } catch (err) {
-        this.notifyToast('💾 Saved locally (Offline mode)', 'info');
-        this.queuePendingSync('POST', '/matches', match);
-      }
-    } else {
-      this.notifyToast('💾 Saved locally', 'info');
+    if (this.isStrictCloudMode()) {
+      this.notifyToast('💾 Match saved locally. Web does not write match scoring to cloud.', 'info');
+      return match;
     }
-
+    this.notifyToast('💾 Saved locally', 'info');
     return match;
   },
 
@@ -392,17 +388,11 @@ const CricStorage = {
       body: JSON.stringify(payload)
     });
 
-    if (res.status === 403 || res.status === 404) {
-      await this.ensureCloudMatchExists(matchId);
-      res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}/share-token`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(payload)
-      });
-    }
-
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (res.status === 403 || res.status === 404) {
+        throw new Error('Match is not available in cloud for your account. Sync from Android app first.');
+      }
       throw new Error(body.error || `Unable to create share token (HTTP ${res.status})`);
     }
     return body;
@@ -425,105 +415,55 @@ const CricStorage = {
   },
 
   async saveMatch(match) {
-    match.updatedAt = new Date().toISOString();
+    if (this.isStrictCloudMode() && !match.localOnly) {
+      this.throwWebReadOnlyError();
+    }
 
-    if (this.isStrictCloudMode()) {
-      let res = await fetch(`${window.CRIC_API_BASE}/matches/${match.id}`, {
-        method: 'PUT',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(match)
-      });
-      if (res.status === 403 || res.status === 404) {
-        res = await fetch(`${window.CRIC_API_BASE}/matches`, {
-          method: 'POST',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(match)
-        });
-      }
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || `Unable to update match in cloud (HTTP ${res.status})`);
-      }
+    match.updatedAt = new Date().toISOString();
+    if (match.localOnly) {
       this.saveLocalMatchBackup(match);
-      this.notifyToast('🟢 Match updated & synced', 'success');
+      this.notifyToast('💾 Local-only match saved in this browser.', 'info');
       return match;
     }
 
-    this.saveLocalMatchBackup(match);
-
-    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
-      try {
-        const res = await fetch(`${window.CRIC_API_BASE}/matches/${match.id}`, {
-          method: 'PUT',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(match)
-        });
-        if (res.ok) {
-          this.notifyToast('🟢 Match updated & synced', 'success');
-        } else {
-          this.notifyToast('💾 Saved locally (Cloud sync failed)', 'info');
-          this.queuePendingSync('PUT', `/matches/${match.id}`, match);
-        }
-      } catch (err) {
-        this.notifyToast('💾 Saved locally (Offline mode)', 'info');
-        this.queuePendingSync('PUT', `/matches/${match.id}`, match);
-      }
+    if (this.isStrictCloudMode()) {
+      this.throwWebReadOnlyError();
     }
 
+    this.saveLocalMatchBackup(match);
+    this.notifyToast('💾 Saved locally', 'info');
     return match;
   },
 
   async deleteMatch(matchId) {
-    if (this.isStrictCloudMode()) {
-      const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { method: 'DELETE', headers: this.getAuthHeaders() });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || `Unable to delete match from cloud (HTTP ${res.status})`);
-      }
-
-      const matches = await this.listMatches();
-      const updated = matches.filter(m => m.id !== matchId);
-      localStorage.setItem('cric_matches', JSON.stringify(updated));
-      this.notifyToast('🟢 Match deleted from Cloud', 'success');
-      return updated;
+    const localMatch = this.getLocalMatchById(matchId);
+    if (this.isStrictCloudMode() && !localMatch?.localOnly) {
+      this.throwWebReadOnlyError();
     }
 
-    let cloudSuccess = true;
-
-    if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
-      try {
-        const res = await fetch(`${window.CRIC_API_BASE}/matches/${matchId}`, { method: 'DELETE', headers: this.getAuthHeaders() });
-        if (!res.ok) {
-          cloudSuccess = false;
-          console.warn(`API deleteMatch status ${res.status}`);
-          this.queuePendingSync('DELETE', `/matches/${matchId}`);
-        }
-      } catch (err) {
-        cloudSuccess = false;
-        console.warn('API deleteMatch failed:', err);
-        this.queuePendingSync('DELETE', `/matches/${matchId}`);
-      }
+    if (localMatch?.localOnly) {
+      const matches = this.getLocalMatchesSnapshot().filter(match => match.id !== matchId);
+      this.writeScopedDataValue('cric_matches', JSON.stringify(matches));
+      if (this.getActiveMatchId() === matchId) this.removeScopedDataValue('cric_active_match_id');
+      this.notifyToast('💾 Local-only match deleted from this browser.', 'info');
+      return matches;
     }
 
     const matches = await this.listMatches();
     const updated = matches.filter(m => m.id !== matchId);
-    localStorage.setItem('cric_matches', JSON.stringify(updated));
+    this.writeScopedDataValue('cric_matches', JSON.stringify(updated));
 
-    if (cloudSuccess && !this.isGuestUser()) {
-      this.notifyToast('🟢 Match deleted from Cloud', 'success');
-    } else {
-      this.notifyToast('💾 Match deleted locally', 'info');
-    }
+    this.notifyToast('💾 Match deleted locally', 'info');
 
     return updated;
   },
 
   saveLocalMatchBackup(match) {
-    const raw = localStorage.getItem('cric_matches');
+    const raw = this.readScopedDataValue('cric_matches');
     const matches = raw ? JSON.parse(raw) : [];
     const updated = [match, ...matches.filter(m => m.id !== match.id)];
-    localStorage.setItem('cric_matches', JSON.stringify(updated));
-    localStorage.setItem('cric_active_match_id', match.id);
+    this.writeScopedDataValue('cric_matches', JSON.stringify(updated));
+    this.writeScopedDataValue('cric_active_match_id', match.id);
     return match;
   },
 
@@ -559,7 +499,7 @@ const CricStorage = {
 
   // ------------------- TEAMS LAYER -------------------
   async listTeams() {
-    const raw = localStorage.getItem('cric_teams');
+    const raw = this.readScopedDataValue('cric_teams');
     if (raw) {
       try { return JSON.parse(raw); } catch (e) { }
     }
@@ -587,21 +527,21 @@ const CricStorage = {
         return true;
       })
     ];
-    localStorage.setItem('cric_teams', JSON.stringify(updated));
+    this.writeScopedDataValue('cric_teams', JSON.stringify(updated));
     return team;
   },
 
   async deleteTeam(teamId) {
     const teams = await this.listTeams();
     const updated = teams.filter(t => t.id !== teamId);
-    localStorage.setItem('cric_teams', JSON.stringify(updated));
+    this.writeScopedDataValue('cric_teams', JSON.stringify(updated));
     return updated;
   },
 
   // ------------------- TOURNAMENTS / SERIES -------------------
   async listTournaments() {
     let localTourneys = [];
-    const raw = localStorage.getItem('cric_tournaments');
+    const raw = this.readScopedDataValue('cric_tournaments');
     if (raw) {
       try { localTourneys = JSON.parse(raw); } catch (e) { localTourneys = []; }
     }
@@ -623,7 +563,7 @@ const CricStorage = {
             });
 
             const merged = Array.from(tourneyMap.values());
-            localStorage.setItem('cric_tournaments', JSON.stringify(merged));
+            this.writeScopedDataValue('cric_tournaments', JSON.stringify(merged));
             return merged;
           }
         }
@@ -656,19 +596,19 @@ const CricStorage = {
         throw new Error(errBody.error || `Unable to save series to cloud (HTTP ${res.status})`);
       }
 
-      const rawStrict = localStorage.getItem('cric_tournaments');
+      const rawStrict = this.readScopedDataValue('cric_tournaments');
       const strictList = rawStrict ? JSON.parse(rawStrict) : [];
       const strictUpdated = [tournament, ...strictList.filter(t => t.id !== tournament.id)];
-      localStorage.setItem('cric_tournaments', JSON.stringify(strictUpdated));
+      this.writeScopedDataValue('cric_tournaments', JSON.stringify(strictUpdated));
       this.notifyToast('🟢 Series saved & synced', 'success');
       return tournament;
     }
 
     // 1. Write locally first
-    const raw = localStorage.getItem('cric_tournaments');
+    const raw = this.readScopedDataValue('cric_tournaments');
     const tourneys = raw ? JSON.parse(raw) : [];
     const updated = [tournament, ...tourneys.filter(t => t.id !== tournament.id)];
-    localStorage.setItem('cric_tournaments', JSON.stringify(updated));
+    this.writeScopedDataValue('cric_tournaments', JSON.stringify(updated));
 
     // 2. Cloud sync
     if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
@@ -706,13 +646,13 @@ const CricStorage = {
 
       const tourneysStrict = await this.listTournaments();
       const updatedTourneysStrict = tourneysStrict.filter(t => t.id !== tournamentId);
-      localStorage.setItem('cric_tournaments', JSON.stringify(updatedTourneysStrict));
+      this.writeScopedDataValue('cric_tournaments', JSON.stringify(updatedTourneysStrict));
 
-      const rawMatchesStrict = localStorage.getItem('cric_matches');
+      const rawMatchesStrict = this.readScopedDataValue('cric_matches');
       if (rawMatchesStrict) {
         const matchesStrict = JSON.parse(rawMatchesStrict);
         const updatedMatchesStrict = matchesStrict.filter(m => m.tournamentId !== tournamentId);
-        localStorage.setItem('cric_matches', JSON.stringify(updatedMatchesStrict));
+        this.writeScopedDataValue('cric_matches', JSON.stringify(updatedMatchesStrict));
       }
 
       this.notifyToast('🟢 Series and associated matches deleted from Cloud', 'success');
@@ -739,13 +679,13 @@ const CricStorage = {
     // Always perform local cascade cleanup
     const tourneys = await this.listTournaments();
     const updatedTourneys = tourneys.filter(t => t.id !== tournamentId);
-    localStorage.setItem('cric_tournaments', JSON.stringify(updatedTourneys));
+    this.writeScopedDataValue('cric_tournaments', JSON.stringify(updatedTourneys));
 
-    const rawMatches = localStorage.getItem('cric_matches');
+    const rawMatches = this.readScopedDataValue('cric_matches');
     if (rawMatches) {
       const matches = JSON.parse(rawMatches);
       const updatedMatches = matches.filter(m => m.tournamentId !== tournamentId);
-      localStorage.setItem('cric_matches', JSON.stringify(updatedMatches));
+      this.writeScopedDataValue('cric_matches', JSON.stringify(updatedMatches));
     }
 
     if (cloudSuccess && !this.isGuestUser()) {
@@ -760,7 +700,7 @@ const CricStorage = {
   // ------------------- GLOBAL PLAYERS -------------------
   async listGlobalPlayers() {
     let localPlayers = [];
-    const raw = localStorage.getItem('cric_global_players');
+    const raw = this.readScopedDataValue('cric_global_players');
     if (raw) {
       try { localPlayers = JSON.parse(raw); } catch (e) { localPlayers = []; }
     }
@@ -795,7 +735,7 @@ const CricStorage = {
             });
 
             const merged = Array.from(playerMap.values());
-            localStorage.setItem('cric_global_players', JSON.stringify(merged));
+            this.writeScopedDataValue('cric_global_players', JSON.stringify(merged));
             return merged;
           }
         }
@@ -828,7 +768,7 @@ const CricStorage = {
         throw new Error(errBody.error || `Unable to save player to cloud (HTTP ${res.status})`);
       }
 
-      const rawStrict = localStorage.getItem('cric_global_players');
+      const rawStrict = this.readScopedDataValue('cric_global_players');
       const strictPlayers = rawStrict ? JSON.parse(rawStrict) : [];
       const incomingNameKeyStrict = `${player?.name || ''}`.trim().toLowerCase();
       const updatedStrict = [
@@ -840,13 +780,13 @@ const CricStorage = {
           return true;
         })
       ];
-      localStorage.setItem('cric_global_players', JSON.stringify(updatedStrict));
+      this.writeScopedDataValue('cric_global_players', JSON.stringify(updatedStrict));
       this.notifyToast('🟢 Player saved & synced', 'success');
       return player;
     }
 
     // 1. Write locally first
-    const raw = localStorage.getItem('cric_global_players');
+    const raw = this.readScopedDataValue('cric_global_players');
     const players = raw ? JSON.parse(raw) : [];
     const incomingNameKey = `${player?.name || ''}`.trim().toLowerCase();
     const updated = [
@@ -858,7 +798,7 @@ const CricStorage = {
         return true;
       })
     ];
-    localStorage.setItem('cric_global_players', JSON.stringify(updated));
+    this.writeScopedDataValue('cric_global_players', JSON.stringify(updated));
 
     // 2. Cloud sync
     if (!this.isGuestUser() && window.CRIC_API_BASE && window.CRIC_API_BASE.trim().length > 0) {
@@ -894,10 +834,10 @@ const CricStorage = {
         throw new Error(errBody.error || `Unable to delete player from cloud (HTTP ${res.status})`);
       }
 
-      const rawStrict = localStorage.getItem('cric_global_players');
+      const rawStrict = this.readScopedDataValue('cric_global_players');
       const playersStrict = rawStrict ? JSON.parse(rawStrict) : [];
       const updatedStrict = playersStrict.filter(p => p.id !== playerId);
-      localStorage.setItem('cric_global_players', JSON.stringify(updatedStrict));
+      this.writeScopedDataValue('cric_global_players', JSON.stringify(updatedStrict));
       this.notifyToast('🟢 Player deleted from Cloud', 'success');
       return updatedStrict;
     }
@@ -919,10 +859,10 @@ const CricStorage = {
       }
     }
 
-    const raw = localStorage.getItem('cric_global_players');
+    const raw = this.readScopedDataValue('cric_global_players');
     const players = raw ? JSON.parse(raw) : [];
     const updated = players.filter(p => p.id !== playerId);
-    localStorage.setItem('cric_global_players', JSON.stringify(updated));
+    this.writeScopedDataValue('cric_global_players', JSON.stringify(updated));
 
     if (cloudSuccess && !this.isGuestUser()) {
       this.notifyToast('🟢 Player deleted from Cloud', 'success');

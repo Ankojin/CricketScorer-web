@@ -25,6 +25,8 @@ let authTab = 'LOGIN';
 
 let isReadOnlySpectator = false;
 
+let isPublicSpectator = false;
+
 let spectatorPollInterval = null;
 
 let seriesTeamSelectedPlayers = [];

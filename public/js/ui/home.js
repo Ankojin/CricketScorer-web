@@ -11,37 +11,8 @@ function isWebScoreMatch(match = activeMatch) {
   return match?.scoringMode === 'WEBSCORE' || currentScoringMode === 'WEBSCORE';
 }
 
-function isRegisteredScoringUser() {
-  return Boolean(window.CricStorage.getCurrentUser()) || localStorage.getItem('cric_user_mode') === 'REGISTERED';
-}
-
-function updateScoringModeAccess(isRegistered = isRegisteredScoringUser()) {
-  const signInPrompt = document.getElementById('webScoreSignInPrompt');
-  const quickSignInPrompt = document.getElementById('quickMatchSignInPrompt');
-  const seriesSignInPrompt = document.getElementById('seriesSignInPrompt');
-  if (signInPrompt) signInPrompt.hidden = isRegistered;
-  if (quickSignInPrompt) quickSignInPrompt.hidden = isRegistered;
-  if (seriesSignInPrompt) seriesSignInPrompt.hidden = isRegistered;
-}
-
-function requireRegisteredScoringMode(modeName, options = {}) {
-  if (isRegisteredScoringUser()) return true;
-
-  const keepCurrentScreen = options.keepCurrentScreen === true;
-  if (!keepCurrentScreen) {
-    navigateToRoute('/');
-    showLandingScreen();
-  }
-
-  showToast(`Sign in or Register to access ${modeName}`, 'info');
-  openAuthModal('LOGIN');
-  return false;
-}
-
 function startQuickMatch() {
   closeFeaturesMenu();
-  if (!requireRegisteredScoringMode('Quick Match', { keepCurrentScreen: true })) return;
-
   currentScoringMode = 'FULL';
   showNewMatchScreen('FULL');
 }
@@ -52,57 +23,24 @@ async function renderHomeDashboard() {
   const recentList = document.getElementById('homeRecentMatches');
   if (!entry || !dashboard || !recentList) return;
 
-  const userMode = localStorage.getItem('cric_user_mode');
-  const user = window.CricStorage.getCurrentUser();
-  const isRegistered = Boolean(user) || userMode === 'REGISTERED';
-  const hasAppSession = isRegistered || userMode === 'GUEST';
-  document.documentElement.classList.toggle('has-app-session', hasAppSession);
-  updateScoringModeAccess(isRegistered);
+  document.documentElement.classList.add('has-app-session');
   const recentSection = document.getElementById('homeRecentSection');
   const guestSavedMatchesPrompt = document.getElementById('guestSavedMatchesPrompt');
   const homeSeriesSection = document.getElementById('homeSeriesSection');
-  if (recentSection) recentSection.hidden = !isRegistered || !hasAppSession;
-  if (guestSavedMatchesPrompt) guestSavedMatchesPrompt.hidden = isRegistered || !hasAppSession;
-  if (homeSeriesSection) homeSeriesSection.hidden = !isRegistered || !hasAppSession;
+  if (recentSection) recentSection.hidden = false;
+  if (guestSavedMatchesPrompt) guestSavedMatchesPrompt.hidden = true;
+  if (homeSeriesSection) homeSeriesSection.hidden = false;
 
-  if (hasAppSession) {
-    entry.hidden = true;
-    entry.setAttribute('hidden', '');
-    dashboard.hidden = false;
-    dashboard.removeAttribute('hidden');
-  } else {
-    entry.hidden = false;
-    entry.removeAttribute('hidden');
-    dashboard.hidden = true;
-    dashboard.setAttribute('hidden', '');
-    return;
-  }
+  entry.hidden = true;
+  entry.setAttribute('hidden', '');
+  dashboard.hidden = false;
+  dashboard.removeAttribute('hidden');
 
-  // Toggle CTAs based on session state (Guest vs Signed-In)
   const guestCtas = document.getElementById('homeGuestCtas');
-  const registeredCtas = document.getElementById('homeRegisteredCtas');
-  if (isRegistered) {
-    if (guestCtas) {
-      guestCtas.hidden = true;
-      guestCtas.setAttribute('hidden', '');
-      guestCtas.style.display = 'none';
-    }
-    if (registeredCtas) {
-      registeredCtas.hidden = false;
-      registeredCtas.removeAttribute('hidden');
-      registeredCtas.style.display = 'flex';
-    }
-  } else {
-    if (guestCtas) {
-      guestCtas.hidden = false;
-      guestCtas.removeAttribute('hidden');
-      guestCtas.style.display = 'flex';
-    }
-    if (registeredCtas) {
-      registeredCtas.hidden = true;
-      registeredCtas.setAttribute('hidden', '');
-      registeredCtas.style.display = 'none';
-    }
+  if (guestCtas) {
+    guestCtas.hidden = false;
+    guestCtas.removeAttribute('hidden');
+    guestCtas.style.display = 'flex';
   }
   recentList.replaceChildren();
   try {
@@ -149,7 +87,6 @@ function startWebScore() {
 }
 
 async function loadMatchListScreen() {
-  if (!requireRegisteredScoringMode('Match Center', { keepCurrentScreen: true })) return;
   updateNavState('navMatches');
   showScreen('screenMatchList');
 

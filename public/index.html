@@ -7,14 +7,7 @@
   <script>
     (function () {
       try {
-        const mode = localStorage.getItem('cric_user_mode');
-        const user = localStorage.getItem('cric_auth_user');
-        const token = localStorage.getItem('cric_auth_token');
-        const hasRegisteredSession = mode === 'REGISTERED' || Boolean(user) || Boolean(token && !token.startsWith('token_local'));
-
-        if (mode === 'GUEST' || hasRegisteredSession) {
-          document.documentElement.classList.add('has-app-session');
-        }
+        document.documentElement.classList.add('has-app-session');
       } catch (_) {
         // Storage may be unavailable in a restricted browser context; render the normal first-visit state.
       }
@@ -35,7 +28,7 @@
     </div>
     <div class="app-header-actions" style="display:flex; align-items:center; gap:8px;">
       <button class="nav-btn features-trigger-btn" style="background:var(--color-primary-soft); border:1px solid var(--color-electric);" onclick="toggleFeaturesMenu(event)">✨ Features ▾</button>
-      <button id="authBtn" class="nav-btn" style="background:var(--color-primary);" onclick="openAuthModal()">🔑 Sign In</button>
+      <button id="authBtn" class="nav-btn" style="background:var(--color-primary);" onclick="openAuthModal()">☁ Cloud Sync</button>
       <button class="nav-btn" style="background:var(--color-primary-soft);" onclick="openMatchSettingsModal()">⚙️ Settings</button>
       <span id="syncBadge" class="status-badge online">🟢 Sync Active</span>
     </div>
@@ -160,22 +153,17 @@
           <span>Live ball-by-ball scoring</span>
           <span>Series and tournament flow</span>
           <span>Match stats and scorecards</span>
-          <span>Guest mode + account sync</span>
+          <span>Optional cloud sync</span>
         </div>
 
         <div class="landing-btn-group">
-          <button class="btn-primary" style="padding:16px; font-size:16px;" onclick="openAuthModal('REGISTER')">
-            📝 Register / Sign In
-          </button>
-
-          <button class="btn" style="background:var(--color-primary-soft); padding:14px; font-size:14px; color:var(--color-text-on-dark); border-color:var(--color-border-dark);" onclick="continueAsGuest()">
-            👤 Continue as Guest
+          <button class="btn-primary" style="padding:16px; font-size:16px;" onclick="showWebScoreLandingScreen()">
+            ⚡ Start Scoring
           </button>
         </div>
 
         <div class="landing-user-note">
-          <b>Registered Users</b>: Matches, series, and player stats are securely synced.<br>
-          <b>Guest Users</b>: Score instantly; data stays locally on this device.
+          Score locally without an account. Sign in only to access cloud-synced data.
         </div>
 
         <!-- Google Play Store Badge Section -->
@@ -212,7 +200,7 @@
             </h1>
 
             <p class="cric-hero-subline">
-              Use Web Score for a free browser match — sign in to save matches and stats.
+              Score locally without an account. Sign in only when you need cloud data.
             </p>
 
             <!-- Dynamic CTAs based on session state (Guest vs Signed-In) -->
@@ -304,7 +292,7 @@
           <span class="strip-item">📊 Full scorecard</span>
         </div>
 
-        <!-- Saved match history is available to signed-in users only. -->
+        <!-- Match history is stored locally and is available without sign-in. -->
         <section id="homeRecentSection" class="home-recent-section" aria-labelledby="recentMatchesHeading" hidden>
           <div class="home-section-heading">
             <div><h2 id="recentMatchesHeading">Recent Matches</h2><p>Your latest saved scorecards</p></div>
@@ -313,7 +301,7 @@
           <div id="homeRecentMatches" class="home-recent-list" aria-live="polite"></div>
         </section>
         <p id="guestSavedMatchesPrompt" class="web-score-signin-prompt home-saved-matches-prompt" hidden>
-          Want saved matches &amp; player stats? <button type="button" onclick="openAuthModal('LOGIN')">Sign In.</button>
+          Sign in to access cloud-synced matches.
         </p>
       </section>
     </div>
@@ -330,7 +318,7 @@
           <div class="cric-hero-actions web-score-home-actions">
             <button class="cric-btn cric-btn-primary" type="button" onclick="startWebScore()">⚡ Start Scoring</button>
           </div>
-          <p class="web-score-signin-prompt" id="webScoreSignInPrompt">Want saved matches &amp; player stats? <button type="button" onclick="openAuthModal('LOGIN')">Sign In.</button></p>
+          <p class="web-score-signin-prompt" id="webScoreSignInPrompt">Sign in to access cloud-synced matches.</p>
         </div>
       </div>
     </div>
@@ -361,11 +349,11 @@
 
           <div class="cric-hero-actions" style="margin-top:28px;">
             <button id="fullMatchLandingBtn" class="cric-btn cric-btn-primary" type="button" onclick="startQuickMatch()">
-              🔑 Sign In / Register to Start Quick Match →
+              📋 Start Quick Match →
             </button>
           </div>
           <p class="web-score-signin-prompt" id="quickMatchSignInPrompt" style="margin-top:10px;">
-            Signed users only for saved Quick Match scoring. <button type="button" onclick="openAuthModal('LOGIN')">Sign In.</button>
+            Quick Match saves locally. Sign in only to access cloud data.
           </p>
         </div>
       </div>
@@ -398,7 +386,7 @@
             <button class="cric-btn cric-btn-secondary" type="button" onclick="openSeriesCreateFlow();">Create New Series</button>
           </div>
           <p class="web-score-signin-prompt" id="seriesSignInPrompt" style="margin-top:10px;">
-            Signed users only for Series management and fixtures. <button type="button" onclick="openAuthModal('LOGIN')">Sign In.</button>
+            Series data saves locally. Sign in only to access cloud data.
           </p>
         </div>
       </div>
@@ -940,7 +928,7 @@
       </div>
       <div class="form-group">
         <label for="authEmail">Email Address</label>
-        <input type="email" id="authEmail" class="form-control" placeholder="scorer@example.com">
+        <input type="email" id="authEmail" class="form-control" placeholder="scorer@gmail.com">
       </div>
       <div class="form-group">
         <label for="authPassword">Password</label>

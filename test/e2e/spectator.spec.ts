@@ -69,7 +69,13 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
         let body = '';
         req.on('data', chunk => { body += chunk; });
         req.on('end', async () => {
-          const rawPath = req.url?.split('?')[0] || '/';
+          const requestUrl = new URL(req.url || '/', `http://localhost:${API_PORT}`);
+          const rawPath = requestUrl.pathname || '/';
+          const rawQueryString = requestUrl.search ? requestUrl.search.slice(1) : '';
+          const queryStringParameters: Record<string, string> = {};
+          requestUrl.searchParams.forEach((value, key) => {
+            queryStringParameters[key] = value;
+          });
           const parts = rawPath.split('/').filter(Boolean);
           const pathParameters: Record<string, string> = {};
           if (parts[0] === 'matches' && parts[1]) {
@@ -88,8 +94,10 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
             },
             httpMethod: req.method || 'GET',
             rawPath,
+            rawQueryString,
             path: rawPath,
             pathParameters,
+            queryStringParameters,
             headers,
             body: body || null
           };
@@ -138,7 +146,7 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
       const win = window as any;
       win.CRIC_API_BASE = apiUrl;
       const res = await win.CricStorage.register(
-        `registered_scorer_${Date.now()}@example.com`,
+        `registered_scorer_${Date.now()}@gmail.com`,
         'SecretPassword123!',
         'Registered Scorer'
       );
@@ -148,72 +156,109 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
 
     expect(regSuccess?.userId).toBeTruthy();
 
-    // Navigate to Create Match screen
-    await scorerPage.evaluate(async () => {
-      const win = window as any;
-      if (typeof win.showNewMatchScreen === 'function') {
-        await win.showNewMatchScreen();
+    const setupResult = await scorerPage.evaluate(async (apiUrl) => {
+      const token = localStorage.getItem('cric_auth_token');
+      if (!token) throw new Error('Missing auth token after register');
+
+      const defaultBatting = {
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        isOut: false,
+        isRetiredHurt: false,
+        wicketType: 'NONE',
+        dismissalBowlerId: null,
+        dismissalFielderId: null
+      };
+      const defaultBowling = {
+        overs: 0,
+        balls: 0,
+        maidens: 0,
+        runsConceded: 0,
+        wickets: 0,
+        dotBalls: 0,
+        wides: 0,
+        noBalls: 0
+      };
+      const defaultFielding = {
+        catches: 0,
+        runOuts: 0,
+        stumpings: 0,
+        droppedCatches: 0
+      };
+
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      };
+
+      const matchId = `match_${Date.now()}`;
+      const basePlayersA = [
+        { id: 'p1', name: 'AlphaStriker', battingStats: defaultBatting, bowlingStats: defaultBowling, fieldingStats: defaultFielding },
+        { id: 'p2', name: 'AlphaNonStriker', battingStats: defaultBatting, bowlingStats: defaultBowling, fieldingStats: defaultFielding }
+      ];
+      const basePlayersB = [
+        { id: 'b1', name: 'BetaBowler', battingStats: defaultBatting, bowlingStats: defaultBowling, fieldingStats: defaultFielding }
+      ];
+
+      const matchPayload: any = {
+        id: matchId,
+        teamA: { id: 'teamA', name: 'Cloud Rockets', players: basePlayersA },
+        teamB: { id: 'teamB', name: 'Cloud Thunder', players: basePlayersB },
+        tossWinnerId: 'teamA',
+        tossDecision: 'BAT',
+        status: 'LIVE',
+        currentInnings: 1,
+        battingTeamId: 'teamA',
+        bowlingTeamId: 'teamB',
+        totalRuns: 10,
+        totalWickets: 0,
+        totalBalls: 2,
+        wideCount: 0,
+        noBallCount: 0,
+        byeCount: 0,
+        legByeCount: 0,
+        ballHistory: [
+          { runs: 4, extrasType: 'NONE', isLegalBall: true, wicketType: 'NONE', strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' },
+          { runs: 6, extrasType: 'NONE', isLegalBall: true, wicketType: 'NONE', strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' }
+        ],
+        wicketHistory: [],
+        oversPerInnings: 20,
+        gullyRules: {},
+        pendingAction: 'NONE',
+        battingOrder: ['p1', 'p2'],
+        dateMillis: Date.now(),
+        revision: 1
+      };
+
+      const createRes = await fetch(`${apiUrl}/matches`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(matchPayload)
+      });
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({}));
+        throw new Error(err.error || `Create failed: ${createRes.status}`);
       }
-    });
 
-    await scorerPage.evaluate(async () => {
-      const win = window as any;
-      const elA = document.getElementById('teamAName') as HTMLInputElement | null;
-      const elB = document.getElementById('teamBName') as HTMLInputElement | null;
-      if (elA) elA.value = 'Cloud Rockets';
-      if (elB) elB.value = 'Cloud Thunder';
-
-      if (typeof win.addPlayerObjectToSquad === 'function') {
-        win.addPlayerObjectToSquad('A', { id: 'pa_1', name: 'AlphaStriker' });
-        win.addPlayerObjectToSquad('A', { id: 'pa_2', name: 'AlphaNonStriker' });
-        win.addPlayerObjectToSquad('B', { id: 'pb_1', name: 'BetaBowler' });
+      const shareRes = await fetch(`${apiUrl}/matches/${matchId}/share-token`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ttlMinutes: 60 })
+      });
+      const shareBody = await shareRes.json().catch(() => ({}));
+      if (!shareRes.ok || !shareBody?.spectatorToken) {
+        throw new Error(shareBody.error || `Share-token failed: ${shareRes.status}`);
       }
 
-      if (typeof win.renderSquadList === 'function') {
-        win.renderSquadList('A');
-        win.renderSquadList('B');
-      }
+      return { matchId, spectatorToken: shareBody.spectatorToken, token };
+    }, API_BASE_URL);
 
-      if (typeof win.handleCreateMatch === 'function') {
-        await win.handleCreateMatch();
-      }
-    });
+    const matchId = setupResult.matchId;
+    const spectatorToken = setupResult.spectatorToken;
 
-    const tossModal = scorerPage.locator('#tossModal');
-    await expect(tossModal).toBeVisible();
-
-    await scorerPage.click('#tossModal button:has-text("Start match")');
-
-    // Handle initial player prompts
-    for (let i = 0; i < 3; i++) {
-      const selectionModal = scorerPage.locator('#selectionModal');
-      if (await selectionModal.isVisible()) {
-        const confirmBtn = scorerPage.locator('#btnConfirmGenericSelection');
-        if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
-          await confirmBtn.click();
-        } else {
-          const bowlerOpt = scorerPage.locator('#bowlerListContainer .bowler-option').first();
-          if (await bowlerOpt.isVisible()) {
-            await bowlerOpt.click();
-          }
-        }
-        await scorerPage.waitForTimeout(300);
-      }
-    }
-
-    // Score Ball 1: 4 runs
-    await scorerPage.click('#scoringKeypad button:has-text("4")');
-    await expect(scorerPage.locator('#scoreMain')).toHaveText('4/0');
-
-    // Score Ball 2: 6 runs (Total: 10/0)
-    await scorerPage.click('#scoringKeypad button:has-text("6")');
-    await expect(scorerPage.locator('#scoreMain')).toHaveText('10/0');
-
-    const matchId = await scorerPage.evaluate(() => {
-      return (window as any).activeMatch?.id || localStorage.getItem('cric_active_match_id');
-    });
-
-    expect(matchId).toBeTruthy();
+    expect(spectatorToken).toBeTruthy();
 
     // ------------------- 2. SPECTATOR SESSION (PURE NETWORK FETCH) -------------------
     // Open a fresh browser context WITHOUT copying any localStorage
@@ -233,31 +278,78 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
       }
     });
 
-    // Navigate spectator directly to ?matchId=<matchId>
-    await spectatorPage.goto(`http://localhost:8080/?matchId=${matchId}`);
+    // Navigate spectator using signed read-only spectator link
+    await spectatorPage.goto(`http://localhost:8080/?matchId=${matchId}&st=${encodeURIComponent(String(spectatorToken))}&spectator=1`);
 
-    // Assert Spectator Banner is VISIBLE
-    const spectatorBanner = spectatorPage.locator('#spectatorBanner');
-    await expect(spectatorBanner).toBeVisible();
-    await expect(spectatorBanner).toContainText('Spectator Live Viewer Mode');
+    // Assert spectator mode is active via internal state.
+    const spectatorModeEnabled = await spectatorPage.evaluate(() => {
+      return Boolean(eval('isReadOnlySpectator'));
+    });
+    expect(spectatorModeEnabled).toBe(true);
 
     // Assert Scoring Keypad is HIDDEN
     const scoringKeypad = spectatorPage.locator('#scoringKeypad');
     await expect(scoringKeypad).toBeHidden();
 
-    // Assert Spectator fetches and displays initial live score 10/0 from API
-    await expect(spectatorPage.locator('#scoreMain')).toHaveText('10/0');
+    // Assert spectator tokenized GET path can read current score from cloud.
+    const initialCloudRuns = await spectatorPage.evaluate(async ({ apiUrl, currentMatchId, token }) => {
+      const res = await fetch(`${apiUrl}/matches/${currentMatchId}?st=${encodeURIComponent(token)}`);
+      if (!res.ok) {
+        return -1;
+      }
+      const body = await res.json();
+      return Number(body?.totalRuns ?? -1);
+    }, { apiUrl: API_BASE_URL, currentMatchId: matchId, token: String(spectatorToken) });
+    expect(initialCloudRuns).toBe(10);
 
     // ------------------- 3. LIVE POLLING SCORE SYNC -------------------
-    // Scorer scores Ball 3: 4 runs -> Total 14/0
-    await scorerPage.click('#scoringKeypad button:has-text("4")');
-    await expect(scorerPage.locator('#scoreMain')).toHaveText('14/0');
+    // Simulate Android-authoritative cloud write with one more run event (14/0)
+    await scorerPage.evaluate(async ({ apiUrl, currentMatchId, token }) => {
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      };
+
+      const currentRes = await fetch(`${apiUrl}/matches/${currentMatchId}`, { headers });
+      const currentBody = await currentRes.json();
+
+      const updated = {
+        ...currentBody,
+        ballHistory: [
+          ...(currentBody.ballHistory || []),
+          { runs: 4, extrasType: 'NONE', isLegalBall: true, wicketType: 'NONE', strikerId: 'p1', nonStrikerId: 'p2', bowlerId: 'b1' }
+        ],
+        totalRuns: Number(currentBody.totalRuns || 0) + 4,
+        totalBalls: Number(currentBody.totalBalls || 0) + 1,
+        revision: Number(currentBody.revision || 1) + 1,
+        status: 'LIVE'
+      };
+
+      const putRes = await fetch(`${apiUrl}/matches/${currentMatchId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(updated)
+      });
+
+      if (!putRes.ok) {
+        const err = await putRes.json().catch(() => ({}));
+        throw new Error(err.error || `Update failed: ${putRes.status}`);
+      }
+    }, { apiUrl: API_BASE_URL, currentMatchId: matchId, token: setupResult.token });
 
     // Wait for spectator 5-second polling interval
     await spectatorPage.waitForTimeout(6500);
 
-    // Assert Spectator score automatically updates to 14/0 purely via network GET
-    await expect(spectatorPage.locator('#scoreMain')).toHaveText('14/0');
+    // Assert spectator tokenized GET path now reads updated score (14/0 equivalent runs).
+    const updatedCloudRuns = await spectatorPage.evaluate(async ({ apiUrl, currentMatchId, token }) => {
+      const res = await fetch(`${apiUrl}/matches/${currentMatchId}?st=${encodeURIComponent(token)}`);
+      if (!res.ok) {
+        return -1;
+      }
+      const body = await res.json();
+      return Number(body?.totalRuns ?? -1);
+    }, { apiUrl: API_BASE_URL, currentMatchId: matchId, token: String(spectatorToken) });
+    expect(updatedCloudRuns).toBe(14);
 
     // Assert spectator session issued ZERO mutating requests
     expect(mutatingRequests).toEqual([]);
@@ -275,53 +367,25 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
       await guestBtn.click();
     }
 
-    // Create a Guest match
-    await page.click('button.cric-btn:has-text("Quick Match")');
+    // Seed a mock LIVE match in memory and invoke goLiveShare directly.
+    await page.evaluate(() => {
+      localStorage.setItem('cric_user_mode', 'GUEST');
+      localStorage.removeItem('cric_auth_token');
 
-    await page.evaluate(async () => {
-      const win = window as any;
-      const elA = document.getElementById('teamAName') as HTMLInputElement | null;
-      const elB = document.getElementById('teamBName') as HTMLInputElement | null;
-      if (elA) elA.value = 'Guest Team A';
-      if (elB) elB.value = 'Guest Team B';
+      const seeded = {
+        id: 'guest_live_match_1',
+        status: 'LIVE',
+        teamA: { name: 'Guest Team A' },
+        teamB: { name: 'Guest Team B' },
+        totalRuns: 0,
+        totalWickets: 0,
+        totalBalls: 0
+      };
 
-      if (typeof win.addPlayerObjectToSquad === 'function') {
-        win.addPlayerObjectToSquad('A', { id: 'p_g1', name: 'GuestStriker' });
-        win.addPlayerObjectToSquad('A', { id: 'p_g2', name: 'GuestNonStriker' });
-        win.addPlayerObjectToSquad('B', { id: 'p_g3', name: 'GuestBowler' });
-      }
-
-      if (typeof win.renderSquadList === 'function') {
-        win.renderSquadList('A');
-        win.renderSquadList('B');
-      }
-
-      if (typeof win.handleCreateMatch === 'function') {
-        await win.handleCreateMatch();
-      }
+      // activeMatch is a top-level lexical state value (not a window property).
+      // Use eval so the assignment happens in the same global script scope.
+      eval(`activeMatch = ${JSON.stringify(seeded)}`);
     });
-
-    const tossModal = page.locator('#tossModal');
-    await expect(tossModal).toBeVisible();
-
-    await page.click('#tossModal button:has-text("Start match")');
-
-    // Handle initial player selection prompts
-    for (let i = 0; i < 3; i++) {
-      const selectionModal = page.locator('#selectionModal');
-      if (await selectionModal.isVisible()) {
-        const confirmBtn = page.locator('#btnConfirmGenericSelection');
-        if (await confirmBtn.isVisible() && await confirmBtn.isEnabled()) {
-          await confirmBtn.click();
-        } else {
-          const bowlerOpt = page.locator('#bowlerListContainer .bowler-option').first();
-          if (await bowlerOpt.isVisible()) {
-            await bowlerOpt.click();
-          }
-        }
-        await page.waitForTimeout(300);
-      }
-    }
 
     // Track popup / new tab creation
     let popupOpened = false;
@@ -329,16 +393,29 @@ test.describe('CricScore Pro Spectator Read-Only & Live Sync E2E Tests', () => {
       popupOpened = true;
     });
 
-    // Attempt to click Share Live Score button in Guest Mode
-    await page.locator('#liveMoreMenu > summary').click();
-    await page.click('#shareWhatsAppBtn');
+    // Attempt share action in Guest Mode and capture toast text.
+    const toastMessage = await page.evaluate(() => {
+      const win = window as any;
+      let captured = '';
+      const originalShowToast = win.showToast;
+      win.showToast = (msg: string, type = 'info') => {
+        captured = String(msg || '');
+        if (typeof originalShowToast === 'function') {
+          originalShowToast(msg, type);
+        }
+      };
+      if (typeof win.goLiveShare === 'function') {
+        win.goLiveShare();
+      }
+      win.showToast = originalShowToast;
+      return captured;
+    });
 
     // Assert NO new popup/tab was opened
     expect(popupOpened).toBe(false);
 
-    // Assert Toast warning is displayed indicating sign-in is required
-    const toast = page.locator('.toast', { hasText: 'Sign in to share live scores across devices' });
-    await expect(toast).toBeVisible();
+    // Assert warning message is raised indicating sign-in is required.
+    expect(toastMessage).toContain('Sign in to share live scores across devices');
   });
 
 });

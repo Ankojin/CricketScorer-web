@@ -238,6 +238,14 @@ Resources:
             Ref: CricMatchesTable
           JWT_SECRET_ARN:
             Ref: JwtSigningSecret
+          ENFORCE_ANDROID_MATCH_WRITES: "true"
+          ENFORCE_STRICT_MATCH_REVISION: "false"
+          ENABLE_AUTH_RATE_LIMIT: "true"
+          AUTH_RATE_LIMIT_MAX_REQUESTS: "20"
+          AUTH_RATE_LIMIT_WINDOW_SECONDS: "60"
+          MATCH_WRITE_MAX_BODY_BYTES: "262144"
+          MATCH_WRITE_MAX_BALL_EVENTS: "3000"
+          MATCH_WRITE_MAX_WICKET_EVENTS: "400"
       Policies:
         - Statement:
             - Effect: Allow
